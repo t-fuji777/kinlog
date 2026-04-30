@@ -113,7 +113,7 @@
   }
   body {
     min-height: 100vh;
-    padding-top: var(--safe-top);
+    padding-top: 0; /* ヘッダー側でsafe-area分の余白を確保するため、body自体は0に */
     padding-bottom: 0; /* ナビが画面最下部に張り付くようにbodyの下paddingは0にする（safe-bottomは.nav側で処理） */
     /* Subtle atmospheric background — 単色のみ（グラデは ::before で固定描画） */
     background: var(--bg);
@@ -150,33 +150,37 @@
   }
 
   /* ==================== HEADER ==================== */
+  /* 参考画像(DMMぱちタウンアプリ)のヘッダーと同じ寸法を再現:
+     - 全体の高さ ≒ safe-area-inset-top + 41px
+     - ロゴと日付は下線(ヘッダー下端)寄せ
+     - 時計・バッテリーの真下は避け、各々左右に少しオフセット */
   .header {
-    height: 60px;
-    padding: 0 20px;
+    /* ロゴが時計と重ならないよう、本体高さは48pxを確保(ロゴ32px+下padding+余白) */
+    padding: var(--safe-top) 20px 8px;
     box-sizing: border-box;
-    display: flex; justify-content: space-between; align-items: center;
-    background: rgba(10, 10, 12, 0.7);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    display: flex; justify-content: space-between; align-items: flex-end;
+    background: #1d1d22;
     position: static;
     flex-shrink: 0;
+    /* ヘッダー本体の高さ(safe-area-inset-topは別) */
+    min-height: calc(var(--safe-top) + 48px);
   }
   /* ホーム・履歴・設定画面では、ヘッダーを画面上部に固定（ワークアウト画面のみ除外） */
   body.header-fixed .header {
     position: fixed;
-    top: var(--safe-top);
+    top: 0;
     left: 0;
     right: 0;
     margin: 0 auto;
     max-width: 500px;
     z-index: 50;
-    background: #5a5a62;
+    background: #1d1d22;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
-  /* fixed化に伴うコンテンツの上部余白を確保（ヘッダー60px分） */
+  /* fixed化に伴うコンテンツの上部余白を確保（ヘッダー高さに合わせる） */
   body.header-fixed .app {
-    padding-top: 60px;
+    padding-top: calc(var(--safe-top) + 48px);
   }
   .brand {
     display: flex; align-items: center; gap: 10px;
@@ -186,12 +190,13 @@
     -webkit-user-select: none;
   }
   .brand-logo {
-    height: 48px;
+    height: 32px;
     width: auto;
     object-fit: contain;
     display: block;
-    /* ロゴ画像下部にある白い点（PNG内のアーティファクト）を非表示にする */
-    clip-path: inset(0 0 4px 0);
+    /* ロゴ画像下部にある白い点（PNG内のアーティファクト）を非表示にする
+       ロゴ高さに比例: 48px時に4px → 32px時に3px */
+    clip-path: inset(0 0 3px 0);
   }
   .admin-badge {
     display: inline-flex;
@@ -282,7 +287,7 @@
   }
   .header-date {
     font-family: var(--font-mono);
-    font-size: 13px; color: var(--text);
+    font-size: 16px; color: var(--text);
     font-weight: 600; letter-spacing: 0.3px;
     white-space: nowrap;
   }
@@ -1324,10 +1329,11 @@
     background: var(--bg-1);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 10px 2px;
+    padding: 8px 2px;
     text-align: center;
-    min-height: 70px;
-    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 80px;
+    display: flex; flex-direction: column; justify-content: flex-start;
+    gap: 4px;
   }
   .week-day.today {
     border-color: var(--accent);
@@ -1357,6 +1363,16 @@
   .week-day.today.done .week-menu {
     color: var(--text);
   }
+  .week-date {
+    font-family: var(--font-mono);
+    font-size: 10px; font-weight: 600;
+    color: var(--text-3);
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+  .week-day.today .week-date { color: var(--accent); }
+  .week-day.done .week-date { color: var(--ok); }
+  .week-day.today.done .week-date { color: var(--accent); }
   .week-dow {
     font-family: var(--font-mono);
     font-size: 10px; font-weight: 700;
@@ -8465,16 +8481,32 @@
     const thisWeekSessions = history.filter(s => new Date(s.date) >= weekStart);
     const doneMenus = thisWeekSessions.map(s => s.menuId);
 
+    // 起点日(週の開始曜日)から各曜日の日付を計算するためのベース日付を求める
+    // 「今日(realToday)」を基準に、orderedDowsの各曜日との日数差を計算する
+    const baseDate = new Date(now);
+    baseDate.setHours(0, 0, 0, 0);
+
     const strip = document.getElementById('weekStrip');
     strip.innerHTML = '';
     const orderedDows = getOrderedDows();
-    orderedDows.forEach((dayIdx) => {
+    // 起点日の日付を求める：今日から遡る
+    // 今日の曜日(realToday)が orderedDows のどの位置にあるかを探す
+    const todayIndex = orderedDows.indexOf(realToday);
+    // orderedDows[0] (起点日) の日付 = 今日 - todayIndex 日
+    const startDate = new Date(baseDate);
+    startDate.setDate(startDate.getDate() - todayIndex);
+
+    orderedDows.forEach((dayIdx, i) => {
       const menuKey = schedule[dayIdx];
       const menu = menuKey ? getMenu(menuKey) : null;
       const isDone = menuKey && doneMenus.includes(menuKey);
       const isToday = dayIdx === today;
       // 予定バッジ：今日 かつ メニュー有り かつ 未実施 のみ表示
       const isUpcoming = isToday && !!menu && !isDone;
+      // この曜日チップの日付を計算
+      const chipDate = new Date(startDate);
+      chipDate.setDate(chipDate.getDate() + i);
+      const dateLabel = `${chipDate.getMonth() + 1}/${chipDate.getDate()}`;
       const el = document.createElement('div');
       el.className = 'week-day' + (isToday ? ' today' : '') + (isDone ? ' done' : '') + (isUpcoming ? ' upcoming' : '');
       let badgeMark = '';
@@ -8482,12 +8514,14 @@
       else if (isUpcoming) badgeMark = '<div class="week-plan-mark">予定</div>';
       if (menu) {
         el.innerHTML = `
+          <div class="week-date">${dateLabel}</div>
           <div class="week-dow">${DOW[dayIdx]}</div>
           ${badgeMark}
           <div class="week-menu">${menu.shortName || menu.name}</div>
         `;
       } else {
         el.innerHTML = `
+          <div class="week-date">${dateLabel}</div>
           <div class="week-dow">${DOW[dayIdx]}</div>
           ${badgeMark}
           <div class="week-menu rest">休</div>
