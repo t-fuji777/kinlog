@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="筋LOG">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#1d1d22">
 <!-- 縦画面固定（PWAとしてホーム画面に追加して起動した場合に有効） -->
 <meta name="screen-orientation" content="portrait">
 <meta name="x5-orientation" content="portrait">
@@ -17,7 +17,7 @@
 
 <!-- PWA設定 -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ff7a3a">
+<meta name="theme-color" content="#1d1d22">
 <meta name="description" content="筋トレ・HIIT・体幹・有酸素のトレーニング記録アプリ">
 
 <!-- iOS用：ホーム画面追加時のアイコン・スプラッシュ・ステータスバー -->
@@ -61,6 +61,10 @@
     --accent: #FF5A1F;
     --accent-hi: #FF7A4A;
     --accent-dim: rgba(255, 90, 31, 0.12);
+    /* Text color on top of accent background (黄/白テーマ時は黒に切替) */
+    --accent-text: #FFFFFF;
+    /* Accent境界線色：白テーマ時のみ黒、それ以外はaccentと同色 */
+    --accent-border: var(--accent);
     /* Secondary: cool cyan for data/info */
     --cyan: #38BDF8;
     --cyan-dim: rgba(56, 189, 248, 0.1);
@@ -155,8 +159,8 @@
      - ロゴと日付は下線(ヘッダー下端)寄せ
      - 時計・バッテリーの真下は避け、各々左右に少しオフセット */
   .header {
-    /* ロゴが時計と重ならないよう、本体高さは48pxを確保(ロゴ32px+下padding+余白) */
-    padding: var(--safe-top) 20px 8px;
+    /* ヘッダー右にナビボタン3つ配置のため本体高さ48pxに調整 */
+    padding: var(--safe-top) 16px 6px;
     box-sizing: border-box;
     display: flex; justify-content: space-between; align-items: flex-end;
     background: #1d1d22;
@@ -190,12 +194,12 @@
     -webkit-user-select: none;
   }
   .brand-logo {
-    height: 32px;
+    height: 36px;
     width: auto;
     object-fit: contain;
     display: block;
     /* ロゴ画像下部にある白い点（PNG内のアーティファクト）を非表示にする
-       ロゴ高さに比例: 48px時に4px → 32px時に3px */
+       ロゴ高さに比例: 48px時に4px → 36px時に3px */
     clip-path: inset(0 0 3px 0);
   }
   .admin-badge {
@@ -291,10 +295,57 @@
     font-weight: 600; letter-spacing: 0.3px;
     white-space: nowrap;
   }
+  /* ヘッダー右端の3ボタンナビ（履歴・ホーム・設定）*/
+  .header-nav {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .header-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 1px 2px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background 0.15s, color 0.15s;
+    width: 36px;
+    height: 36px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .header-nav-btn:active {
+    transform: scale(0.95);
+  }
+  .header-nav-btn.active {
+    background: var(--accent);
+    border-color: var(--accent-border);
+    color: var(--accent-text);
+  }
+  .header-nav-icon {
+    font-size: 18px;
+    line-height: 1;
+    margin-bottom: 1px;
+  }
+  .header-nav-label {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1;
+    white-space: nowrap;
+  }
 
   /* ==================== SCREEN ==================== */
-  /* 下paddingは「ナビの実高さ + safe-bottom + 余白10px」を確保 */
-  .screen { display: none; padding: 4px 18px calc(71px + var(--safe-bottom)); }
+  .screen { display: none; padding: 0 18px calc(20px + var(--safe-bottom)); }
   .screen.active { display: block; animation: fadeIn 0.25s ease; }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(6px); }
@@ -497,7 +548,7 @@
   }
   .mode-btn.selected {
     background: var(--accent);
-    color: #000;
+    color: var(--accent-text);
   }
   .mode-btn:not(.selected):active {
     background: var(--bg-3);
@@ -596,11 +647,10 @@
   .day-chip:active { transform: scale(0.95); }
   .day-chip.selected {
     background: var(--accent);
-    border-color: var(--accent);
-    box-shadow: 0 4px 20px rgba(255, 90, 31, 0.3);
+    border-color: var(--accent-border);
   }
-  .day-chip.selected .day-chip-dow { color: #000; font-weight: 700; }
-  .day-chip.selected .day-chip-en { color: rgba(0,0,0,0.5); }
+  .day-chip.selected .day-chip-dow { color: var(--accent-text); font-weight: 700; }
+  .day-chip.selected .day-chip-en { color: var(--accent-text); opacity: 0.7; }
 
   .weekstart-grid {
     display: grid;
@@ -623,8 +673,8 @@
   .weekstart-chip:active { transform: scale(0.95); }
   .weekstart-chip.selected {
     background: var(--accent);
-    border-color: var(--accent);
-    color: #000;
+    border-color: var(--accent-border);
+    color: var(--accent-text);
   }
 
   .accent-color-grid {
@@ -652,6 +702,37 @@
   .accent-color-swatch.selected {
     border-color: #fff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+  }
+  /* 白色swatch：背景と同化しないように常時黒枠（細め）、選択時のシャドウは無し */
+  .accent-color-swatch.is-white {
+    border: 1px solid #000 !important;
+  }
+  .accent-color-swatch.is-white.selected {
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+  }
+  /* 白テーマ時：accent-borderを使う選択UIの枠線を1.5pxにして視認性向上 */
+  body.theme-white .day-chip.selected,
+  body.theme-white .weekstart-chip.selected,
+  body.theme-white .header-nav-btn.active,
+  body.theme-white .mode-btn.selected {
+    border-width: 1.5px;
+  }
+  /* 白テーマ時：カレンダーの今日・選択日は白背景＋黒枠線＋黒数字に統一 */
+  body.theme-white .cal-cell.today,
+  body.theme-white .cal-cell.selected {
+    background: #FFFFFF;
+    border-color: #000000;
+  }
+  body.theme-white .cal-cell.today .day-num,
+  body.theme-white .cal-cell.selected .day-num,
+  body.theme-white .cal-cell.today.sun .day-num,
+  body.theme-white .cal-cell.today.sat .day-num {
+    color: #000000;
+  }
+  /* 白テーマ時：履歴画面のサブタブ非アクティブ文字を黒に */
+  body.theme-white .tab {
+    color: #000000;
   }
   /* 音源選択 */
   .sound-grid {
@@ -794,7 +875,7 @@
   }
   .storage-meter-pct {
     margin-left: auto;
-    color: var(--accent);
+    color: #ffffff;
     font-size: 13px;
   }
   .storage-meter-detail {
@@ -1011,12 +1092,23 @@
   }
   .btn:active { transform: scale(0.97); }
   .btn.primary {
-    background: var(--accent); color: #000;
-    border-color: var(--accent); font-weight: 700;
+    background: var(--accent); color: var(--accent-text);
+    border-color: var(--accent-border); font-weight: 700;
     box-shadow: 0 4px 20px rgba(255, 90, 31, 0.3);
   }
   .btn.primary:active { background: var(--accent-hi); }
   .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+  /* セッション完了 disabled時：影もオフに */
+  .btn.primary:disabled { box-shadow: none; }
+  /* セッション完了無効時の案内テキスト */
+  .finish-hint {
+    text-align: center;
+    color: var(--warn);
+    font-size: 12px;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
 
   /* ==================== CHAT ==================== */
   /* ==================== HOME ==================== */
@@ -1192,7 +1284,7 @@
     letter-spacing: -0.5px;
   }
   .today-start {
-    background: var(--accent); color: #000;
+    background: var(--accent); color: var(--accent-text);
     padding: 14px; border-radius: var(--radius);
     font-weight: 800; text-align: center;
     font-size: 15px; letter-spacing: 1px;
@@ -1248,9 +1340,9 @@
     letter-spacing: 1.5px; font-weight: 700;
     text-transform: uppercase;
   }
-  /* 設定画面の最初のsection-headは上の余白を詰める */
+  /* 設定画面の最初のsection-headは上の余白を調整（ヘッダーとの間に余裕を持たせる） */
   #screen-settings .section-head:first-of-type {
-    margin-top: 3px;
+    margin-top: 12px;
   }
   .section-link {
     color: var(--accent); font-size: 11px;
@@ -1329,11 +1421,10 @@
     background: var(--bg-1);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 8px 2px;
+    padding: 10px 2px;
     text-align: center;
-    min-height: 80px;
-    display: flex; flex-direction: column; justify-content: flex-start;
-    gap: 4px;
+    min-height: 70px;
+    display: flex; flex-direction: column; justify-content: space-between;
   }
   .week-day.today {
     border-color: var(--accent);
@@ -1464,18 +1555,20 @@
 
   .workout-sticky-top {
     position: sticky;
-    top: 0;
+    /* ヘッダーが fixed (safe-area + 48px) なので、その下にstickyを配置 */
+    top: calc(var(--safe-top) + 48px);
     z-index: 51;
-    margin: 0 -18px 4px;
-    padding: 5px 18px 4px;
-    background: var(--bg);
+    margin: 0 -18px 6px;
+    padding: 0 18px 2px;
+    background: #1d1d22;
     border-bottom: 1px solid var(--accent);
     display: flex;
     flex-direction: column;
   }
-  /* タイマーバー非表示時：sticky-topの上余白も詰める */
+  /* タイマーバー非表示時：sticky-topの上下paddingは詰めるが、下marginは維持して種目カードとの白い余白を保つ */
   .workout-sticky-top:has(.workout-timer-bar.mode-hide-both) {
-    padding-top: 2px;
+    padding-top: 0;
+    padding-bottom: 0;
   }
   .workout-timer-bar {
     display: grid;
@@ -1494,17 +1587,35 @@
   .workout-timer-bar.mode-only-elapsed .interval-box {
     display: none;
   }
-  .workout-timer-bar.mode-only-elapsed .elapsed-box .timer-value {
-    font-size: 64px;
+  /* only-elapsed/only-interval時：タイマー枠内のレイアウトを縦中央寄せにして上下バランスを整える */
+  .workout-timer-bar.mode-only-elapsed .elapsed-box,
+  .workout-timer-bar.mode-only-interval .interval-box {
+    justify-content: center;
+  }
+  /* only-elapsed/only-interval時：タイマー値をやや大きく表示 */
+  .workout-timer-bar.mode-only-elapsed .elapsed-box .timer-value,
+  .workout-timer-bar.mode-only-interval .interval-box .timer-value {
+    font-size: 48px;
+  }
+  /* only-elapsed時：リセットボタン(⟲)をタイマー値の右側にバランスよく配置 */
+  .workout-timer-bar.mode-only-elapsed .elapsed-box .timer-label-row {
+    /* 元のラベル右上配置を解除し、リセットボタンは別途タイマー値の右に絶対配置 */
+    position: static;
+  }
+  .workout-timer-bar.mode-only-elapsed .elapsed-box {
+    position: relative;
+  }
+  .workout-timer-bar.mode-only-elapsed .elapsed-box .timer-reset-btn.timer-reset-corner {
+    /* 枠の右側、タイマー値の縦中央付近にバランスよく配置 */
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
   }
   .workout-timer-bar.mode-only-interval {
     grid-template-columns: 1fr auto;
   }
   .workout-timer-bar.mode-only-interval .elapsed-box {
     display: none;
-  }
-  .workout-timer-bar.mode-only-interval .interval-box .timer-value {
-    font-size: 64px;
   }
   .workout-timer-bar.mode-hide-both {
     display: none;
@@ -1514,7 +1625,7 @@
     align-self: flex-end;
     min-width: 36px;
     background: var(--accent);
-    color: #fff;
+    color: var(--accent-text);
     border: none;
     border-radius: 8px;
     padding: 4px 6px;
@@ -1563,8 +1674,8 @@
   }
   .timer-mode-btn.active {
     background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
+    border-color: var(--accent-border);
+    color: var(--accent-text);
   }
   /* 復元チップ列（互換のため残すが空のまま） */
   .timer-restore-row {
@@ -1590,6 +1701,28 @@
     overflow: hidden;
     min-height: 0;
   }
+  /* タイマー値が 00:00（未稼働・未経過）の状態：枠線をテーマカラーに */
+  .timer-box:has(.timer-value:not(.active):not(.paused)) {
+    border-color: var(--accent);
+  }
+  /* インターバル稼働中に次セット/完了を押した時の赤フラッシュアラート */
+  @keyframes intervalAlertFlash {
+    0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.0); border-color: var(--warn); background: rgba(239, 68, 68, 0.18); }
+    20%  { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.6); border-color: var(--warn); background: rgba(239, 68, 68, 0.32); }
+    40%  { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.0); border-color: var(--warn); background: rgba(239, 68, 68, 0.20); }
+    60%  { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.6); border-color: var(--warn); background: rgba(239, 68, 68, 0.32); }
+    80%  { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.0); border-color: var(--warn); background: rgba(239, 68, 68, 0.20); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.0); border-color: var(--warn); background: rgba(239, 68, 68, 0.0); }
+  }
+  .timer-box.interval-alert {
+    animation: intervalAlertFlash 2.4s ease-out;
+    border-color: var(--warn) !important;
+  }
+  /* アラート中はタイマー値・ラベルも赤色に強制（緑などの稼働中色を上書き）*/
+  .timer-box.interval-alert .timer-value,
+  .timer-box.interval-alert .timer-label {
+    color: var(--warn) !important;
+  }
   .timer-label {
     font-family: var(--font-mono);
     font-size: 10px;
@@ -1603,7 +1736,7 @@
   .timer-label-row {
     position: relative;
     text-align: center;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
   .timer-label-row .timer-label {
     margin-bottom: 0;
@@ -1732,7 +1865,7 @@
     background: var(--accent);
     border: none;
     border-radius: 6px;
-    color: #000;
+    color: var(--accent-text);
     font-family: inherit;
     font-size: 11px;
     font-weight: 800;
@@ -1886,7 +2019,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px 14px 4px;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
     transition: all 0.2s;
   }
   .exercise.done {
@@ -2062,8 +2195,8 @@
   }
   .pos-add-btn:active {
     background: var(--accent);
-    color: #000;
-    border-color: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent-border);
     transform: scale(0.9);
   }
   .pos-add-btn:disabled {
@@ -2098,7 +2231,7 @@
     min-width: 22px; height: 22px;
     padding: 0 4px;
     background: var(--accent);
-    color: #000;
+    color: var(--accent-text);
     border-radius: 4px;
     font-size: 12px;
     font-weight: 800;
@@ -2197,14 +2330,25 @@
     vertical-align: middle;
   }
   .last-col-set {
-    width: 22px;
+    width: 30px;
     text-align: center;
     background: var(--bg-3);
     color: var(--text-3);
     font-size: 10px;
     font-weight: 700;
     border-radius: 4px;
+    white-space: nowrap;
   }
+  /* 左右設定時の番号セル内サイドラベル（1の横に「右」「左」を小さく表示）*/
+  .last-set-side {
+    font-size: 9px;
+    font-weight: 700;
+    margin-left: 1px;
+    letter-spacing: 0;
+  }
+  /* セットチップ内の左右ラベルの色（ボタンの色と統一: 右=緑, 左=青）*/
+  .set-side-r { color: #4ADE80; font-weight: 700; }
+  .set-side-l { color: #60A5FA; font-weight: 700; }
   .last-col-weight, .last-col-reps {
     font-weight: 700;
     letter-spacing: -0.3px;
@@ -2323,8 +2467,8 @@
     touch-action: manipulation;
   }
   .step-btn:active {
-    background: var(--accent); color: #000;
-    border-color: var(--accent);
+    background: var(--accent); color: var(--accent-text);
+    border-color: var(--accent-border);
     transform: scale(0.92);
   }
   .step-value {
@@ -2403,6 +2547,29 @@
     line-height: 1.4;
     transition: all 0.15s;
     pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+  }
+  /* セット番号(丸数字 ① ②...)の表示 */
+  .set-chip-num {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  /* セットの記録行 (重量×回数 もしくは 右：xx 左：xx) */
+  .set-chip-line {
+    font-size: 9px;
+    line-height: 1.2;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
+  /* 左右設定時のチップ：3行表示で少し縦に余裕を持たせる */
+  .set-chip.set-chip-bilateral .set-chip-line {
+    font-size: 9px;
+    letter-spacing: 0.2px;
   }
   .set-chip.done-set.ok {
     border-color: var(--ok);
@@ -2499,8 +2666,8 @@
     line-height: 1;
   }
   .set-mini-btn:active {
-    background: var(--accent); color: #000;
-    border-color: var(--accent);
+    background: var(--accent); color: var(--accent-text);
+    border-color: var(--accent-border);
     transform: scale(0.92);
   }
   .set-mini-btn:disabled {
@@ -2634,8 +2801,8 @@
   }
   .menu-title-edit-btn:active {
     background: var(--accent);
-    border-color: var(--accent);
-    color: #000;
+    border-color: var(--accent-border);
+    color: var(--accent-text);
     transform: scale(0.9);
   }
   .menu-editor-actions {
@@ -2655,8 +2822,8 @@
   }
   .menu-editor-action:active { background: var(--bg-3); }
   .menu-editor-action.primary {
-    background: var(--accent); color: #000;
-    border-color: var(--accent);
+    background: var(--accent); color: var(--accent-text);
+    border-color: var(--accent-border);
   }
   .menu-editor-action.secondary {
     background: var(--bg-2);
@@ -2893,6 +3060,29 @@
     display: grid; grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
   }
+  /* 種目編集フォーム内の位置設定リスト（2列×2段グリッド） */
+  .ex-form-position-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    min-height: 38px;
+  }
+  .ex-form-position-list .pos-item {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .ex-form-position-list .pos-empty-btn {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  /* 設定画面の位置項目は文字を白で表示（ワークアウト画面と同じ視覚） */
+  .ex-form-position-list .pos-item-num,
+  .ex-form-position-list .pos-item-label {
+    color: #FFFFFF;
+  }
+  .ex-form-position-list .pos-item-label.empty {
+    color: rgba(255,255,255,0.5);
+  }
   .ex-form-params {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -2984,7 +3174,7 @@
   .ex-form-other-side-btn.selected,
   .ex-form-other-start-side-btn.selected {
     background: var(--accent);
-    color: #000;
+    color: var(--accent-text);
   }
   /* 開始サイド：右=明るめ緑、左=明るい青で固定 */
   .ex-form-start-side-btn[data-startside="R"].selected,
@@ -3029,7 +3219,7 @@
   .ex-form-type-btn.selected,
   .ex-form-machine-btn.selected {
     background: var(--accent);
-    color: #000;
+    color: var(--accent-text);
   }
   .ex-form-type-btn:not(.selected):active,
   .ex-form-machine-btn:not(.selected):active {
@@ -3247,8 +3437,8 @@
     letter-spacing: 0.3px;
   }
   .reorder-btn:active {
-    background: var(--accent); color: #000;
-    border-color: var(--accent);
+    background: var(--accent); color: var(--accent-text);
+    border-color: var(--accent-border);
     transform: scale(0.97);
   }
   .reorder-btn:disabled {
@@ -3558,8 +3748,8 @@
   }
   .position-item.selected {
     background: var(--accent);
-    color: #000;
-    border-color: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent-border);
     box-shadow: 0 0 0 2px rgba(255, 90, 31, 0.2);
   }
   .position-item.used {
@@ -3644,12 +3834,12 @@
   }
   .reorder-handle:active {
     background: var(--accent);
-    color: #000;
+    color: var(--accent-text);
   }
   /* 並び替えモード中はハンドルを強調 */
   .exercise.reordering .reorder-handle {
     background: var(--accent);
-    color: #000;
+    color: var(--accent-text);
   }
   /* bilateral時：BACKとR/Lを横に2分割 */
   .nav-back-side-group {
@@ -3778,8 +3968,8 @@
     transform: scale(0.97);
   }
   .nav-btn-step.go {
-    background: var(--accent); color: #000;
-    border-color: var(--accent);
+    background: var(--accent); color: var(--accent-text);
+    border-color: var(--accent-border);
   }
   .nav-btn-step.go.last-set {
     background: var(--ok); color: #000;
@@ -4096,8 +4286,8 @@
   }
   .hiit-phase-speed:active {
     background: var(--accent);
-    color: #000;
-    border-color: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent-border);
   }
   /* 本番見出しのチップは小さめ */
   .hiit-main-param .hiit-phase-speed {
@@ -4214,8 +4404,8 @@
   .hiit-time-step:active {
     transform: scale(0.92);
     background: var(--accent);
-    border-color: var(--accent);
-    color: #000;
+    border-color: var(--accent-border);
+    color: var(--accent-text);
   }
   .hiit-time-step:disabled {
     opacity: 0.3;
@@ -4371,9 +4561,9 @@
     min-height: 22px;
     min-width: 70px;
     border-radius: 6px;
-    border: 1px solid var(--accent);
+    border: 1px solid var(--accent-border);
     background: var(--accent);
-    color: #fff;
+    color: var(--accent-text);
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 800;
@@ -4516,9 +4706,9 @@
     padding: 0 18px;
     min-height: 32px;
     border-radius: 8px;
-    border: 1px solid var(--accent);
+    border: 1px solid var(--accent-border);
     background: var(--accent);
-    color: #fff;
+    color: var(--accent-text);
     font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 800;
@@ -4608,8 +4798,8 @@
   }
   .hiit-round-btn.next {
     background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
+    border-color: var(--accent-border);
+    color: var(--accent-text);
   }
   /* NEXT位置の完了ボタン（体幹用） */
   .hiit-round-btn.judge-as-next {
@@ -4665,8 +4855,8 @@
   }
   .hiit-target-option.selected {
     background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
+    border-color: var(--accent-border);
+    color: var(--accent-text);
   }
   .hiit-round-done {
     text-align: center;
@@ -4865,8 +5055,8 @@
   }
   /* 【新仕様】初期GO状態：オレンジ（強調） */
   .judge-btn.ok:not(.selected):not(.in-progress) {
-    border-color: var(--accent);
-    color: #000;
+    border-color: var(--accent-border);
+    color: var(--accent-text);
     background: var(--accent);
   }
   /* 運動中：緑塗りつぶしで「✓完了」点灯（タップで完了確定） */
@@ -4961,9 +5151,9 @@
   .cal-today-btn {
     padding: 6px 18px;
     border-radius: 999px;
-    border: 1px solid var(--accent);
+    border: 1px solid var(--accent-border);
     background: var(--accent);
-    color: #fff;
+    color: var(--accent-text);
     font-family: inherit;
     font-size: 12px;
     font-weight: 700;
@@ -5046,7 +5236,7 @@
   .cal-year-option:active,
   .cal-year-option.current {
     background: var(--accent);
-    color: #000;
+    color: var(--accent-text);
   }
   .cal-year-dropdown-empty {
     padding: 14px;
@@ -5086,18 +5276,6 @@
     font-family: 'Archivo Black', 'Hiragino Sans', sans-serif;
     display: inline-block;
     position: relative;
-    padding-bottom: 6px;
-  }
-  .cal-month::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    bottom: 0;
-    transform: translateX(-50%);
-    width: 28px;
-    height: 2px;
-    background: var(--accent);
-    border-radius: 2px;
   }
   .cal-dow-row {
     display: grid;
@@ -5157,21 +5335,24 @@
     visibility: hidden;
   }
   .cal-cell.today {
-    border-color: var(--accent);
+    border-color: var(--accent-border);
     border-width: 2px;
-    background: rgba(255, 90, 31, 0.18);
+    background: #FFFFFF;
   }
   .cal-cell.today .day-num {
-    color: var(--accent);
+    color: #000000;
   }
   .cal-cell.has-record {
     background: var(--bg-3);
     border-color: rgba(255, 255, 255, 0.12);
   }
   .cal-cell.selected {
-    border-color: var(--accent);
+    border-color: var(--accent-border);
     border-width: 2px;
-    background: rgba(255, 90, 31, 0.25);
+    background: #FFFFFF;
+  }
+  .cal-cell.selected .day-num {
+    color: #000000;
   }
   .cal-cell:active:not(.empty) {
     transform: scale(0.94);
@@ -5184,8 +5365,6 @@
   }
   .cal-cell.sun .day-num { color: #FF6B7A; }
   .cal-cell.sat .day-num { color: #5AC8FA; }
-  .cal-cell.today.sun .day-num,
-  .cal-cell.today.sat .day-num { color: var(--accent); }
   .cal-cell .dot-row {
     display: flex;
     gap: 2px;
@@ -5343,7 +5522,7 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 0;
   }
   .history-head-left {
     flex: 1;
@@ -5404,9 +5583,22 @@
   .history-menu {
     font-family: var(--font-display);
     font-size: 18px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     color: var(--text);
     letter-spacing: -0.3px;
+  }
+  .history-summary {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text) !important;
+    margin-top: 0;
+    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .history-records {
     font-family: var(--font-mono);
@@ -5573,9 +5765,10 @@
   /* ==================== TOAST ==================== */
   .toast {
     position: fixed;
-    bottom: calc(90px + var(--safe-bottom));
+    bottom: calc(40px + var(--safe-bottom));
     left: 50%; transform: translateX(-50%) translateY(20px);
-    background: var(--text); color: var(--bg);
+    /* アクセントカラー(オレンジ)背景+白文字で目立つように */
+    background: var(--accent); color: var(--accent-text);
     padding: 12px 22px; border-radius: 100px;
     font-size: 13px; font-weight: 700;
     z-index: 100;
@@ -5705,8 +5898,8 @@
     letter-spacing: 0.3px;
   }
   .modal-btn.primary {
-    background: var(--accent); color: #000;
-    border-color: var(--accent);
+    background: var(--accent); color: var(--accent-text);
+    border-color: var(--accent-border);
   }
   .modal-btn.danger {
     background: var(--warn); color: #fff;
@@ -6016,8 +6209,8 @@
   }
   .reorder-banner-btn.primary {
     background: var(--accent);
-    border-color: var(--accent);
-    color: #000;
+    border-color: var(--accent-border);
+    color: var(--accent-text);
   }
   .banner-btn {
     flex: 1;
@@ -6124,7 +6317,25 @@
 <div class="app" id="mainApp" style="display:none">
   <header class="header">
     <div class="brand" onclick="handleBrandTap()"><img class="brand-logo" src="data:image/png;base64,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" alt="筋LOG"><div class="admin-badge-stack"><span class="admin-badge" id="adminBadge" style="display:none">TEST</span><button class="admin-back-btn" id="adminBackBtn" onclick="event.stopPropagation(); gotoSetupFromAdmin();">初期画面</button></div></div>
-    <div class="header-date" id="dateDisplay"></div>
+    <div class="header-nav">
+      <button class="header-nav-btn header-nav-btn-toggle" id="headerToggleTimerBtn" onclick="toggleTimerVisibility()" style="display:none">
+        <span class="header-nav-icon" id="headerToggleTimerIcon">×</span>
+        <span class="header-nav-label" id="headerToggleTimerLabel">非表示</span>
+      </button>
+      <button class="header-nav-btn" data-screen="history" onclick="showScreen('history')">
+        <span class="header-nav-icon">≡</span>
+        <span class="header-nav-label">履歴</span>
+      </button>
+      <button class="header-nav-btn active" data-screen="home" onclick="showScreen('home')">
+        <span class="header-nav-icon">⌂</span>
+        <span class="header-nav-label">ホーム</span>
+      </button>
+      <button class="header-nav-btn" data-screen="settings" onclick="showScreen('settings')">
+        <span class="header-nav-icon">⚙</span>
+        <span class="header-nav-label">設定</span>
+      </button>
+    </div>
+    <div class="header-date" id="dateDisplay" style="display:none"></div>
   </header>
 
   <section class="screen active" id="screen-home">
@@ -6161,11 +6372,9 @@
         <div class="timer-mode-bar" id="timerModeBar">
           <button class="timer-mode-btn" data-mode="only-elapsed" onclick="setTimerMode('only-elapsed')" title="タイマーのみ">①</button>
           <button class="timer-mode-btn" data-mode="only-interval" onclick="setTimerMode('only-interval')" title="インターバルのみ">②</button>
-          <button class="timer-mode-btn" data-mode="hide-both" onclick="setTimerMode('hide-both')" title="両方非表示">×</button>
         </div>
       </div>
-      <button class="timer-all-restore-btn" id="timerAllRestoreBtn" onclick="setTimerMode('both')" style="display:none">ALL</button>
-      <div class="workout-progress-wrap" id="workoutProgressWrap">
+      <div class="workout-progress-wrap" id="workoutProgressWrap" style="display:none">
         <div class="workout-progress" id="workoutProgress"></div>
       </div>
     </div>
@@ -6174,8 +6383,23 @@
       <button class="add-exercise-btn" onclick="openManualAddExercise()">＋ 種目を追加</button>
     </div>
     <div style="height: 16px"></div>
-    <button class="btn primary" style="width: 100%;" onclick="finishWorkout()">セッション完了 ✓</button>
+    <button id="finishWorkoutBtn" class="btn primary" style="width: 100%;" onclick="finishWorkout()">セッション完了 ✓</button>
+    <div id="finishWorkoutHint" class="finish-hint" style="display:none">セッションがまだ残ってます</div>
   </section>
+
+  <!-- ワークアウト破棄確認モーダル（画面遷移時） -->
+  <div id="leaveWorkoutModal" class="modal-backdrop">
+    <div class="modal" style="max-width: 460px;">
+      <div class="modal-title">ワークアウト中の記録があります</div>
+      <div style="font-size: 14px; line-height: 1.6; color: var(--text-2); margin-bottom: 12px;">
+        セッション完了されていないため、画面を変えると記録は消されます。<br>よろしいですか？
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn" onclick="leaveWorkoutCancel()">キャンセル</button>
+        <button class="modal-btn" style="background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 700;" onclick="leaveWorkoutConfirm()">OK</button>
+      </div>
+    </div>
+  </div>
 
   <section class="screen" id="screen-history">
     <div class="tabs">
@@ -6334,7 +6558,7 @@
 
   </section>
 
-  <nav class="nav">
+  <nav class="nav" style="display:none">
     <button class="nav-btn" data-screen="history" onclick="showScreen('history')">
       <span class="nav-icon">≡</span>履歴</button>
     <button class="nav-btn active" data-screen="home" onclick="showScreen('home')">
@@ -6626,6 +6850,15 @@
             <input type="text" inputmode="none" readonly class="ex-form-input" id="exFormMaxSets" placeholder="" onclick="openSetsFormPicker('maxSets')">
           </div>
         </div>
+      </div>
+
+      <!-- 位置設定（筋トレのみ表示）-->
+      <div class="ex-form-field" id="exFormPositionField">
+        <label class="ex-form-label ex-form-label-row">
+          <span>位置設定</span>
+          <span class="ex-form-label-hint" id="exFormPositionCount">0/4</span>
+        </label>
+        <div id="exFormPositionList" class="ex-form-position-list"></div>
       </div>
 
       <input type="hidden" id="exFormPosition" value="">
@@ -6955,7 +7188,7 @@
     </p>
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeImportModal()">キャンセル</button>
-      <button class="modal-btn danger" onclick="doImportAppData()">読み込む</button>
+      <button class="modal-btn" style="background: #10B981; color: #fff; border-color: #10B981;" onclick="doImportAppData()">読み込む</button>
     </div>
   </div>
 </div>
@@ -7226,6 +7459,76 @@
   let currentWorkout = null;
   let workoutSession = {};
 
+  // ========== ワークアウトセッション下書き保存（予期せぬ終了からの復元用） ==========
+  const DRAFT_KEY = 'kinlog_workout_draft';
+  // 画面遷移確認モーダルでOKを押した時の遷移先を保持
+  let pendingLeaveWorkoutTarget = null;
+
+  // 直前の種目が完了/スキップ済かどうか（順番通りに進めるためのガード用）
+  // 仕様：1→2→3...と順番にこなす。直前の種目の judge が 'ok' または 'skip' になるまで次の開始ボタンを無効化
+  // idx=0（最初の種目）は常に true（開始可能）
+  // 並び替え後の現在の配列順で判定する（並び替え後はその順番に従う）
+  function isPrevExerciseFinished(idx) {
+    if (idx <= 0) return true;
+    if (!workoutSession || !Array.isArray(workoutSession.exercises)) return true;
+    const prev = workoutSession.exercises[idx - 1];
+    if (!prev) return true;
+    return prev.judge === 'ok' || prev.judge === 'skip';
+  }
+  function hasWorkoutProgress() {
+    if (!workoutSession || !Array.isArray(workoutSession.exercises)) return false;
+    return workoutSession.exercises.some(e =>
+      (e.setRecords && e.setRecords.length > 0) || e.exStarted || e.judge
+    );
+  }
+  // 画面遷移確認モーダル：キャンセル
+  function leaveWorkoutCancel() {
+    pendingLeaveWorkoutTarget = null;
+    const modal = document.getElementById('leaveWorkoutModal');
+    if (modal) modal.classList.remove('show');
+  }
+  // 画面遷移確認モーダル：OK（記録を破棄して遷移）
+  function leaveWorkoutConfirm() {
+    const modal = document.getElementById('leaveWorkoutModal');
+    if (modal) modal.classList.remove('show');
+    const target = pendingLeaveWorkoutTarget;
+    pendingLeaveWorkoutTarget = null;
+    // 進捗破棄
+    if (typeof clearWorkoutDraft === 'function') clearWorkoutDraft();
+    workoutSession = {};
+    // タイマー停止
+    if (typeof stopElapsedTimer === 'function') stopElapsedTimer();
+    if (typeof stopInterval === 'function') stopInterval();
+    // 遷移先が指定されていれば再度 showScreen 呼び出し（hasWorkoutProgress=falseになるのでループしない）
+    if (target) {
+      showScreen(target);
+    }
+  }
+  function saveWorkoutDraft() {
+    try {
+      if (!hasWorkoutProgress()) {
+        clearWorkoutDraft();
+        return;
+      }
+      const draft = {
+        savedAt: Date.now(),
+        workoutSession: workoutSession,
+        currentWorkoutId: currentWorkout ? (currentWorkout.id || currentWorkout.menuId) : null
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch (_) { /* noop */ }
+  }
+  function loadWorkoutDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (_) { return null; }
+  }
+  function clearWorkoutDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* noop */ }
+  }
+
   // ========== WELCOME (表紙) ==========
   // 初回起動時、または管理者モード遷移時に表示する独立した表紙画面
   function showWelcome() {
@@ -7265,6 +7568,34 @@
       document.getElementById('setup-screen').style.display = 'flex';
       showStep(1);
       return;
+    }
+
+    // 既存ユーザー：未完了セッション下書きがあれば復元確認（1回だけ）
+    if (typeof loadWorkoutDraft === 'function') {
+      const draft = loadWorkoutDraft();
+      if (draft && draft.workoutSession && Array.isArray(draft.workoutSession.exercises)) {
+        const ok = confirm('前回のワークアウトセッションが残っています。\n復元しますか？\n\n（いいえを選ぶと記録は破棄されます）');
+        if (ok) {
+          // 復元：workoutSession を下書きから差し戻して、ワークアウト画面へ
+          try {
+            workoutSession = draft.workoutSession;
+            // currentWorkout は復元しない（workoutSession.menuId 経由でほとんどの参照は動作する）
+            currentWorkout = null;
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'flex';
+            showScreen('workout');
+            if (typeof renderExerciseList === 'function') renderExerciseList();
+            if (typeof toast === 'function') toast('前回のセッションを復元しました');
+            return;
+          } catch (err) {
+            console.error('draft restore failed:', err);
+            clearWorkoutDraft();
+          }
+        } else {
+          // 破棄
+          clearWorkoutDraft();
+        }
+      }
     }
 
     // 既存ユーザー：今日が「週の起点日」かつ「今週まだ表示していない」場合のみ
@@ -7336,12 +7667,14 @@
   // ========== アクセントカラー（テーマカラー） ==========
   const ACCENT_COLORS = [
     { hex: '#FF5A1F', name: 'オレンジ' },
-    { hex: '#FBBF24', name: 'ゴールド' },
     { hex: '#EC4899', name: 'ピンク' },
-    { hex: '#D946EF', name: 'マゼンタ' },
-    { hex: '#A855F7', name: 'パープル' }
+    { hex: '#A855F7', name: 'パープル' },
+    { hex: '#FBBF24', name: 'ゴールド' },
+    { hex: '#FFFFFF', name: 'ホワイト' }
   ];
   const DEFAULT_ACCENT = '#FF5A1F';
+  // 文字色を黒にすべきテーマカラー（明るい背景色）
+  const ACCENT_DARK_TEXT = ['#FBBF24', '#FFFFFF'];
 
   function getAccentColor() {
     if (isAdminMode) {
@@ -7356,6 +7689,14 @@
   function applyAccentColor(color) {
     // CSS変数を上書き
     document.documentElement.style.setProperty('--accent', color);
+    // 明るい背景（黄/白）の時は文字色を黒に、それ以外は白に
+    const isLightBg = ACCENT_DARK_TEXT.some(c => c.toLowerCase() === color.toLowerCase());
+    document.documentElement.style.setProperty('--accent-text', isLightBg ? '#000000' : '#FFFFFF');
+    // 境界線：白テーマのみ黒（背景と同化を防ぐ）、それ以外（黄含む）はaccentと同色
+    const isWhite = color.toLowerCase() === '#ffffff';
+    document.documentElement.style.setProperty('--accent-border', isWhite ? '#000000' : color);
+    // 白テーマ時にbodyクラスを付与（枠線細さなどUI微調整用）
+    document.body.classList.toggle('theme-white', isWhite);
   }
 
   function selectAccentColor(color) {
@@ -7373,7 +7714,11 @@
     const current = getAccentColor();
     container.innerHTML = ACCENT_COLORS.map(c => {
       const isSelected = c.hex.toLowerCase() === current.toLowerCase();
-      return `<button class="accent-color-swatch ${isSelected ? 'selected' : ''}" style="background:${c.hex}" onclick="selectAccentColor('${c.hex}')" title="${c.name}">${isSelected ? '<span class="accent-check">✓</span>' : ''}</button>`;
+      // 白色は背景と同化するので、常時黒枠＋選択時はチェックマーク・枠線も黒
+      const isWhite = c.hex.toLowerCase() === '#ffffff';
+      const extraClass = isWhite ? ' is-white' : '';
+      const checkColor = isWhite ? 'style="color:#000; text-shadow:none;"' : '';
+      return `<button class="accent-color-swatch${extraClass} ${isSelected ? 'selected' : ''}" style="background:${c.hex}" onclick="selectAccentColor('${c.hex}')" title="${c.name}">${isSelected ? `<span class="accent-check" ${checkColor}>✓</span>` : ''}</button>`;
     }).join('');
   }
 
@@ -8138,7 +8483,13 @@
 
 
   function getOrderedDays(days) {
-    return [1, 2, 3, 4, 5, 6, 0].filter(d => days.includes(d));
+    // 起点日設定に応じて並び順を決定（getOrderedDows と同じロジック）
+    const start = getWeekStartDow();
+    const ordered = [];
+    for (let i = 0; i < 7; i++) {
+      ordered.push((start + i) % 7);
+    }
+    return ordered.filter(d => days.includes(d));
   }
 
   function getWeekStart(date) {
@@ -8506,7 +8857,7 @@
       // この曜日チップの日付を計算
       const chipDate = new Date(startDate);
       chipDate.setDate(chipDate.getDate() + i);
-      const dateLabel = `${chipDate.getMonth() + 1}/${chipDate.getDate()}`;
+      const dateLabel = `${chipDate.getDate()}(${DOW[dayIdx]})`;
       const el = document.createElement('div');
       el.className = 'week-day' + (isToday ? ' today' : '') + (isDone ? ' done' : '') + (isUpcoming ? ' upcoming' : '');
       let badgeMark = '';
@@ -8515,14 +8866,12 @@
       if (menu) {
         el.innerHTML = `
           <div class="week-date">${dateLabel}</div>
-          <div class="week-dow">${DOW[dayIdx]}</div>
           ${badgeMark}
           <div class="week-menu">${menu.shortName || menu.name}</div>
         `;
       } else {
         el.innerHTML = `
           <div class="week-date">${dateLabel}</div>
-          <div class="week-dow">${DOW[dayIdx]}</div>
           ${badgeMark}
           <div class="week-menu rest">休</div>
         `;
@@ -8555,7 +8904,11 @@
     const rec = getTodayRecommendation();
     const history = loadHistory();
     // テストモード時は admin1〜7、通常時は profile.customPriority（ユーザー定義メニュー含む）を使う
-    const menuIds = isAdminMode ? getAllMenuIds() : getPriority();
+    let menuIds = isAdminMode ? getAllMenuIds() : getPriority();
+    // 今日の予定メニューがあれば先頭に移動（休息日なら現状の順のまま）
+    if (rec && rec.menuKey && menuIds.includes(rec.menuKey)) {
+      menuIds = [rec.menuKey, ...menuIds.filter(k => k !== rec.menuKey)];
+    }
     let renderedCount = 0;
     menuIds.forEach(key => {
       const menu = getMenu(key);
@@ -9092,9 +9445,18 @@
     if (leavingSettings) {
       settingsSnapshot = null;
     }
-    // ワークアウト画面から離れる時はタイマー停止
+    // ワークアウト画面から離れる時：未完了の進捗があれば確認
     const leavingWorkout = prevScreen && prevScreen.id === 'screen-workout' && name !== 'workout';
     if (leavingWorkout) {
+      // セッション完了されていない状態で進捗（記録/開始済種目）があれば破棄確認モーダルを表示
+      const hasProgress = (typeof hasWorkoutProgress === 'function') && hasWorkoutProgress();
+      if (hasProgress) {
+        // 移動先を保存しておき、モーダルでOK押下時に showScreen を再実行
+        pendingLeaveWorkoutTarget = name;
+        const modal = document.getElementById('leaveWorkoutModal');
+        if (modal) modal.classList.add('show');
+        return; // 一旦遷移を中止（モーダル待ち）
+      }
       stopElapsedTimer();
       stopInterval();
     }
@@ -9108,11 +9470,16 @@
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const target = document.getElementById('screen-' + name);
     if (target) target.classList.add('active');
-    // ワークアウト画面以外では、ヘッダーを固定（スクロール時も上部に残る）
-    document.body.classList.toggle('header-fixed', name !== 'workout');
-    document.querySelectorAll('.nav-btn').forEach(b => {
+    // 全画面でヘッダーを固定（スクロール時も上部に残る）
+    document.body.classList.add('header-fixed');
+    document.querySelectorAll('.nav-btn, .header-nav-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.screen === name);
     });
+    // ヘッダーの×/ALLトグルボタンはワークアウト画面のみ表示
+    const headerToggleBtn = document.getElementById('headerToggleTimerBtn');
+    if (headerToggleBtn) {
+      headerToggleBtn.style.display = (name === 'workout') ? '' : 'none';
+    }
     // ホーム以外に移動した場合は、メニュー空時に設定したスクロール無効化を解除
     if (name !== 'home') {
       document.documentElement.style.overflow = '';
@@ -9686,7 +10053,9 @@
       return {
         date: sessionDate.toISOString(),
         menuId: menuId,
-        exercises: sessionExercises
+        exercises: sessionExercises,
+        // 仮の総タイム：各種目の経過時間合計の約1.4倍（インターバル想定）
+        totalSeconds: Math.floor(sessionExercises.reduce((sum, ex) => sum + (ex.duration || 0), 0) * 1.4)
       };
     };
 
@@ -10072,13 +10441,12 @@
   // タイマー表示用：コロンをspan化して位置調整可能にする
   function formatElapsedHtml(ms) {
     const totalSec = Math.floor(ms / 1000);
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
+    const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
+    // 60分超でも「60:43」「100:43」のように分の桁数を制限せず表示する
     const mm = String(m).padStart(2, '0');
     const ss = String(s).padStart(2, '0');
     const c = '<span class="timer-colon">:</span>';
-    if (h > 0) return `${h}${c}${mm}${c}${ss}`;
     return `${mm}${c}${ss}`;
   }
 
@@ -10112,6 +10480,50 @@
     document.querySelectorAll('.timer-mode-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.mode === timerDisplayMode);
     });
+    // ヘッダー×/ALLトグルボタンの状態を更新（ワークアウト画面のときのみ表示）
+    const headerToggleIcon = document.getElementById('headerToggleTimerIcon');
+    const headerToggleLabel = document.getElementById('headerToggleTimerLabel');
+    if (headerToggleIcon && headerToggleLabel) {
+      if (timerDisplayMode === 'hide-both') {
+        headerToggleIcon.textContent = '○';
+        headerToggleLabel.textContent = '表示';
+      } else {
+        headerToggleIcon.textContent = '×';
+        headerToggleLabel.textContent = '非表示';
+      }
+    }
+  }
+
+  // ヘッダーの×/ALLボタン：タイマー表示の切替
+  function toggleTimerVisibility() {
+    if (timerDisplayMode === 'hide-both') {
+      // 非表示中 → 全表示に戻す
+      setTimerMode('both');
+    } else {
+      // 表示中 → 両方非表示
+      setTimerMode('hide-both');
+    }
+  }
+
+  // インターバル稼働中に「次セット/完了」が押された時のアラート：
+  // インターバル枠を一時的に赤くフラッシュさせて、ユーザーに「先にインターバルを止めて」と知らせる
+  function flashIntervalAlert() {
+    const box = document.getElementById('intervalTimerBox');
+    if (!box) return;
+    box.classList.remove('interval-alert');
+    // 強制リフロー（クラス再付与でアニメ再起動するため）
+    void box.offsetWidth;
+    box.classList.add('interval-alert');
+    if (typeof toast === 'function') {
+      toast('先にインターバルを止めてください');
+    }
+    if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+    // 一定時間後にクラス削除（アニメーション終了後）
+    setTimeout(() => {
+      if (box.classList.contains('interval-alert')) {
+        box.classList.remove('interval-alert');
+      }
+    }, 2600);
   }
 
   function isElapsedRunning() {
@@ -10290,6 +10702,8 @@
       const el2 = document.getElementById('intervalTimer');
       if (el2) el2.innerHTML = formatElapsedHtml(diff);
     }, 1000);
+    // インターバル稼働状態が「開始/スキップ/代替」ボタン無効に影響するため再描画
+    if (typeof renderExerciseList === 'function') renderExerciseList();
   }
 
   function pauseIntervalTimer() {
@@ -10304,6 +10718,8 @@
       el.classList.remove('active');
       el.innerHTML = '00<span class="timer-colon">:</span>00';
     }
+    // インターバル停止後、ボタン状態を元に戻すため再描画
+    if (typeof renderExerciseList === 'function') renderExerciseList();
   }
 
   // 後方互換用：既存の「次セット」処理から呼ばれる startInterval は無視
@@ -10343,6 +10759,7 @@
         swappedFrom: null,    // 代替表示用（元の種目名、代替時のみセット）
         position: e.position || null,
         positions: Array.isArray(e.positions) ? [...e.positions] : (e.position ? [e.position] : null),
+        positionList: Array.isArray(e.positionList) ? e.positionList.map(p => ({ ...p })) : null,
         positionMemo: e.positionMemo || null,
         cardio: e.cardio || false,
         hiit: e.hiit || false,
@@ -10395,7 +10812,9 @@
 
   function renderProgress() {
     const cont = document.getElementById('workoutProgress');
+    if (!cont) return;
     cont.innerHTML = '';
+    if (!workoutSession || !Array.isArray(workoutSession.exercises)) return;
     workoutSession.exercises.forEach(e => {
       const dot = document.createElement('div');
       dot.className = 'progress-dot';
@@ -10749,8 +11168,15 @@
 
   function renderExerciseList() {
     const list = document.getElementById('exerciseList');
+    if (!list) return;
     list.innerHTML = '';
     list.classList.toggle('reorder-mode', reorderMode);
+    // ガード：workoutSession.exercises が無い場合は空表示で終了（エラー回避）
+    if (!workoutSession || !Array.isArray(workoutSession.exercises)) {
+      // 完了ボタン状態だけは更新
+      if (typeof updateFinishWorkoutBtnState === 'function') updateFinishWorkoutBtnState();
+      return;
+    }
     const lastW = loadLastWeights();
     workoutSession.exercises.forEach((ex, idx) => {
       // elapsedSeconds 初期化（上部タイマーが動いている間に+1される）
@@ -10775,9 +11201,18 @@
             : cleared === false
               ? '<span class="last-set-mark keep">✗</span>'
               : '';
+          // bilateral: 番号は2件で1つ進む。表示は「1右」「1左」「2右」「2左」...
+          let setLabel;
+          if (ex.bilateral) {
+            const setNo = Math.floor(i / 2) + 1;
+            const sideStr = (s.side === 'L') ? '左' : (s.side === 'R') ? '右' : (i % 2 === 0 ? '右' : '左');
+            setLabel = `${setNo}<span class="last-set-side">${sideStr}</span>`;
+          } else {
+            setLabel = i + 1;
+          }
           return `
             <tr>
-              <td class="last-col-set">${i + 1}</td>
+              <td class="last-col-set">${setLabel}</td>
               <td class="last-col-weight">${Number(s.weight).toFixed(1)}<span class="last-unit">kg</span></td>
               <td class="last-col-reps">${s.reps}<span class="last-unit">回</span></td>
               <td class="last-col-mark">${mark}</td>
@@ -10837,7 +11272,8 @@
         displayNum = String(count).padStart(2, '0');
       }
 
-      // タイマー稼働中判定（種目の任意のタイマーが動いてればスキップ・代替を無効に）
+      // タイマー稼働中判定（その種目固有のタイマーが動いてればスキップ・代替を無効に）
+      // 上部の経過/インターバルタイマーは全種目共通なので含めない（特定種目の開始は ex.exStarted で判定）
       const anyTimerRunning = !!(
         (coreTimers[idx] && coreTimers[idx].running) ||
         (typeof hiitRoundTimers !== 'undefined' && hiitRoundTimers[idx] && hiitRoundTimers[idx].running) ||
@@ -10857,8 +11293,31 @@
             <span class="ex-name${getExerciseImage(ex.name) ? ' has-image' : ''}${(() => { const c = getExerciseNameShrinkClass(ex); return c ? ' ' + c : ''; })()}" onclick="openExerciseImage('${ex.name.replace(/'/g, "\\'")}', ${idx})">${ex.name}</span>
           </div>
           ${ex.url ? `<button class="ex-url-btn" onclick="event.stopPropagation(); openExerciseUrl('${ex.url.replace(/'/g, "\\'")}')" title="参考リンクを開く">URL</button>` : ''}
-          <button class="ex-skip-btn ${ex.judge === 'skip' ? 'active' : ''}" onclick="toggleSkip(${idx})" ${(anyTimerRunning || ex.judge === 'ok' || ex.swappedFrom) ? 'disabled' : ''} title="${ex.swappedFrom ? '代替種目はスキップできません' : (ex.judge === 'skip' ? 'スキップ解除' : 'この種目をスキップ')}">${ex.judge === 'skip' ? '◯' : '⊘'}</button>
-          <button class="ex-swap-btn" onclick="openSwapModal(${idx})" ${(anyTimerRunning || ex.judge === 'ok') ? 'disabled' : ''} title="代替種目">⇄</button>
+          ${(() => {
+            // 完了ボタンの disabled 条件を再計算してスキップ・代替ボタンに反映
+            // （完了ボタンが押せない時はスキップ・代替も押せないようにする）
+            let hiitFinalReached2 = false;
+            if (ex.hiit && ex.protocol) {
+              const totalRounds2 = ex.protocol.rounds || 8;
+              const setRecCount2 = (ex.setRecords || []).length;
+              const currentRound2 = setRecCount2 + 1;
+              const tState2 = (typeof hiitRoundTimers !== 'undefined' && hiitRoundTimers[idx]) || null;
+              hiitFinalReached2 = (currentRound2 === totalRounds2 && tState2 && tState2.completed === true) || setRecCount2 >= totalRounds2;
+            }
+            const setRecCountForBtn2 = (ex.setRecords || []).length;
+            const hiitTotalRounds2 = (ex.hiit && ex.protocol) ? (ex.protocol.rounds || 8) : 0;
+            const allHiitRecorded2 = ex.hiit && setRecCountForBtn2 >= hiitTotalRounds2 && hiitTotalRounds2 > 0;
+            const disableCompleteBtn2 = !ex.exStarted || (ex.hiit && !ex.judge && !hiitFinalReached2 && !allHiitRecorded2);
+            const finalCompleteDisabled = ex.judge === 'ok' ? true : (ex.exStarted ? disableCompleteBtn2 : false);
+            // スキップ：完了ボタンが無効 or タイマー稼働中 or 完了済 or 代替種目 or 種目開始済
+            const skipDisabled = finalCompleteDisabled || anyTimerRunning || ex.judge === 'ok' || ex.swappedFrom || ex.exStarted;
+            // 代替：完了ボタンが無効 or タイマー稼働中 or 完了済 or 種目開始済
+            const swapDisabled = finalCompleteDisabled || anyTimerRunning || ex.judge === 'ok' || ex.exStarted;
+            return `
+              <button class="ex-skip-btn ${ex.judge === 'skip' ? 'active' : ''}" onclick="toggleSkip(${idx})" ${skipDisabled ? 'disabled' : ''} title="${ex.swappedFrom ? '代替種目はスキップできません' : (ex.judge === 'skip' ? 'スキップ解除' : 'この種目をスキップ')}">${ex.judge === 'skip' ? '◯' : '⊘'}</button>
+              <button class="ex-swap-btn" onclick="openSwapModal(${idx})" ${swapDisabled ? 'disabled' : ''} title="代替種目">⇄</button>
+            `;
+          })()}
         </div>
         ${ex.other ? renderOtherCard(idx, ex) : (ex.core ? renderCoreCard(idx, ex) : (ex.cardio ? `
         ${ex.hiit && ex.protocol ? renderHiitProtocol(idx, ex.protocol) : ''}
@@ -10885,8 +11344,14 @@
             const allHiitRecorded = ex.hiit && setRecCountForBtn >= hiitTotalRounds && hiitTotalRounds > 0;
             const disableCompleteBtn = !ex.exStarted || (ex.hiit && !ex.judge && !hiitFinalReached && !allHiitRecorded);
             const btnLabel = ex.judge === 'ok' ? '✓ 完了' : (ex.exStarted ? '✓ 完了' : '開始');
-            // judge=ok（完了確定）時は disabled（取消は戻るボタン経由）
-            const finalDisabled = ex.judge === 'ok' ? true : (ex.exStarted ? disableCompleteBtn : false);
+            // インターバル稼働中は「開始」ボタンも無効（先にインターバルを止める必要がある）
+            const intervalRunningNow = (typeof isIntervalRunning === 'function' && isIntervalRunning());
+            // 直前の種目が完了/スキップ済でない場合、未開始時は開始ボタンを無効化
+            const prevNotFinished = (!ex.exStarted) && !isPrevExerciseFinished(idx);
+            // judge=ok（完了確定）or skip 時は disabled
+            const finalDisabled = (ex.judge === 'ok' || ex.judge === 'skip')
+              ? true
+              : (ex.exStarted ? disableCompleteBtn : (intervalRunningNow || prevNotFinished));
             // 全ラウンド記録済み かつ 未確定 → selected（緑色強調、押せる）
             const showSelected = ex.judge === 'ok' || (allHiitRecorded && !ex.judge);
             return `<button class="judge-btn ok ${showSelected ? 'selected' : ''} ${ex.exStarted && !ex.judge && !allHiitRecorded ? 'in-progress' : ''}" onclick="judge(${idx}, 'ok')" ${finalDisabled ? 'disabled' : ''}>${btnLabel}</button>`;
@@ -10957,37 +11422,69 @@
           const maxBefore = hasMax && mt.position === 'before';
           const maxAfter = hasMax && mt.position === 'after';
 
+          // 数字を丸数字に変換（1〜9のみ。10以上はそのまま数字表記）
+          const toCircledNum = (n) => {
+            const map = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+            return n >= 1 && n <= 9 ? map[n - 1] : String(n);
+          };
           const renderNormalChip = (si, normalIdx) => {
             const recIdx = maxBefore ? si + maxSetCount : si;
             const rec = ex.setRecords[recIdx];
             let chipClass = '';
             if (rec) {
               // 緑(ok)条件: 回数が目標以上 かつ 重量が目標以上（targetWeight未設定時は重量条件スキップ）
-              const repsOk = rec.reps >= ex.targetReps;
-              const weightOk = (ex.targetWeight === undefined || ex.targetWeight === null)
-                || (rec.weight >= ex.targetWeight);
+              // 過去セットは記録時の目標値(rec.targetWeight/rec.targetReps)で判定する。
+              // 後からデフォルト値を変更しても過去セットの判定が変わらないようにする。
+              const tReps = (rec.targetReps != null) ? rec.targetReps : ex.targetReps;
+              const tWeight = (rec.targetWeight != null) ? rec.targetWeight : ex.targetWeight;
+              const repsOk = rec.reps >= tReps;
+              const weightOk = (tWeight === undefined || tWeight === null)
+                || (rec.weight >= tWeight);
               chipClass = (repsOk && weightOk) ? 'done-set ok' : 'done-set keep';
             }
-            let sideLabelStr = '';
-            let sideClass = '';
+            // bilateral種目: 2件で1セット（右+左をまとめて1チップに表示）
+            // normalIdx が偶数(0, 2, 4...)のときのみチップを描画。奇数は空文字を返してスキップ
             if (ex.bilateral) {
-              if (rec && rec.side) {
-                sideLabelStr = ' ' + sideLabel(rec.side);
-                sideClass = rec.side === 'R' ? 'side-r' : 'side-l';
-              } else if (!rec && recIdx === ex.setRecords.length) {
-                const next = ex.currentSide || 'R';
-                sideLabelStr = ' ' + sideLabel(next);
-                sideClass = next === 'R' ? 'side-r side-pending' : 'side-l side-pending';
+              if (normalIdx % 2 !== 0) return '';
+              // si と si+1 の2件をペアで表示（右と左）
+              const recIdx2 = recIdx + 1;
+              const rec2 = ex.setRecords[recIdx2];
+              // 両方の記録から chipClass を決定: 両方OKなら ok、どちらか記録ありなら keep、無記録なら空
+              let pairClass = '';
+              if (rec || rec2) {
+                const checkOk = (r) => r && r.reps >= ex.targetReps &&
+                  ((ex.targetWeight === undefined || ex.targetWeight === null) || r.weight >= ex.targetWeight);
+                pairClass = (rec && rec2 && checkOk(rec) && checkOk(rec2)) ? 'done-set ok' : 'done-set keep';
               }
+              const displayNumPair = toCircledNum(Math.ceil((normalIdx + 1) / 2));
+              // 右と左を判別（rec.side / rec2.side で表示順を決める。記録がない場合は通常R→Lの順）
+              const formatSide = (r) => r ? `${Number(r.weight).toFixed(1)}×${r.reps}` : '−';
+              let rText = '−', lText = '−';
+              if (rec && rec.side === 'L') { lText = formatSide(rec); }
+              else if (rec) { rText = formatSide(rec); }
+              if (rec2 && rec2.side === 'L') { lText = formatSide(rec2); }
+              else if (rec2) { rText = formatSide(rec2); }
+              // 開始サイドを取得（記録時のside優先、なければ未記録時の次のside = ex.currentSide）
+              const firstSide = (rec && rec.side) ? rec.side : (ex.currentSide || ex.startSide || 'R');
+              const rightLine = `<div class="set-chip-line"><span class="set-side-r">右</span>：${rText}</div>`;
+              const leftLine  = `<div class="set-chip-line"><span class="set-side-l">左</span>：${lText}</div>`;
+              const linesHtml = (firstSide === 'L') ? (leftLine + rightLine) : (rightLine + leftLine);
+              return `<div class="set-chip set-chip-bilateral ${pairClass}">
+                <div class="set-chip-num">${displayNumPair}</div>
+                ${linesHtml}
+              </div>`;
             }
-            const displayNumNormal = ex.bilateral ? Math.ceil((normalIdx + 1) / 2) : (normalIdx + 1);
-            return `<div class="set-chip ${chipClass} ${sideClass}">
-              ${displayNumNormal}<span class="set-side-label">${sideLabelStr}</span><br>${rec ? Number(rec.weight).toFixed(1) + '×' + rec.reps : '—'}
+            // 通常種目: 1チップ = 1セット
+            const displayNumNormal = toCircledNum(normalIdx + 1);
+            return `<div class="set-chip ${chipClass}">
+              <div class="set-chip-num">${displayNumNormal}</div>
+              <div class="set-chip-line">${rec ? Number(rec.weight).toFixed(1) + '×' + rec.reps : '−'}</div>
             </div>`;
           };
           const renderMaxChip = (mi) => {
             const recIdx = maxBefore ? mi : ex.currentSets + mi;
             const rec = ex.setRecords[recIdx];
+            // mt は外側のスコープで定義済み (ex.maxTraining)
             let chipClass = '';
             if (rec) {
               // 緑(ok)条件: 回数が目標以上 かつ 重量が目標以上（mt.weight未設定時は重量条件スキップ）
@@ -10996,22 +11493,37 @@
                 || (rec.weight >= mt.weight);
               chipClass = (repsOk && weightOk) ? 'done-set ok' : 'done-set keep';
             }
-            let sideLabelStr = '';
-            let sideClass = '';
+            // bilateral種目: 2件で1セット（右+左をまとめて1チップに表示）
             if (ex.bilateral) {
-              if (rec && rec.side) {
-                sideLabelStr = ' ' + sideLabel(rec.side);
-                sideClass = rec.side === 'R' ? 'side-r' : 'side-l';
-              } else if (!rec && recIdx === ex.setRecords.length) {
-                const next = ex.currentSide || 'R';
-                sideLabelStr = ' ' + sideLabel(next);
-                sideClass = next === 'R' ? 'side-r side-pending' : 'side-l side-pending';
+              if (mi % 2 !== 0) return '';
+              const recIdx2 = recIdx + 1;
+              const rec2 = ex.setRecords[recIdx2];
+              let pairClass = '';
+              if (rec || rec2) {
+                const checkOk = (r) => r && r.reps >= mt.reps &&
+                  ((mt.weight === undefined || mt.weight === null) || r.weight >= mt.weight);
+                pairClass = (rec && rec2 && checkOk(rec) && checkOk(rec2)) ? 'done-set ok' : 'done-set keep';
               }
+              const displayNumPair = toCircledNum(Math.ceil((mi + 1) / 2));
+              const formatSide = (r) => r ? `${Number(r.weight).toFixed(1)}×${r.reps}` : '−';
+              let rText = '−', lText = '−';
+              if (rec && rec.side === 'L') { lText = formatSide(rec); }
+              else if (rec) { rText = formatSide(rec); }
+              if (rec2 && rec2.side === 'L') { lText = formatSide(rec2); }
+              else if (rec2) { rText = formatSide(rec2); }
+              const firstSideMax = (rec && rec.side) ? rec.side : (ex.currentSide || ex.startSide || 'R');
+              const rightLineMax = `<div class="set-chip-line"><span class="set-side-r">右</span>：${rText}</div>`;
+              const leftLineMax  = `<div class="set-chip-line"><span class="set-side-l">左</span>：${lText}</div>`;
+              const linesHtmlMax = (firstSideMax === 'L') ? (leftLineMax + rightLineMax) : (rightLineMax + leftLineMax);
+              return `<div class="set-chip max-set set-chip-bilateral ${pairClass}">
+                <div class="set-chip-num"><span class="max-label">MAX</span>${displayNumPair}</div>
+                ${linesHtmlMax}
+              </div>`;
             }
-            // bilateral時、表示通し番号は ⌈(mi+1)/2⌉
-            const displayNum = ex.bilateral ? Math.ceil((mi + 1) / 2) : (mi + 1);
-            return `<div class="set-chip max-set ${chipClass} ${sideClass}">
-              <span class="max-label">MAX</span>${displayNum}<span class="set-side-label">${sideLabelStr}</span><br>${rec ? Number(rec.weight).toFixed(1) + '×' + rec.reps : '—'}
+            const displayNum = toCircledNum(mi + 1);
+            return `<div class="set-chip max-set ${chipClass}">
+              <div class="set-chip-num"><span class="max-label">MAX</span>${displayNum}</div>
+              <div class="set-chip-line">${rec ? Number(rec.weight).toFixed(1) + '×' + rec.reps : '−'}</div>
             </div>`;
           };
 
@@ -11029,42 +11541,18 @@
             maxRowHtml = `<div class="sets-row max-row">${mh}${maxAdjustBtns}</div>`;
           }
           // 通常セット行（+/− ボタン付き）
-          // 6セット以下：1行に全て + 右上に+/-
-          // 7セット以上：1行目=1〜6セット+disabled+/-、2行目=7〜+アクティブ+/-
+          // セット数上限：通常 5、左右設定 10（=実質5セット）
           let normalRowHtml = '';
-          const isManySets = ex.currentSets >= 7;
           const minSets = ex.bilateral ? 2 : 1;
-          const maxSets = 12;
-          if (!isManySets) {
-            // 6セット以下：1行のみ
-            let nh = '';
-            for (let i = 0; i < ex.currentSets; i++) nh += renderNormalChip(i, i);
-            const adjustBtns = `<div class="set-add-remove">
-              <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? 2 : 1})" ${ex.currentSets >= maxSets ? 'disabled' : ''} title="セット追加">+</button>
-              <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? -2 : -1})" ${ex.currentSets <= minSets ? 'disabled' : ''} title="セット削除">−</button>
-            </div>`;
-            normalRowHtml = `<div class="sets-row" id="sets-${idx}">${nh}${adjustBtns}</div>`;
-          } else {
-            // 7セット以上：2行に分ける
-            // 1行目：1〜6セット + disabled+/-
-            let row1 = '';
-            for (let i = 0; i < 6; i++) row1 += renderNormalChip(i, i);
-            const row1Btns = `<div class="set-add-remove">
-              <button class="set-mini-btn" disabled title="セット追加">+</button>
-              <button class="set-mini-btn" disabled title="セット削除">−</button>
-            </div>`;
-            // 2行目：7セット〜 + アクティブ+/-
-            let row2 = '';
-            for (let i = 6; i < ex.currentSets; i++) row2 += renderNormalChip(i, i);
-            const row2Btns = `<div class="set-add-remove">
-              <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? 2 : 1})" ${ex.currentSets >= maxSets ? 'disabled' : ''} title="セット追加">+</button>
-              <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? -2 : -1})" ${ex.currentSets <= minSets ? 'disabled' : ''} title="セット削除">−</button>
-            </div>`;
-            normalRowHtml = `
-              <div class="sets-row sets-row-no-wrap" id="sets-${idx}">${row1}${row1Btns}</div>
-              <div class="sets-row sets-row-no-wrap">${row2}${row2Btns}</div>
-            `;
-          }
+          const maxSets = ex.bilateral ? 10 : 5;
+          // 全て横並び（折り返さない）
+          let nh = '';
+          for (let i = 0; i < ex.currentSets; i++) nh += renderNormalChip(i, i);
+          const adjustBtns = `<div class="set-add-remove">
+            <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? 2 : 1})" ${ex.currentSets >= maxSets ? 'disabled' : ''} title="セット追加">+</button>
+            <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? -2 : -1})" ${ex.currentSets <= minSets ? 'disabled' : ''} title="セット削除">−</button>
+          </div>`;
+          normalRowHtml = `<div class="sets-row sets-row-no-wrap" id="sets-${idx}">${nh}${adjustBtns}</div>`;
 
           // 並び順：maxBefore=MAX上、normal下／maxAfter=normal上、MAX下／hasMaxなし=normalのみ
           if (maxBefore) {
@@ -11084,14 +11572,14 @@
             <button class="nav-btn-step back" onclick="stepBack(${idx})" ${ex.setRecords.length === 0 ? 'disabled' : ''}>
               戻る
             </button>
-            <button class="nav-btn-side ${(ex.currentSide || 'R') === 'R' ? 'side-r' : 'side-l'}" onclick="toggleSide(${idx})" title="記録する側を切り替え" ${ex.setRecords.length > 0 ? 'disabled' : ''}>${sideLabel(ex.currentSide || 'R')}</button>
+            <button class="nav-btn-side ${(ex.currentSide || 'R') === 'R' ? 'side-r' : 'side-l'}" onclick="toggleSide(${idx})" title="記録する側を切り替え" ${(ex.setRecords.length > 0 || ex.exStarted) ? 'disabled' : ''}>${sideLabel(ex.currentSide || 'R')}</button>
           </div>
           ` : `
           <button class="nav-btn-step back" onclick="stepBack(${idx})" ${ex.setRecords.length === 0 ? 'disabled' : ''}>
             戻る
           </button>
           `}
-          <button class="nav-btn-step go ${(ex.setRecords.length === getTotalSetsCount(ex) - 1 && ex.exStarted) ? 'last-set' : ''}" onclick="stepGo(${idx})" ${ex.setRecords.length >= getTotalSetsCount(ex) ? 'disabled' : ''}>
+          <button class="nav-btn-step go ${(ex.setRecords.length === getTotalSetsCount(ex) - 1 && ex.exStarted) ? 'last-set' : ''}" onclick="stepGo(${idx})" ${(ex.setRecords.length >= getTotalSetsCount(ex) || ex.judge === 'skip' || (!ex.exStarted && !isPrevExerciseFinished(idx))) ? 'disabled' : ''}>
             ${(() => {
               if (!ex.exStarted) return '開始';
               const total = getTotalSetsCount(ex);
@@ -11140,6 +11628,38 @@
         attachHiitTimeStepLongPress(btn);
       });
     });
+    // 状態が変わるたびに下書きを自動保存（予期せぬ終了に備える）
+    if (typeof saveWorkoutDraft === 'function') saveWorkoutDraft();
+    // セッション完了ボタンの有効/無効を更新
+    if (typeof updateFinishWorkoutBtnState === 'function') updateFinishWorkoutBtnState();
+  }
+
+  // セッション完了ボタン状態更新：未完了種目があれば disable + ヒント表示
+  function updateFinishWorkoutBtnState() {
+    const btn = document.getElementById('finishWorkoutBtn');
+    const hint = document.getElementById('finishWorkoutHint');
+    if (!btn || !hint) return;
+    if (!workoutSession || !Array.isArray(workoutSession.exercises) || workoutSession.exercises.length === 0) {
+      btn.disabled = false;
+      hint.style.display = 'none';
+      return;
+    }
+    // 未完了種目：judge が無くて、かつ exStarted（開始済）の種目
+    // 未開始＋未スキップ＋未代替の種目も「未着手」として未完了扱い
+    const incomplete = workoutSession.exercises.filter(ex => {
+      // judgeが ok / skip ならOK扱い
+      if (ex.judge === 'ok' || ex.judge === 'skip') return false;
+      // それ以外（未開始 or 開始したが未完了）は未完了
+      return true;
+    });
+    if (incomplete.length > 0) {
+      btn.disabled = true;
+      hint.style.display = 'block';
+      hint.textContent = `セッションがまだ残ってます（未完了 ${incomplete.length}種目）`;
+    } else {
+      btn.disabled = false;
+      hint.style.display = 'none';
+    }
   }
 
   // HIITラウンドカウンター：タップでカウントアップ、長押しでカウントダウン
@@ -11395,7 +11915,8 @@
       ex.currentReps = Math.max(0, ex.currentReps + delta);
       document.getElementById('r-' + idx).textContent = ex.currentReps;
     } else if (field === 'sets') {
-      ex.currentSets = Math.max(1, Math.min(12, ex.currentSets + delta));
+      const setsCap = ex.bilateral ? 10 : 5;
+      ex.currentSets = Math.max(1, Math.min(setsCap, ex.currentSets + delta));
       if (ex.setRecords.length > ex.currentSets + (ex.maxTraining && ex.maxTraining.enabled ? ex.maxTraining.sets : 0)) {
         ex.setRecords = ex.setRecords.slice(0, ex.currentSets + (ex.maxTraining && ex.maxTraining.enabled ? ex.maxTraining.sets : 0));
       }
@@ -11703,7 +12224,7 @@
             <div class="nav-time-display ${getNavTimeStateClass(ex)}" id="time-${idx}" onclick="askTimeReset(${idx})">${ex.duration ? formatDuration(ex.duration) : formatDuration(ex.elapsedSeconds || 0)}</div>
           </div>
           <button class="nav-btn-step back hiit-back-btn" onclick="otherStepBack(${idx})" ${!isCompleted ? 'disabled' : ''}>戻る</button>
-          <button class="judge-btn ok ${showSelected ? 'selected' : ''}" onclick="judge(${idx}, 'ok')" ${isCompleted ? 'disabled' : ''}>${isCompleted ? '✓ 完了' : (ex.exStarted ? '✓ 完了' : '開始')}</button>
+          <button class="judge-btn ok ${showSelected ? 'selected' : ''}" onclick="judge(${idx}, 'ok')" ${(isCompleted || ex.judge === 'skip' || (!ex.exStarted && !isPrevExerciseFinished(idx))) ? 'disabled' : ''}>${isCompleted ? '✓ 完了' : (ex.exStarted ? '✓ 完了' : '開始')}</button>
         </div>
         <div class="reorder-row">
           <div class="reorder-time-hint">※タップ</div>
@@ -11724,53 +12245,45 @@
     const renderCoreChip = (si) => {
       const rec = ex.setRecords[si];
       const chipClass = rec ? 'done-set ok' : '';
-      let sideLabelStr = '';
-      let sideClass = '';
+      // 数字を丸数字に変換
+      const toCircledNumCore = (n) => {
+        const map = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+        return n >= 1 && n <= 9 ? map[n - 1] : String(n);
+      };
+      // bilateral種目: 2件で1セット（右+左をまとめて1チップに表示）
       if (ex.bilateral) {
-        if (rec && rec.side) {
-          sideLabelStr = ' ' + sideLabel(rec.side);
-          sideClass = rec.side === 'R' ? 'side-r' : 'side-l';
-        } else if (!rec && si === ex.setRecords.length) {
-          const next = currentSide;
-          sideLabelStr = ' ' + sideLabel(next);
-          sideClass = next === 'R' ? 'side-r side-pending' : 'side-l side-pending';
-        }
+        if (si % 2 !== 0) return '';
+        const rec2 = ex.setRecords[si + 1];
+        let pairClass = (rec || rec2) ? ((rec && rec2) ? 'done-set ok' : 'done-set keep') : '';
+        const displayNumPair = toCircledNumCore(Math.ceil((si + 1) / 2));
+        const formatSide = (r) => r ? `${r.seconds}秒` : '−';
+        let rText = '−', lText = '−';
+        if (rec && rec.side === 'L') { lText = formatSide(rec); }
+        else if (rec) { rText = formatSide(rec); }
+        if (rec2 && rec2.side === 'L') { lText = formatSide(rec2); }
+        else if (rec2) { rText = formatSide(rec2); }
+        return `<div class="set-chip set-chip-bilateral ${pairClass}" onclick="coreRecordSet(${idx}, ${si})">
+          <div class="set-chip-num">${displayNumPair}</div>
+          <div class="set-chip-line">右：${rText}</div>
+          <div class="set-chip-line">左：${lText}</div>
+        </div>`;
       }
-      const displayNumCore = ex.bilateral ? Math.ceil((si + 1) / 2) : (si + 1);
-      return `<div class="set-chip ${chipClass} ${sideClass}" onclick="coreRecordSet(${idx}, ${si})">
-        ${displayNumCore}<span class="set-side-label">${sideLabelStr}</span><br>${rec ? rec.seconds + '秒' : '—'}
+      const displayNumCore = toCircledNumCore(si + 1);
+      return `<div class="set-chip ${chipClass}" onclick="coreRecordSet(${idx}, ${si})">
+        <div class="set-chip-num">${displayNumCore}</div>
+        <div class="set-chip-line">${rec ? rec.seconds + '秒' : '−'}</div>
       </div>`;
     };
-    const isManyCoreSets = totalSets >= 7;
     const minCoreSets = ex.bilateral ? 2 : 1;
-    const maxCoreSets = 12;
+    const maxCoreSets = ex.bilateral ? 10 : 5;
     let setsHtml = '';
-    if (!isManyCoreSets) {
-      let nh = '';
-      for (let si = 0; si < totalSets; si++) nh += renderCoreChip(si);
-      const adjustBtns = `<div class="set-add-remove">
-        <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? 2 : 1})" ${totalSets >= maxCoreSets ? 'disabled' : ''} title="セット追加">+</button>
-        <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? -2 : -1})" ${totalSets <= minCoreSets ? 'disabled' : ''} title="セット削除">−</button>
-      </div>`;
-      setsHtml = `<div class="sets-row">${nh}${adjustBtns}</div>`;
-    } else {
-      let row1 = '';
-      for (let si = 0; si < 6; si++) row1 += renderCoreChip(si);
-      const row1Btns = `<div class="set-add-remove">
-        <button class="set-mini-btn" disabled title="セット追加">+</button>
-        <button class="set-mini-btn" disabled title="セット削除">−</button>
-      </div>`;
-      let row2 = '';
-      for (let si = 6; si < totalSets; si++) row2 += renderCoreChip(si);
-      const row2Btns = `<div class="set-add-remove">
-        <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? 2 : 1})" ${totalSets >= maxCoreSets ? 'disabled' : ''} title="セット追加">+</button>
-        <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? -2 : -1})" ${totalSets <= minCoreSets ? 'disabled' : ''} title="セット削除">−</button>
-      </div>`;
-      setsHtml = `
-        <div class="sets-row sets-row-no-wrap">${row1}${row1Btns}</div>
-        <div class="sets-row sets-row-no-wrap">${row2}${row2Btns}</div>
-      `;
-    }
+    let nh = '';
+    for (let si = 0; si < totalSets; si++) nh += renderCoreChip(si);
+    const adjustBtns = `<div class="set-add-remove">
+      <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? 2 : 1})" ${totalSets >= maxCoreSets ? 'disabled' : ''} title="セット追加">+</button>
+      <button class="set-mini-btn" onclick="adjust(${idx}, 'sets', ${ex.bilateral ? -2 : -1})" ${totalSets <= minCoreSets ? 'disabled' : ''} title="セット削除">−</button>
+    </div>`;
+    setsHtml = `<div class="sets-row sets-row-no-wrap">${nh}${adjustBtns}</div>`;
 
     // カウントダウンタイマー：targetSec から減っていく。state.elapsed=経過秒、残り = targetSec - elapsed
     const remainingSec = Math.max(0, targetSec - elapsed);
@@ -11835,8 +12348,10 @@
         `}
         ${(() => {
           if (!ex.exStarted) {
-            // 未開始：開始ボタン
-            return `<button class="nav-btn-step go" onclick="coreStepGo(${idx})">開始</button>`;
+            // 未開始：開始ボタン（スキップ済 or 直前種目が完了/スキップしてなければdisabled）
+            const prevDone = isPrevExerciseFinished(idx);
+            const isSkipped = ex.judge === 'skip';
+            return `<button class="nav-btn-step go" onclick="coreStepGo(${idx})" ${(!prevDone || isSkipped) ? 'disabled' : ''}>開始</button>`;
           }
           // 開始済：
           // - 全セット記録済み かつ judge!=ok → 緑色selected（押せる、完了確定する）
@@ -12060,8 +12575,11 @@
         const totalSets = ex.currentSets || ex.targetSets || 1;
         const recordedCount = Array.isArray(ex.setRecords) ? ex.setRecords.length : 0;
         const willBeFinal = (recordedCount + 1) >= totalSets;
-        if (!willBeFinal) {
-          // 非最終セット：インターバルタイマー自動スタート（次セット開始まで稼働）
+        // bilateralで「同じセット内の側切替」の場合はインターバル起動しない
+        // （次の記録がそのセットの2件目=反対側）
+        const isBilateralMidSet = ex.bilateral && ((recordedCount + 1) % 2 === 1);
+        if (!willBeFinal && !isBilateralMidSet) {
+          // 非最終セット かつ bilateral同セット内切替でない：インターバルタイマー自動スタート
           if (typeof startInterval === 'function') {
             try { startInterval(); } catch (_) { /* noop */ }
           }
@@ -12239,8 +12757,20 @@
   function otherStepGo(idx) {
     const ex = workoutSession.exercises[idx];
     if (!ex) return;
+    // 【インターバル稼働中ガード】どのフェーズでもインターバル稼働中は処理しない
+    if (typeof isIntervalRunning === 'function' && isIntervalRunning()) {
+      flashIntervalAlert();
+      return;
+    }
     // 初回タップは「開始」：種目開始フラグを立てる + 上タイマー起動
     if (!ex.exStarted) {
+      // スキップ済の種目は開始させない
+      if (ex.judge === 'skip') return;
+      // 直前種目が完了/スキップ済でない場合は開始させない
+      if (typeof isPrevExerciseFinished === 'function' && !isPrevExerciseFinished(idx)) {
+        if (typeof toast === 'function') toast('前の種目を完了してください');
+        return;
+      }
       ex.exStarted = true;
       ex.elapsedSeconds = 0;
       if (typeof isElapsedRunning === 'function' && !isElapsedRunning()) {
@@ -12253,12 +12783,20 @@
     }
     // 完了状態は disabled なので到達しない（防御的に何もしない）
     if (ex.judge === 'ok') return;
+    // 【インターバル稼働中ガード】インターバルが動いている間は完了に進めない
+    if (typeof isIntervalRunning === 'function' && isIntervalRunning()) {
+      flashIntervalAlert();
+      return;
+    }
     // 開始済 → 完了確定
     ex.duration = ex.elapsedSeconds || 0;
     ex.judge = 'ok';
-    if (typeof isElapsedRunning === 'function' && isElapsedRunning()) {
-      pauseElapsedTimer();
-    }
+    // 【仕様変更】完了時も上タイマーは止めない。インターバルは自動スタート
+    try {
+      if (typeof startInterval === 'function') {
+        startInterval();
+      }
+    } catch (_) { /* noop */ }
     renderExerciseList();
     renderProgress();
     toast('完了');
@@ -12285,8 +12823,20 @@
   function coreStepGo(idx) {
     const ex = workoutSession.exercises[idx];
     const totalSets = ex.currentSets || ex.targetSets || 1;
+    // 【インターバル稼働中ガード】どのフェーズでも処理しない
+    if (typeof isIntervalRunning === 'function' && isIntervalRunning()) {
+      flashIntervalAlert();
+      return;
+    }
     // 初回タップは「開始」：種目開始フラグを立てる
     if (!ex.exStarted) {
+      // スキップ済の種目は開始させない
+      if (ex.judge === 'skip') return;
+      // 直前種目が完了/スキップ済でない場合は開始させない
+      if (typeof isPrevExerciseFinished === 'function' && !isPrevExerciseFinished(idx)) {
+        if (typeof toast === 'function') toast('前の種目を完了してください');
+        return;
+      }
       ex.exStarted = true;
       ex.elapsedSeconds = 0;
       if (typeof isElapsedRunning === 'function' && !isElapsedRunning()) {
@@ -12303,11 +12853,19 @@
     }
     // 全セット記録済の場合：完了確定
     if (ex.setRecords.length >= totalSets && ex.judge !== 'ok') {
+      // 【インターバル稼働中ガード】インターバルが動いている間は完了に進めない
+      if (typeof isIntervalRunning === 'function' && isIntervalRunning()) {
+        flashIntervalAlert();
+        return;
+      }
       ex.duration = ex.elapsedSeconds || 0;
       ex.judge = 'ok';
-      if (typeof isElapsedRunning === 'function' && isElapsedRunning()) {
-        pauseElapsedTimer();
-      }
+      // 【仕様変更】完了時も上タイマーは止めない。インターバルは自動スタート
+      try {
+        if (typeof startInterval === 'function') {
+          startInterval();
+        }
+      } catch (_) { /* noop */ }
       renderExerciseList();
       renderProgress();
       toast('完了');
@@ -12875,8 +13433,10 @@
           const totalRounds = ex.protocol.rounds || 8;
           const setRecCount = (ex.setRecords || []).length;
           const willBeFinal = (setRecCount + 1) >= totalRounds;
-          if (!willBeFinal) {
-            // 非最終ラウンド：インターバルタイマー自動スタート
+          // bilateralで「同じラウンド内の側切替」の場合はインターバル起動しない
+          const isBilateralMidRoundHiit = ex.bilateral && ((setRecCount + 1) % 2 === 1);
+          if (!willBeFinal && !isBilateralMidRoundHiit) {
+            // 非最終ラウンド かつ bilateral同ラウンド内切替でない：インターバルタイマー自動スタート
             if (typeof startInterval === 'function') {
               try { startInterval(); } catch (_) { /* noop */ }
             }
@@ -15733,6 +16293,113 @@
     });
   }
 
+  // ========== 種目編集フォーム内の位置設定 ==========
+  // フォーム編集中の位置リストを保持（保存時に種目データへ反映）
+  let exFormPositionList = [];
+  // フォーム位置編集モーダルのコンテキスト
+  let exFormPosEditContext = null;
+
+  function renderExFormPositionList() {
+    const container = document.getElementById('exFormPositionList');
+    const countEl = document.getElementById('exFormPositionCount');
+    if (!container) return;
+    container.innerHTML = '';
+    const list = exFormPositionList || [];
+    if (countEl) countEl.textContent = `${list.length}/4`;
+    if (list.length === 0) {
+      // 空状態：1つだけ「+ 位置を追加」ボタン
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pos-empty-btn';
+      btn.textContent = '+ 位置を追加';
+      btn.onclick = () => openExFormPosEditor(null);
+      container.appendChild(btn);
+      return;
+    }
+    // 既存項目を表示
+    list.forEach((p, pi) => {
+      const item = document.createElement('div');
+      item.className = 'pos-item';
+      item.onclick = () => openExFormPosEditor(pi);
+      let html = '';
+      if (p.num) html += `<span class="pos-item-num">${p.num}</span>`;
+      if (p.label) {
+        html += `<span class="pos-item-label">${p.label}</span>`;
+      } else if (!p.num) {
+        html += '<span class="pos-item-label empty">（未入力）</span>';
+      }
+      html += `<button type="button" class="pos-item-remove" onclick="event.stopPropagation(); removeExFormPos(${pi})" title="削除">−</button>`;
+      item.innerHTML = html;
+      container.appendChild(item);
+    });
+    // 追加ボタン（4個未満なら）：点線囲みのpos-empty-btnを採用
+    if (list.length < 4) {
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'pos-empty-btn';
+      addBtn.textContent = '+ 位置を追加';
+      addBtn.onclick = () => openExFormPosEditor(null);
+      container.appendChild(addBtn);
+    }
+  }
+
+  function removeExFormPos(idx) {
+    if (!Array.isArray(exFormPositionList)) return;
+    exFormPositionList.splice(idx, 1);
+    renderExFormPositionList();
+  }
+
+  // フォーム用 位置編集モーダルを開く（既存の positionModal を流用するが、設定画面用のコールバック経路を使う）
+  function openExFormPosEditor(posIdx) {
+    const isNew = posIdx === null;
+    const list = exFormPositionList || [];
+    if (isNew && list.length >= 4) {
+      if (typeof toast === 'function') toast('位置は最大4個まで');
+      return;
+    }
+    const current = isNew ? { num: '', label: '' } : { ...list[posIdx] };
+    exFormPosEditContext = { posIdx, isNew };
+
+    document.getElementById('positionEditorTitle').textContent = isNew ? '位置を追加' : '位置を編集';
+    const labelInput = document.getElementById('positionEditorLabel');
+    labelInput.value = current.label || '';
+    if (typeof POSITION_LABEL_MAXLEN !== 'undefined') labelInput.maxLength = POSITION_LABEL_MAXLEN;
+    labelInput.classList.remove('input-error');
+    const numErrEl = document.getElementById('positionNumError');
+    if (numErrEl) numErrEl.style.display = 'none';
+
+    // 番号グリッド（既に他の位置で使われている番号を集める）
+    const grid = document.getElementById('positionEditorNumGrid');
+    grid.innerHTML = '';
+    const usedNums = new Set();
+    list.forEach((p, pi) => {
+      if (!isNew && pi === posIdx) return;
+      if (p.num) usedNums.add(String(p.num));
+    });
+    for (let i = 1; i <= 20; i++) {
+      const n = String(i);
+      const el = document.createElement('div');
+      const isUsed = usedNums.has(n);
+      el.className = 'position-item' + (n === current.num ? ' selected' : '') + (isUsed ? ' used' : '');
+      el.textContent = n;
+      if (!isUsed) {
+        el.onclick = () => {
+          // フォーム用の選択処理（既存 selectEditorNum と同じ動作）
+          if (!exFormPosEditContext) return;
+          exFormPosEditContext.selectedNum = n;
+          document.querySelectorAll('#positionEditorNumGrid .position-item').forEach(g => g.classList.remove('selected'));
+          el.classList.add('selected');
+          if (numErrEl) numErrEl.style.display = 'none';
+        };
+      }
+      grid.appendChild(el);
+    }
+    exFormPosEditContext.selectedNum = current.num || '';
+    // 設定画面からの呼び出しであることをマーク
+    positionEditorContext = null; // ワークアウト用は無効化
+    document.getElementById('positionModal').classList.add('show');
+  }
+
   function populateExerciseForm(ex) {
     const isEdit = !!ex;
     // 開くたびにエラー表示をリセット
@@ -15775,6 +16442,10 @@
     document.getElementById('exFormMaxSets').value = displayMaxSets;
     setExFormMax(mt ? !!mt.enabled : false);
     setExFormMaxPos(mt && mt.position ? mt.position : 'before');
+
+    // 位置設定（既存の positionList を読み込んでフォーム編集用に保持）
+    exFormPositionList = (isEdit && ex) ? (typeof getPositionList === 'function' ? [...getPositionList(ex)] : []) : [];
+    if (typeof renderExFormPositionList === 'function') renderExFormPositionList();
 
     // HIIT（新規時は空欄、編集時は既存値）
     const hp = (ex && ex.protocol) ? ex.protocol : null;
@@ -16009,12 +16680,15 @@
         // 左右モード時、内部はsetsを×2で持つ
         const sets = bilateral ? setsRaw * 2 : setsRaw;
         const startSide = bilateral ? (document.getElementById('exFormStartSide').value || 'R') : 'R';
+        // 位置設定（フォームで編集された positionList を反映、空なら null）
+        const posListSaved = (Array.isArray(exFormPositionList) && exFormPositionList.length > 0) ? [...exFormPositionList] : null;
         result = {
           name, weight, reps, sets,
           bilateral,
           startSide,
           machineKind,
           position: position || undefined,
+          positionList: posListSaved,
           url,
           cardio: false, hiit: false, protocol: null,
           cardioMachine: false, machineType: null, machineProtocol: null,
@@ -16387,6 +17061,25 @@
     // 旧フィールドは無効化
     ex.positions = null;
     ex.position = null;
+    // メニュー定義（保存データ）にも同名種目があれば反映 → 設定画面と共有
+    try {
+      if (typeof getAllMenuIds === 'function' && typeof getMenuExercises === 'function' && typeof setMenuExercises === 'function' && ex.name) {
+        const newList = ex.positionList ? ex.positionList.map(p => ({ ...p })) : null;
+        getAllMenuIds().forEach(mid => {
+          const exs = [...getMenuExercises(mid)];
+          let changed = false;
+          exs.forEach(e => {
+            if (e.name === ex.name) {
+              e.positionList = newList ? newList.map(p => ({ ...p })) : null;
+              e.positions = null;
+              e.position = null;
+              changed = true;
+            }
+          });
+          if (changed) setMenuExercises(mid, exs);
+        });
+      }
+    } catch (_) { /* noop */ }
   }
 
   // 個別位置の削除
@@ -16484,6 +17177,45 @@
   }
 
   function savePositionEditor() {
+    // フォーム用コンテキスト優先（設定画面の種目編集フォームから呼ばれた場合）
+    if (exFormPosEditContext) {
+      const { posIdx, isNew, selectedNum } = exFormPosEditContext;
+      const labelEl = document.getElementById('positionEditorLabel');
+      const numErrEl = document.getElementById('positionNumError');
+      if (!selectedNum) {
+        if (numErrEl) numErrEl.style.display = '';
+        return;
+      }
+      if (numErrEl) numErrEl.style.display = 'none';
+      const rawLabel = labelEl.value.trim();
+      if ([...rawLabel].length > POSITION_LABEL_MAXLEN) {
+        labelEl.classList.add('input-error');
+        try { setTimeout(() => labelEl.focus(), 50); } catch (_) { labelEl.focus(); }
+        toast(`名前は${POSITION_LABEL_MAXLEN}文字以内で入力してください`);
+        return;
+      }
+      labelEl.classList.remove('input-error');
+      const label = rawLabel.slice(0, POSITION_LABEL_MAXLEN);
+      const newItem = { num: selectedNum, label: label || '' };
+      if (!Array.isArray(exFormPositionList)) exFormPositionList = [];
+      if (isNew) {
+        if (exFormPositionList.length >= 4) {
+          toast('位置は最大4個まで');
+          return;
+        }
+        exFormPositionList.push(newItem);
+      } else {
+        exFormPositionList[posIdx] = newItem;
+      }
+      // モーダルを閉じてフォームの位置リストを再描画
+      document.getElementById('positionModal').classList.remove('show');
+      exFormPosEditContext = null;
+      renderExFormPositionList();
+      toast(isNew ? '位置を追加' : '位置を更新');
+      return;
+    }
+
+    // ワークアウト画面用（既存処理）
     if (!positionEditorContext) return;
     const { exIdx, posIdx, isNew, selectedNum } = positionEditorContext;
     const labelEl = document.getElementById('positionEditorLabel');
@@ -16525,6 +17257,7 @@
   function closePositionEditor() {
     document.getElementById('positionModal').classList.remove('show');
     positionEditorContext = null;
+    exFormPosEditContext = null;
   }
 
   // Tap outside to close
@@ -16547,7 +17280,13 @@
       return;
     }
     const isMax = isMaxSetIndex(ex, setIdx);
-    const rec = { weight: ex.currentWeight, reps: ex.currentReps };
+    // 記録時の目標値も一緒に保存（後から目標を変更しても、過去セットは当時の目標で判定するため）
+    const rec = {
+      weight: ex.currentWeight,
+      reps: ex.currentReps,
+      targetWeight: ex.targetWeight,
+      targetReps: ex.targetReps
+    };
     if (isMax) rec.isMax = true;
     if (ex.bilateral) {
       rec.side = ex.currentSide || 'R';
@@ -16790,6 +17529,16 @@
 
     if (type === 'weight') {
       const newWeight = changes[0].value;
+      // 目標値を変更する前に、既存セット記録に「当時の目標値」をスタンプしておく
+      // これにより過去セットは当時の目標値で判定され、目標変更による赤判定を防ぐ
+      if (Array.isArray(ex.setRecords)) {
+        const oldTargetWeight = ex.targetWeight;
+        const oldTargetReps = ex.targetReps;
+        ex.setRecords.forEach(r => {
+          if (r && r.targetWeight == null) r.targetWeight = oldTargetWeight;
+          if (r && r.targetReps == null) r.targetReps = oldTargetReps;
+        });
+      }
       updateMenuExercise(targetEx => { targetEx.weight = newWeight; });
       ex.targetWeight = newWeight; // セッション内も更新
     } else if (type === 'maxWeight') {
@@ -16955,8 +17704,20 @@
     const ex = workoutSession.exercises[exIdx];
     const totalSets = getTotalSetsCount(ex);
     if (ex.setRecords.length >= totalSets) return;
+    // 【インターバル稼働中ガード】どのフェーズでもインターバル稼働中は処理しない（開始も次セットも完了も）
+    if (typeof isIntervalRunning === 'function' && isIntervalRunning()) {
+      flashIntervalAlert();
+      return;
+    }
     // 【新仕様】初回タップは「開始」：種目タイマー＋上タイマーを起動するだけ。セット記録はしない
     if (!ex.exStarted) {
+      // スキップ済の種目は開始させない
+      if (ex.judge === 'skip') return;
+      // 直前種目が完了/スキップ済でない場合は開始させない
+      if (typeof isPrevExerciseFinished === 'function' && !isPrevExerciseFinished(exIdx)) {
+        if (typeof toast === 'function') toast('前の種目を完了してください');
+        return;
+      }
       startExerciseTimer(exIdx);
       renderExerciseList();
       renderProgress();
@@ -16975,13 +17736,21 @@
     ex.setRecords[nextIdx] = rec;
     autoJudgeExercise(ex);
     const isLast = ex.setRecords.length >= totalSets;
+    // bilateralで「同じセット内の側切替」かどうかを判定
+    // bilateral種目は2件で1セット。記録数が奇数なら「同じセット内（次は反対側）」、偶数なら「セット完了」
+    const isBilateralMidSet = ex.bilateral && (ex.setRecords.length % 2 === 1);
     if (isLast) {
       ex.duration = ex.elapsedSeconds || 0;
-      if (typeof isElapsedRunning === 'function' && isElapsedRunning()) {
-        pauseElapsedTimer();
-      }
-    } else {
+      // 【仕様変更】完了時も上タイマーは止めない（次種目で継続して時間計測する）
+      // インターバルは完了時にも自動スタート（種目切替時も休憩時間を計測）
+      try {
+        if (typeof startInterval === 'function') {
+          startInterval();
+        }
+      } catch (_) { /* noop */ }
+    } else if (!isBilateralMidSet) {
       // 【新仕様】最終セット以外で「次セット」を押した時：上のインターバルタイマーをカウントアップで自動スタート
+      // ただし bilateral の同じセット内（右→左、左→右）は切替なので起動しない
       try {
         if (typeof startInterval === 'function') {
           startInterval();
@@ -17138,6 +17907,18 @@
     if (!ex) return;
     // すでに開始済みなら何もしない
     if (ex.exStarted) return;
+    // スキップ済の種目は開始させない
+    if (ex.judge === 'skip') return;
+    // 【インターバル稼働中ガード】インターバル稼働中は新たな種目開始を拒否
+    if (typeof isIntervalRunning === 'function' && isIntervalRunning()) {
+      if (typeof flashIntervalAlert === 'function') flashIntervalAlert();
+      return;
+    }
+    // 【前の種目未完了ガード】直前の種目が完了/スキップ済でない場合は開始させない
+    if (typeof isPrevExerciseFinished === 'function' && !isPrevExerciseFinished(exIdx)) {
+      if (typeof toast === 'function') toast('前の種目を完了してください');
+      return;
+    }
     ex.exStarted = true;
     // この種目のelapsedSecondsを0リセット
     ex.elapsedSeconds = 0;
@@ -17165,11 +17946,29 @@
       return;
     }
     if (isStartTwoPhase && !ex.exStarted && !ex.judge) {
+      // 【インターバル稼働中ガード】インターバル稼働中は新たな種目を開始させない
+      if (typeof isIntervalRunning === 'function' && isIntervalRunning()) {
+        flashIntervalAlert();
+        return;
+      }
+      // 【前の種目未完了ガード】直前種目が完了/スキップ済でない場合は開始させない
+      if (typeof isPrevExerciseFinished === 'function' && !isPrevExerciseFinished(idx)) {
+        if (typeof toast === 'function') toast('前の種目を完了してください');
+        return;
+      }
       // 初回タップ：種目開始（タイマー起動）
       startExerciseTimer(idx);
       renderExerciseList();
       renderProgress();
-      toast('開始');
+      // startExerciseTimer がガードで弾かれた場合は exStarted が変わらないのでトーストを抑制
+      if (ex.exStarted) toast('開始');
+      return;
+    }
+    // スキップ済の種目を完了確定しようとした場合はブロック
+    if (ex.judge === 'skip' && type === 'ok') return;
+    // 【インターバル稼働中ガード】インターバルが動いている間は完了に進めない（type==='ok'で確定する場合のみブロック、解除の場合は通す）
+    if (type === 'ok' && ex.judge !== 'ok' && typeof isIntervalRunning === 'function' && isIntervalRunning()) {
+      flashIntervalAlert();
       return;
     }
     // 有酸素の「完了」ボタン：再タップで取消
@@ -17183,9 +17982,13 @@
     if (ex.cardio || ex.hiit || ex.core || ex.other) {
       if (ex.judge === 'ok') {
         ex.duration = ex.elapsedSeconds || 0;
-        if (typeof isElapsedRunning === 'function' && isElapsedRunning()) {
-          pauseElapsedTimer();
-        }
+        // 【仕様変更】完了時も上タイマーは止めない（次種目で継続して時間計測する）
+        // インターバルは完了時にも自動スタート（種目切替時も休憩時間を計測）
+        try {
+          if (typeof startInterval === 'function') {
+            startInterval();
+          }
+        } catch (_) { /* noop */ }
       } else if (ex.judge === null) {
         ex.duration = null;
         // 完了取消時は exStarted もリセットして再びスタートできるように
@@ -17248,9 +18051,20 @@
   }
 
   function finishWorkout() {
+    if (!workoutSession || !Array.isArray(workoutSession.exercises)) return;
     const done = workoutSession.exercises.filter(e => e.judge || (e.setRecords && e.setRecords.length > 0)).length;
     if (done === 0 && !confirm('何も記録されていません。終了しますか？')) return;
     const hist = loadHistory();
+
+    // 総タイム（ワークアウト画面上部のタイマー値）を秒数で保存
+    // 編集モード時は既存値を維持（タイマーが動いていない可能性があるため）
+    try {
+      if (!editingHistoryDate) {
+        let totalMs = elapsedAccumulatedMs || 0;
+        if (elapsedStartMs) totalMs += (Date.now() - elapsedStartMs);
+        workoutSession.totalSeconds = Math.floor(totalMs / 1000);
+      }
+    } catch (_) { /* noop */ }
 
     const wasEditing = !!editingHistoryDate;
     if (editingHistoryDate) {
@@ -17269,6 +18083,8 @@
       hist.unshift(workoutSession);
     }
     saveHistory(hist);
+    // セッション完了で履歴に保存されたので下書きはクリア
+    if (typeof clearWorkoutDraft === 'function') clearWorkoutDraft();
     const lastW = loadLastWeights();
     // 代替候補プールも更新（実施した代替をプールに反映・最新重量/回数で上書き）
     const swapPool = loadSwapPool();
@@ -17316,6 +18132,9 @@
     saveLastWeights(lastW);
     saveSwapPool(swapPool);
     toast(wasEditing ? '✓ 記録を更新' : '✓ お疲れさま！');
+    // セッション完了したのでメモリ上の workoutSession もクリア
+    // （これをしないと showScreen('home') 内の hasWorkoutProgress() で再度確認ダイアログが出てしまう）
+    workoutSession = {};
     showScreen('home');
   }
 
@@ -17323,34 +18142,36 @@
   // セッションのレコード行HTMLを生成（ログタブ・カレンダー詳細欄で共通利用）
   function formatSessionRecords(session) {
     if (!session || !Array.isArray(session.exercises)) return '';
-    // 共通の経過時間フォーマッタ（メニュー名の右横に白字で表示）
-    const durSpan = (sec) => sec ? ` <span style="color: var(--text); font-family: var(--font-mono); font-size: 11px;">【${formatDuration(sec)}】</span>` : '';
-    // 記録行のインデント（全角スペース2つ）
-    const INDENT = '\u3000\u3000';
-    return session.exercises.filter(e => e.judge).map(e => {
-      // メニュー名の右横に経過時間を付与
-      const namePart = `◉ <span style="color: var(--text); font-weight: 700">${e.name}</span>${durSpan(e.duration)}`;
+    // 共通の経過時間フォーマッタ（行の右端に白字で表示）
+    const durSpan = (sec) => sec ? `<span style="color: var(--text); font-family: var(--font-mono); font-size: 11px; flex: 0 0 auto; margin-left: 12px;">【${formatDuration(sec)}】</span>` : '';
+    // 種目名行：左に名前、右に経過時間（flexで右端固定）
+    const buildNameRow = (e) => {
+      const left = `<span style="flex: 1 1 auto; min-width: 0; color: var(--text); font-weight: 700; overflow-wrap: anywhere;">◉ ${e.name}</span>`;
+      const right = durSpan(e.duration);
+      return `<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 4px;">${left}${right}</div>`;
+    };
+    // 記録行（インデント付き）
+    const detailRow = (text) => `<div style="color: var(--text-3); padding-left: 2em;">${text}</div>`;
+
+    const blocks = session.exercises.filter(e => e.judge).map(e => {
+      const nameRow = buildNameRow(e);
 
       // 「その他」種別（core / other）：経過時間のみで詳細記録を出さない
       if (e.core || e.other) {
         if (e.judge === 'skip') {
-          return `${namePart}<br><span style="color: var(--text-3)">${INDENT}⊘ スキップ</span>`;
+          return nameRow + detailRow('⊘ スキップ');
         }
-        return namePart;
+        return nameRow;
       }
 
       if (e.cardio) {
-        // スキップ
         if (e.judge === 'skip') {
-          return `${namePart}<br><span style="color: var(--text-3)">${INDENT}⊘ スキップ</span>`;
+          return nameRow + detailRow('⊘ スキップ');
         }
-        // HIIT：ダッシュ・本数のみ（時間はメニュー名横）
         if (e.hiit && e.protocol) {
           const p = e.protocol;
-          const detail = `ダッシュ${p.dashSpeed}km/h × ${p.rounds}本`;
-          return `${namePart}<br><span style="color: var(--text-3)">${INDENT}${detail}</span>`;
+          return nameRow + detailRow(`ダッシュ${p.dashSpeed}km/h × ${p.rounds}本`);
         }
-        // マシン有酸素：傾斜/スピード/分数のみ（時間はメニュー名横）
         if (e.cardioMachine && e.machineProtocol) {
           const p = e.machineProtocol;
           let detail;
@@ -17359,17 +18180,15 @@
           } else {
             detail = `傾斜${p.incline}% × ${p.speed}km/h × ${p.minutes}分`;
           }
-          return `${namePart}<br><span style="color: var(--text-3)">${INDENT}${detail}</span>`;
+          return nameRow + detailRow(detail);
         }
-        // それ以外の有酸素（プロトコル不明）
-        return `${namePart}<br><span style="color: var(--text-3)">${INDENT}完了</span>`;
+        return nameRow + detailRow('完了');
       }
 
       // 筋トレ系
       if (e.judge === 'skip') {
-        return `${namePart}<br><span style="color: var(--text-3)">${INDENT}⊘ スキップ</span>`;
+        return nameRow + detailRow('⊘ スキップ');
       }
-      // 各セットを1行ずつ表記。MAXセットは「MAX」付き、左右モードは側を表記。
       const records = e.setRecords || [];
       let normalCount = 0;
       let maxCount = 0;
@@ -17384,16 +18203,16 @@
           normalCount += 1;
           label = `${normalCount}set`;
         }
-        // 左右モード：「set 右」「set 左」（半角スペース区切り）
         const sideStr = rec.side === 'L' ? ' 左' : rec.side === 'R' ? ' 右' : '';
-        return `${INDENT}${label}${sideStr}：${w}kg × ${r}回`;
+        return `${label}${sideStr}：${w}kg × ${r}回`;
       });
-      // セット記録がなければスキップ表示
       if (lines.length === 0) {
-        return `${namePart}<br><span style="color: var(--text-3)">${INDENT}—</span>`;
+        return nameRow + detailRow('—');
       }
-      return `${namePart}<br><span style="color: var(--text-3)">${lines.join('<br>')}</span>`;
-    }).join('<br>');
+      // 各セット行を1つにまとめてdetailRowで包む
+      return nameRow + detailRow(lines.join('<br>'));
+    });
+    return blocks.join('');
   }
 
   function renderHistory() {
@@ -17409,6 +18228,12 @@
       const dateStr = `${d.getMonth() + 1}/${d.getDate()}（${DOW[d.getDay()]}）${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
       const menu = getMenu(s.menuId);
       const records = formatSessionRecords(s);
+      // 総合計時間＋経過時間合計サマリー（メニュー名の下に常に表示）
+      const effSec = (s.exercises || []).reduce((sum, ex) => sum + (Number(ex.duration) || 0), 0);
+      const totalStr = (typeof s.totalSeconds === 'number' && s.totalSeconds > 0)
+        ? formatDuration(s.totalSeconds) : '--:--';
+      const activeStr = effSec > 0 ? formatDuration(effSec) : '--:--';
+      const summaryHtml = `<div class="history-summary">総合計時間：【${totalStr}】｜ 経過時間合計：【${activeStr}】</div>`;
       const item = document.createElement('div');
       item.className = 'history-item';
       item.dataset.date = s.date;
@@ -17423,6 +18248,7 @@
             <button class="history-delete-btn" title="削除">×</button>
           </div>
         </div>
+        ${summaryHtml}
         <div class="history-records">${records || '<em>記録なし</em>'}</div>
       `;
       // ボタンに直接イベントバインド（確実に動作させるため）
@@ -18056,7 +18882,9 @@
       const dow = new Date(calYear, calMonth, d).getDay();
       const records = getRecordsForDate(calYear, calMonth, d);
       const dowClass = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
-      const todayClass = (isCurrentMonth && d === todayDate) ? 'today' : '';
+      // 選択日が存在する場合は今日のハイライトは出さない（選択表記は1個だけ）
+      const isThisCellToday = isCurrentMonth && d === todayDate;
+      const todayClass = (isThisCellToday && !calSelectedDate) ? 'today' : '';
       const hasRecord = records.length > 0 ? 'has-record' : '';
       const isSelected = (calSelectedDate && calSelectedDate.year === calYear && calSelectedDate.month === calMonth && calSelectedDate.day === d) ? 'selected' : '';
       const startStyle = (d === 1) ? ` style="grid-column-start: ${startDow + 1}"` : '';
