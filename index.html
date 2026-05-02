@@ -77,6 +77,8 @@
     --warn-dim: rgba(239, 68, 68, 0.1);
 
     --safe-top: env(safe-area-inset-top);
+    /* PWAでステータスバーとヘッダーの間が広すぎるため、safe-topを50%に縮めた値 */
+    --safe-top-trim: calc(env(safe-area-inset-top) * 0.5);
     --safe-bottom: env(safe-area-inset-bottom);
 
     --radius-sm: 8px;
@@ -160,14 +162,14 @@
      - 時計・バッテリーの真下は避け、各々左右に少しオフセット */
   .header {
     /* ヘッダー右にナビボタン3つ配置のため本体高さ48pxに調整 */
-    padding: var(--safe-top) 16px 6px;
+    padding: var(--safe-top-trim) 16px 6px;
     box-sizing: border-box;
     display: flex; justify-content: space-between; align-items: flex-end;
     background: #1d1d22;
     position: static;
     flex-shrink: 0;
     /* ヘッダー本体の高さ(safe-area-inset-topは別) */
-    min-height: calc(var(--safe-top) + 48px);
+    min-height: calc(var(--safe-top-trim) + 48px);
   }
   /* ホーム・履歴・設定画面では、ヘッダーを画面上部に固定（ワークアウト画面のみ除外） */
   body.header-fixed .header {
@@ -184,7 +186,7 @@
   }
   /* fixed化に伴うコンテンツの上部余白を確保（ヘッダー高さに合わせる） */
   body.header-fixed .app {
-    padding-top: calc(var(--safe-top) + 48px);
+    padding-top: calc(var(--safe-top-trim) + 48px);
   }
   .brand {
     display: flex; align-items: center; gap: 10px;
@@ -626,7 +628,7 @@
     transform: scale(0.98);
   }
   .menu-picker-item.selected {
-    background: rgba(255, 90, 31, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     border-color: var(--accent);
   }
   .menu-picker-name {
@@ -1269,6 +1271,7 @@
   .today-meta-item {
     display: flex; flex-direction: column; gap: 8px;
     align-items: center; text-align: center;
+    min-width: 0;
   }
   .today-meta-label {
     font-family: var(--font-mono);
@@ -1278,19 +1281,19 @@
   }
   .today-meta-value {
     font-family: var(--font-display);
-    font-size: 30px; color: var(--text);
+    font-size: 24px; color: var(--text);
     font-weight: 800;
     line-height: 1;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.3px;
   }
   .today-start {
     background: var(--accent); color: var(--accent-text);
-    padding: 14px; border-radius: var(--radius);
-    font-weight: 800; text-align: center;
-    font-size: 15px; letter-spacing: 1px;
-    text-transform: uppercase;
-    position: relative;
+    padding: 12px; border-radius: var(--radius);
+    font-weight: 900; text-align: center;
+    font-size: 13px; letter-spacing: 0.06em;
+    /* メニュー名と同じディスプレイフォントで世界観を統一 */
     font-family: var(--font-display);
+    position: relative;
     display: flex; align-items: center; justify-content: center; gap: 8px;
     border: none;
     cursor: pointer;
@@ -1300,19 +1303,37 @@
   .today-start:active {
     transform: scale(0.98);
   }
-  .today-start::after {
-    content: "→"; transition: transform 0.2s;
+  /* 無効化ボタン（今日以外の選択日カード用） */
+  .today-start.disabled,
+  .today-start:disabled {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-3);
+    cursor: not-allowed;
+    pointer-events: none;
   }
-  .today-start:active::after { transform: translateX(4px); }
+  /* 実施済ボタン：薄グリーン背景・緑文字・緑枠線（disabled状態を示す控えめな表示） */
+  .today-start.disabled.done,
+  .today-start:disabled.done {
+    background: var(--ok-dim);
+    color: var(--ok);
+    border: 1px solid var(--ok);
+  }
 
   /* Rest day card */
   .rest-card {
-    margin-top: 20px;
+    margin-top: 15px;
     background: var(--bg-1);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 22px 20px;
     position: relative;
+    /* 週間スケジュールを下端に配置するため flex column 化 */
+    display: flex;
+    flex-direction: column;
+  }
+  /* 休息日カード内の週間スケジュールはカード下端に配置 */
+  .rest-card .week-strip {
+    margin-top: auto;
   }
   .rest-kicker {
     font-family: var(--font-mono);
@@ -1417,21 +1438,50 @@
   .week-strip {
     display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;
   }
+  /* カード内に置かれた週間スケジュールはトレーニング開始ボタンとの間に余白を確保 */
+  .today-card .week-strip,
+  .rest-card .week-strip {
+    margin-top: 14px;
+  }
   .week-day {
     background: var(--bg-1);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 10px 2px;
     text-align: center;
-    min-height: 70px;
-    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 60px;
+    display: flex; flex-direction: column; justify-content: center; gap: 8px;
   }
   .week-day.today {
     border-color: var(--accent);
     background:
-      linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent),
+      linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent),
       var(--bg-1);
-    box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 15%, transparent);
+    /* 「●今日」ラベルと同じく、外側にグロー効果＋パルスアニメーション */
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent),
+      0 0 16px color-mix(in srgb, var(--accent) 50%, transparent);
+    animation: weekTodayPulse 2s ease-in-out infinite;
+  }
+  @keyframes weekTodayPulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent),
+        0 0 16px color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+    50% {
+      box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent),
+        0 0 24px color-mix(in srgb, var(--accent) 70%, transparent);
+    }
+  }
+  /* 通常モードでホーム画面の週間スケジュールから選択された曜日（今日以外） */
+  .week-day.selected {
+    border-color: var(--accent);
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent),
+      var(--bg-1);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
   }
   .week-day.done {
     border-color: var(--ok);
@@ -1466,9 +1516,11 @@
   .week-day.today.done .week-date { color: var(--accent); }
   .week-dow {
     font-family: var(--font-mono);
-    font-size: 10px; font-weight: 700;
+    font-size: 10px; font-weight: 600;
     color: var(--text-3);
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    text-align: center;
+    line-height: 1;
   }
   .week-day.today .week-dow { color: var(--accent); }
   .week-day.done .week-dow { color: var(--ok); }
@@ -1556,7 +1608,7 @@
   .workout-sticky-top {
     position: sticky;
     /* ヘッダーが fixed (safe-area + 48px) なので、その下にstickyを配置 */
-    top: calc(var(--safe-top) + 48px);
+    top: calc(var(--safe-top-trim) + 48px);
     z-index: 51;
     margin: 0 -18px 6px;
     padding: 0 18px 2px;
@@ -5423,6 +5475,8 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
+    /* 過去日付の「＋追加」ボタンを絶対配置するため */
+    position: relative;
   }
   .cal-day-detail .detail-date {
     font-size: 13px;
@@ -5470,6 +5524,528 @@
     font-size: 14px;
     font-weight: 700;
     margin-top: 2px;
+  }
+  /* 過去日付の「記録はありません」内に追加ボタンを内包する場合 */
+  .cal-day-detail .detail-empty-with-add {
+    position: relative;
+  }
+  /* 過去日付の「＋追加」ボタン：「記録はありません」と同じラインの右端に */
+  .cal-day-detail .detail-add-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+    white-space: nowrap;
+    font-family: inherit;
+    line-height: 1.2;
+  }
+  .cal-day-detail .detail-add-btn:active {
+    background: var(--accent);
+    color: #fff;
+  }
+  /* 過去日付の記録追加用：メニュー選択モーダル */
+  .past-entry-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .past-entry-menu-item {
+    background: var(--bg-2);
+    border: 1px solid var(--bg-3);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .past-entry-menu-item:active {
+    background: var(--bg-3);
+  }
+
+  /* 過去記録シンプル入力フォーム */
+  .past-entry-form-modal {
+    max-width: 92vw;
+    width: 92vw;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .past-entry-form-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 4px;
+    margin: 0 -4px;
+    padding-left: 4px;
+  }
+  .past-entry-ex-card {
+    background: var(--bg-2);
+    border: 1px solid var(--bg-3);
+    border-radius: 10px;
+    padding: 10px 12px;
+    transition: opacity 0.15s;
+  }
+  .past-entry-ex-card.past-entry-ex-disabled {
+    opacity: 0.4;
+  }
+  .past-entry-ex-card.past-entry-ex-disabled .past-entry-input,
+  .past-entry-ex-card.past-entry-ex-disabled .past-entry-action-btn,
+  .past-entry-ex-card.past-entry-ex-disabled select {
+    pointer-events: none;
+  }
+  .past-entry-ex-head {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+  .past-entry-ex-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+  }
+  .past-entry-ex-toggle {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+  .past-entry-ex-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-4);
+    flex-shrink: 0;
+  }
+  .past-entry-ex-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    overflow-wrap: anywhere;
+    flex: 1;
+    min-width: 0;
+  }
+  /* 代替表示：(元 → 代替) */
+  .past-entry-ex-swap-info {
+    font-size: 10px;
+    color: var(--text-4);
+    font-weight: 400;
+    margin-left: 6px;
+  }
+  /* 代替・MAXトグルボタン群 */
+  .past-entry-ex-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .past-entry-action-btn {
+    background: transparent;
+    border: 1px solid var(--bg-3);
+    color: var(--text-3);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    font-family: inherit;
+    line-height: 1.2;
+  }
+  .past-entry-action-btn:active {
+    background: var(--bg-3);
+  }
+  .past-entry-action-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  /* セット数調整行 */
+  .past-entry-sets-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: var(--bg-3);
+    border-radius: 6px;
+  }
+  .past-entry-sets-row label {
+    font-size: 11px;
+    color: var(--text-3);
+    font-weight: 600;
+  }
+  .past-entry-sets-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .past-entry-sets-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    padding: 0;
+  }
+  .past-entry-sets-btn:active {
+    background: var(--bg-3);
+  }
+  .past-entry-sets-count {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 32px;
+    text-align: center;
+  }
+  /* セット別入力テーブル */
+  .past-entry-set-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .past-entry-set-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 1fr;
+    gap: 6px;
+    align-items: center;
+  }
+  /* bilateralの場合：セット番号 + 左右ラベル + 重量 + 回数 = 4列 */
+  .past-entry-set-row.bilateral {
+    grid-template-columns: 36px 28px 1fr 1fr;
+  }
+  /* 判定列ありの場合：判定セルを末尾に追加 */
+  .past-entry-set-row.with-judge {
+    grid-template-columns: 30px 1fr 1fr 56px;
+  }
+  .past-entry-set-row.bilateral.with-judge {
+    grid-template-columns: 30px 24px 1fr 1fr 56px;
+  }
+  /* 判定セル：○と×の小さいボタン */
+  .past-entry-judge-cell {
+    display: flex;
+    gap: 3px;
+    justify-content: center;
+  }
+  .past-entry-judge-mini {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--bg-3);
+    color: var(--text-4);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    padding: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .past-entry-judge-mini.ok.selected {
+    background: #10b981;
+    border-color: #10b981;
+    color: #fff;
+  }
+  .past-entry-judge-mini.ng.selected {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #fff;
+  }
+  .past-entry-set-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-4);
+    text-align: center;
+    font-weight: 700;
+  }
+  .past-entry-set-side {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-3);
+    text-align: center;
+    font-weight: 700;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 4px 0;
+    -webkit-appearance: none;
+    appearance: none;
+    line-height: 1.2;
+    box-sizing: border-box;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  /* クリック可能（1セット目の1番目だけ） */
+  .past-entry-set-side.clickable {
+    cursor: pointer;
+  }
+  .past-entry-set-side.clickable:active {
+    background: rgba(255,255,255,0.12);
+  }
+  /* 読み取り専用（2番目以降） */
+  .past-entry-set-side.readonly {
+    cursor: default;
+    pointer-events: none;
+    opacity: 0.85;
+  }
+  /* 色：右=青、左=ピンク。クリック可能な方は枠を濃くしてボタン感を強調 */
+  .past-entry-set-side.R {
+    color: #38bdf8;
+    border-color: rgba(56,189,248,0.25);
+  }
+  .past-entry-set-side.L {
+    color: #fb7185;
+    border-color: rgba(251,113,133,0.25);
+  }
+  .past-entry-set-side.clickable.R {
+    border-color: rgba(56,189,248,0.6);
+  }
+  .past-entry-set-side.clickable.L {
+    border-color: rgba(251,113,133,0.6);
+  }
+  .past-entry-set-input {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 6px;
+    color: var(--text);
+    /* iOS Safariはinputが16px未満だとフォーカス時に自動ズームするため、最低16pxを維持 */
+    font-size: 16px;
+    font-family: var(--font-mono);
+    text-align: center;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .past-entry-set-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .past-entry-set-input::-webkit-outer-spin-button,
+  .past-entry-set-input::-webkit-inner-spin-button,
+  .past-entry-input::-webkit-outer-spin-button,
+  .past-entry-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  /* セット入力ヘッダー（重量/回数のラベル） */
+  .past-entry-set-head {
+    display: grid;
+    grid-template-columns: 36px 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 2px;
+  }
+  .past-entry-set-head.bilateral {
+    grid-template-columns: 36px 28px 1fr 1fr;
+  }
+  .past-entry-set-head.with-judge {
+    grid-template-columns: 30px 1fr 1fr 56px;
+  }
+  .past-entry-set-head.bilateral.with-judge {
+    grid-template-columns: 30px 24px 1fr 1fr 56px;
+  }
+  .past-entry-set-head .past-entry-set-head-cell {
+    font-size: 9px;
+    color: var(--text-4);
+    font-weight: 600;
+    text-align: center;
+  }
+  /* MAXセクション */
+  .past-entry-max-section {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 6px;
+  }
+  .past-entry-max-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .past-entry-max-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #10b981;
+    font-family: var(--font-mono);
+  }
+  /* MAX位置ラジオ */
+  .past-entry-max-position {
+    display: flex;
+    gap: 4px;
+  }
+  .past-entry-max-position-btn {
+    background: transparent;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: rgba(16, 185, 129, 0.8);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.2;
+  }
+  .past-entry-max-position-btn.selected {
+    background: #10b981;
+    color: #000;
+  }
+  /* 通常／キープ判定切替 */
+  .past-entry-judge-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    align-items: center;
+  }
+  .past-entry-judge-label {
+    font-size: 10px;
+    color: var(--text-4);
+    font-weight: 600;
+  }
+  .past-entry-judge-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-3);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.2;
+  }
+  .past-entry-judge-btn.selected {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(255, 90, 31, 0.1);
+  }
+  /* keepReps入力 */
+  .past-entry-keep-reps {
+    display: none;
+    margin-top: 6px;
+    align-items: center;
+    gap: 6px;
+  }
+  .past-entry-keep-reps.show {
+    display: flex;
+  }
+  .past-entry-keep-reps label {
+    font-size: 10px;
+    color: var(--text-4);
+    font-weight: 600;
+  }
+  .past-entry-keep-reps input {
+    width: 70px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 4px 6px;
+    color: var(--text);
+    /* iOSズーム回避のため16px */
+    font-size: 16px;
+    font-family: var(--font-mono);
+    text-align: center;
+  }
+  /* HIIT/マシン詳細フィールド */
+  .past-entry-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .past-entry-detail-grid.three-col {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  /* 既存（シンプル）フィールド：体幹・その他用 */
+  .past-entry-ex-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .past-entry-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .past-entry-field label {
+    font-size: 10px;
+    color: var(--text-4);
+    font-weight: 600;
+    text-align: center;
+  }
+  .past-entry-input {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    /* iOSズーム回避のため16px */
+    font-size: 16px;
+    font-family: var(--font-mono);
+    text-align: center;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .past-entry-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  /* 代替モーダル */
+  .past-entry-swap-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 50vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .past-entry-swap-option {
+    background: var(--bg-2);
+    border: 1px solid var(--bg-3);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .past-entry-swap-option:active {
+    background: var(--bg-3);
+  }
+  .past-entry-swap-option.original {
+    border-color: var(--accent);
+    color: var(--accent);
   }
   /* 「日付をタップして詳細を表示」（未選択時）は親自体を縦中央配置に独立 */
   /* これにより、他の状態（上寄り）から独立して中央位置に配置される */
@@ -5596,6 +6172,11 @@
     margin-bottom: 4px;
     letter-spacing: 0.3px;
     text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .history-summary-row {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -6340,17 +6921,6 @@
 
   <section class="screen active" id="screen-home">
     <div id="recommendZone"></div>
-
-    <div class="section-head">
-      <div class="section-title">週間スケジュール</div>
-      <a class="section-link" onclick="showScreen('settings')">編集</a>
-    </div>
-    <div class="week-strip" id="weekStrip"></div>
-
-    <div class="section-head">
-      <div class="section-title">メニュー一覧</div>
-    </div>
-    <div class="menu-grid" id="menuGrid"></div>
   </section>
 
   <section class="screen" id="screen-workout">
@@ -6653,6 +7223,49 @@
   </div>
 </div>
 
+<!-- 過去日付の記録追加：メニュー選択モーダル -->
+<div class="modal-backdrop" id="pastEntryMenuModal" onclick="if(event.target===this)closePastEntryMenuModal()">
+  <div class="modal">
+    <h3 class="modal-title" id="pastEntryMenuTitle">記録を追加</h3>
+    <p style="font-size: 13px; color: var(--text-3); margin: 0 0 8px; line-height: 1.6" id="pastEntryMenuDate"></p>
+    <p style="font-size: 12px; color: var(--text-4); margin: 0 0 8px; line-height: 1.5">
+      行ったメニューを選んでください。タイマーは無効になります。
+    </p>
+    <div class="past-entry-menu-list" id="pastEntryMenuList"></div>
+    <div class="modal-actions" style="grid-template-columns: 1fr; margin-top: 14px">
+      <button class="modal-btn" onclick="closePastEntryMenuModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- 過去日付の記録追加：シンプル入力フォーム（通常ワークアウト画面とは独立） -->
+<div class="modal-backdrop" id="pastEntryFormModal" onclick="if(event.target===this)closePastEntryFormModal()">
+  <div class="modal past-entry-form-modal">
+    <h3 class="modal-title" id="pastEntryFormTitle">過去記録</h3>
+    <p style="font-size: 12px; color: var(--text-3); margin: 0 0 4px; line-height: 1.4" id="pastEntryFormDate"></p>
+    <p style="font-size: 11px; color: var(--text-4); margin: 0 0 12px; line-height: 1.4">
+      実施した種目のみチェックを入れて、数値を入力してください。
+    </p>
+    <div class="past-entry-form-body" id="pastEntryFormBody"></div>
+    <div class="modal-actions" style="margin-top: 14px">
+      <button class="modal-btn" onclick="closePastEntryFormModal()">キャンセル</button>
+      <button class="modal-btn primary" onclick="submitPastEntryForm()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 過去記録：代替種目選択モーダル -->
+<div class="modal-backdrop" id="pastEntrySwapModal" onclick="if(event.target===this)closePastEntrySwapModal()">
+  <div class="modal">
+    <h3 class="modal-title">代替種目を選択</h3>
+    <p style="font-size: 12px; color: var(--text-3); margin: 0 0 12px;" id="pastEntrySwapDesc"></p>
+    <div class="past-entry-swap-list" id="pastEntrySwapList"></div>
+    <div class="modal-actions" style="grid-template-columns: 1fr; margin-top: 14px">
+      <button class="modal-btn" onclick="closePastEntrySwapModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="menuEditorModal">
   <div class="modal">
     <div class="menu-editor" id="menuEditorBody"></div>
@@ -6739,12 +7352,7 @@
       <label class="ex-form-label">名前（20文字まで）</label>
       <input type="text" class="ex-form-input" id="newMenuName" placeholder="" maxlength="20" oninput="checkMaxLen(this, 20, 'メニュー名')">
     </div>
-    <div class="ex-form-field" style="margin-top: 12px">
-      <label class="ex-form-label">短縮名（3文字まで）</label>
-      <input type="text" class="ex-form-input" id="newMenuShort" placeholder="" maxlength="3" oninput="checkMaxLen(this, 3, '短縮名')">
-    </div>
     <p style="font-size: 11px; color: var(--text-4); margin: 4px 0 0; line-height: 1.5">
-      短縮名はカレンダーや週間スケジュールなど、スペースの狭い箇所で使われます。<br>
       追加したメニューは設定＞メニュー編集から種目を登録できます。<br>
       週間スケジュールの自動順序にも追加されます。
     </p>
@@ -7448,6 +8056,49 @@
   const ADMIN_MENU_IDS = ['admin1', 'admin2', 'admin3', 'admin4', 'admin5'];
   const DOW = ['日', '月', '火', '水', '木', '金', '土'];
   const DOW_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+  // 日本の祝日判定（主要な祝日のみ。簡易版・ハードコード）
+  // ※春分・秋分は年によって日付が変わるため近似式で計算
+  // ※ハッピーマンデー法対応（成人の日、海の日、敬老の日、スポーツの日）
+  function isJapaneseHoliday(date) {
+    const y = date.getFullYear();
+    const m = date.getMonth() + 1; // 1-12
+    const d = date.getDate();
+    const dow = date.getDay(); // 0=日
+
+    // 固定日の祝日
+    if (m === 1 && d === 1) return true;   // 元日
+    if (m === 2 && d === 11) return true;  // 建国記念の日
+    if (m === 2 && d === 23) return true;  // 天皇誕生日（2020以降）
+    if (m === 4 && d === 29) return true;  // 昭和の日
+    if (m === 5 && d === 3) return true;   // 憲法記念日
+    if (m === 5 && d === 4) return true;   // みどりの日
+    if (m === 5 && d === 5) return true;   // こどもの日
+    if (m === 8 && d === 11) return true;  // 山の日
+    if (m === 11 && d === 3) return true;  // 文化の日
+    if (m === 11 && d === 23) return true; // 勤労感謝の日
+
+    // ハッピーマンデー：第n月曜日（dow===1）
+    // 第n月曜日の日付 = (n-1)*7 + (1〜7のうち月曜の最初の日)
+    const isNthMonday = (n) => {
+      if (dow !== 1) return false;
+      const nth = Math.ceil(d / 7);
+      return nth === n;
+    };
+    if (m === 1 && isNthMonday(2)) return true;  // 成人の日（1月第2月曜）
+    if (m === 7 && isNthMonday(3)) return true;  // 海の日（7月第3月曜）
+    if (m === 9 && isNthMonday(3)) return true;  // 敬老の日（9月第3月曜）
+    if (m === 10 && isNthMonday(2)) return true; // スポーツの日（10月第2月曜）
+
+    // 春分の日（近似式：3月20または21日）
+    const shunbun = Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
+    if (m === 3 && d === shunbun) return true;
+    // 秋分の日（近似式：9月22または23日）
+    const shubun = Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
+    if (m === 9 && d === shubun) return true;
+
+    return false;
+  }
 
   // DEFAULT_MENUS: 初期メニュー定義
   // 配布版では空にしている。ユーザーが「+」ボタンから自由にメニューを追加していく方式。
@@ -8617,7 +9268,7 @@
           reason: '今日はゆっくり休みましょう。' };
       }
       return { type: 'completed', menuKey: menuId,
-        reason: '今日は実施しました。' };
+        reason: '実施済' };
     }
 
     const schedule = getCurrentWeekSchedule();
@@ -8633,21 +9284,30 @@
     // テストモードで「未実施」状態なら、過去mock履歴の影響を無視して必ず未実施扱い
     if (isAdminMode && !adminTodayDoneState) {
       return { type: 'scheduled', menuKey: scheduledMenu,
-        reason: `今日はまだ実施しておりません。` };
+        reason: '未実施' };
     }
 
     const history = loadHistory();
-    const weekStart = getWeekStart(now);
-    const thisWeekSessions = history.filter(s => new Date(s.date) >= weekStart);
-    const doneMenus = thisWeekSessions.map(s => s.menuId);
+    // 今日の日付の履歴に同じメニューがあるかチェック（週単位ではなく日単位）
+    // → 同じメニューを別日（同じ週内）に実施していても、今日まだ実施してないなら「はじめる」を出す
+    const todayY = now.getFullYear();
+    const todayM = now.getMonth();
+    const todayD = now.getDate();
+    const doneTodayMenus = history
+      .filter(s => {
+        if (!s.date) return false;
+        const d = new Date(s.date);
+        return d.getFullYear() === todayY && d.getMonth() === todayM && d.getDate() === todayD;
+      })
+      .map(s => s.menuId);
 
-    if (!doneMenus.includes(scheduledMenu)) {
+    if (!doneTodayMenus.includes(scheduledMenu)) {
       return { type: 'scheduled', menuKey: scheduledMenu,
-        reason: `今日はまだ実施しておりません。` };
+        reason: '未実施' };
     }
 
     return { type: 'completed', menuKey: scheduledMenu,
-      reason: '今日は実施しました。' };
+      reason: '実施済' };
   }
 
   function getNextTrainingDayStr(from, availableDays) {
@@ -8677,23 +9337,68 @@
     if (heroEl) heroEl.textContent = '';
   }
 
+  // メインカードの高さを統一するためのヘルパー
+  // ホーム画面のカードが描画された後に呼ぶ。これまでの最大高さを記録し、
+  // すべてのカードにmin-heightとして適用する
+  // → 1枚目（はじめる付き）が最も背が高い → その高さに合わせる仕様
+  function syncTodayCardHeight() {
+    requestAnimationFrame(() => {
+      const zone = document.getElementById('recommendZone');
+      if (!zone) return;
+      const card = zone.querySelector('.today-card, .rest-card');
+      if (!card) return;
+      // 既存のmin-heightを一旦解除して自然な高さを測る
+      const prevMin = card.style.minHeight;
+      card.style.minHeight = '';
+      const naturalHeight = card.offsetHeight;
+      // これまでの最大値を更新
+      if (!window.__todayCardMaxHeight || naturalHeight > window.__todayCardMaxHeight) {
+        window.__todayCardMaxHeight = naturalHeight;
+      }
+      // 最大高さをmin-heightとして適用
+      card.style.minHeight = window.__todayCardMaxHeight + 'px';
+    });
+  }
+
   function renderRecommend() {
+    // 週間スケジュールで今日以外の曜日が選択されている場合は、その曜日の情報を表示
+    if (homeSelectedDow !== null) {
+      renderSelectedDayCard(homeSelectedDow);
+      return;
+    }
     const rec = getTodayRecommendation();
     const zone = document.getElementById('recommendZone');
     if (!rec) { zone.innerHTML = ''; return; }
 
-    // 休息日（曜日設定外）：休息カード
+    // 休息日（曜日設定外）：休息カード（today-cardと同じ統一デザイン）
     if (rec.type === 'rest') {
-      // 休息日では実施済/未実施トグルは不要（テストモードでも表示しない）
       zone.innerHTML = `
-        <div class="rest-card">
+        <div class="today-card is-rest">
           <div class="today-card-head">
             <div class="today-label">今日</div>
           </div>
-          <h2 class="rest-title">休息日</h2>
-          <p class="rest-msg">${rec.reason}</p>
+          <div class="today-menu-name">休息日</div>
+          <div class="today-meta-title">前回の記録：-</div>
+          <div class="today-meta">
+            <div class="today-meta-item">
+              <div class="today-meta-label">種目数</div>
+              <div class="today-meta-value">-</div>
+            </div>
+            <div class="today-meta-item">
+              <div class="today-meta-label">総重量</div>
+              <div class="today-meta-value">-</div>
+            </div>
+            <div class="today-meta-item">
+              <div class="today-meta-label">経過時間計</div>
+              <div class="today-meta-value">-</div>
+            </div>
+          </div>
+          <button class="today-start disabled" disabled>ゆっくり休みましょう</button>
+          <div class="week-strip" id="weekStrip"></div>
         </div>
       `;
+      syncTodayCardHeight();
+      renderWeekStrip();
       return;
     }
 
@@ -8714,16 +9419,34 @@
         todaySessions.sort((a, b) => new Date(b.date) - new Date(a.date));
         displayMenuId = todaySessions[0].menuId;
       } else {
-        // 今日のセッションがない場合：休息カード
+        // 今日のセッションがない場合：休息カード（today-cardと同じ統一デザイン）
         zone.innerHTML = `
-          <div class="rest-card">
+          <div class="today-card is-rest">
             <div class="today-card-head">
               <div class="today-label">今日</div>
             </div>
-            <h2 class="rest-title">休息日</h2>
-            <p class="rest-msg">${rec.reason}</p>
+            <div class="today-menu-name">休息日</div>
+            <div class="today-meta-title">前回の記録：-</div>
+            <div class="today-meta">
+              <div class="today-meta-item">
+                <div class="today-meta-label">種目数</div>
+                <div class="today-meta-value">-</div>
+              </div>
+              <div class="today-meta-item">
+                <div class="today-meta-label">総重量</div>
+                <div class="today-meta-value">-</div>
+              </div>
+              <div class="today-meta-item">
+                <div class="today-meta-label">経過時間計</div>
+                <div class="today-meta-value">-</div>
+              </div>
+            </div>
+            <button class="today-start disabled" disabled>ゆっくり休みましょう</button>
+            <div class="week-strip" id="weekStrip"></div>
           </div>
         `;
+        syncTodayCardHeight();
+        renderWeekStrip();
         return;
       }
     }
@@ -8762,6 +9485,10 @@
         });
       });
     }
+    // 経過時間計：履歴サマリーと完全に同じ計算（setRecordsの有無に関係なく全種目のdurationを合計）
+    const totalDuration = (lastSession && Array.isArray(lastSession.exercises))
+      ? lastSession.exercises.reduce((sum, ex) => sum + (Number(ex.duration) || 0), 0)
+      : 0;
     const hasPrev = !!lastSession;
     // 今日の記録があるか判定（表示中のメニューが今日実施済みか）
     const doneToday = (rec.type === 'completed') || history.some(h => {
@@ -8775,10 +9502,13 @@
       ? (totalWeight / 1000).toFixed(1) + 't'
       : totalWeight.toFixed(0) + 'kg';
 
-    // 「前回」の表示ラベル：完了時は「本日の」、それ以外は「前回の…（日付）」
-    const metaTitle = (rec.type === 'completed' && hasPrev)
-      ? `本日の${menu.name}`
-      : (hasPrev ? `前回の${menu.name}（${formatPrevDate(lastSession.date)}）` : '');
+    // 「前回」の表示ラベル：完了時は「本日の」、それ以外は「前回の記録：日付（曜日）」
+    const metaTitle = hasPrev
+      ? `前回の記録：${formatPrevDate(lastSession.date)}`
+      : '前回の記録：-';
+    const exDisp = hasPrev ? exerciseCount : '-';
+    const wDisp = hasPrev ? totalWeightDisplay : '-';
+    const durDisp = (hasPrev && totalDuration > 0) ? formatDuration(totalDuration) : '-';
 
     zone.innerHTML = `
       <div class="today-card">
@@ -8787,38 +9517,208 @@
           ${isAdminMode ? `<button class="today-admin-toggle" onclick="event.stopPropagation(); toggleAdminTodayDone();">${adminTodayDoneState ? '実施済' : '未実施'}</button>` : ''}
         </div>
         <div class="today-menu-name">${menu.name}</div>
-        <div class="today-reason">${rec.reason}</div>
-        ${hasPrev ? `
         <div class="today-meta-title">${metaTitle}</div>
         <div class="today-meta">
           <div class="today-meta-item">
             <div class="today-meta-label">種目数</div>
-            <div class="today-meta-value">${exerciseCount}</div>
+            <div class="today-meta-value">${exDisp}</div>
           </div>
           <div class="today-meta-item">
             <div class="today-meta-label">総重量</div>
-            <div class="today-meta-value">${totalWeightDisplay}</div>
+            <div class="today-meta-value">${wDisp}</div>
           </div>
           <div class="today-meta-item">
-            <div class="today-meta-label">総回数</div>
-            <div class="today-meta-value">${totalReps}</div>
+            <div class="today-meta-label">経過時間計</div>
+            <div class="today-meta-value">${durDisp}</div>
           </div>
         </div>
-        ` : ''}
-        ${doneToday ? '<div class="today-status">おつかれさまでした！</div>' : ''}
-        ${rec.type !== 'completed' ? `<button class="today-start" onclick="startWorkout('${rec.menuKey}')">はじめる</button>` : ''}
+        ${rec.type === 'completed'
+          ? '<button class="today-start disabled done" disabled>実施済</button>'
+          : `<button class="today-start" onclick="startWorkout('${displayMenuId}')">トレーニング開始</button>`}
+        <div class="week-strip" id="weekStrip"></div>
       </div>
     `;
+    syncTodayCardHeight();
+    renderWeekStrip();
+  }
+  // タップした曜日のメニュー情報を表示（記録閲覧用、「はじめる」ボタンなし）
+  function renderSelectedDayCard(dow) {
+    const zone = document.getElementById('recommendZone');
+    if (!zone) return;
+    const schedule = getCurrentWeekSchedule();
+    const menuKey = schedule[dow];
+    // 今日と選択曜日の実際の日付を計算
+    // renderWeekStrip と同じロジックで、表示中の週の中での日付を求める
+    const now = new Date();
+    const realToday = now.getDay();
+    const baseDate = new Date(now);
+    baseDate.setHours(0, 0, 0, 0);
+    const orderedDows = getOrderedDows();
+    const todayIndex = orderedDows.indexOf(realToday);
+    const startDate = new Date(baseDate);
+    startDate.setDate(startDate.getDate() - todayIndex);
+    // 選択曜日が orderedDows のどの位置にあるかを探す
+    const dowIndex = orderedDows.indexOf(dow);
+    const target = new Date(startDate);
+    target.setDate(target.getDate() + dowIndex);
+    // 今日との日数差を計算（負=過去、0=今日、正=未来）
+    const dayDiff = Math.round((target - baseDate) / (1000 * 60 * 60 * 24));
+    const m = target.getMonth() + 1;
+    const day = target.getDate();
+    // ラベル：今日 / N日前 / N日後
+    let label;
+    if (dayDiff === 0) label = '今日';
+    else if (dayDiff < 0) label = `${Math.abs(dayDiff)}日前`;
+    else label = `${dayDiff}日後`;
+    const dateLabel = `${m}/${day}（${DOW[dow]}）`;
+
+    // メニューが割り当てられていない曜日：休息日表示（today-cardと同じ統一デザイン）
+    if (!menuKey) {
+      zone.innerHTML = `
+        <div class="today-card is-rest">
+          <div class="today-card-head">
+            <div class="today-label">${label}</div>
+          </div>
+          <div class="today-menu-name">休息日</div>
+          <div class="today-meta-title">前回の記録：-</div>
+          <div class="today-meta">
+            <div class="today-meta-item">
+              <div class="today-meta-label">種目数</div>
+              <div class="today-meta-value">-</div>
+            </div>
+            <div class="today-meta-item">
+              <div class="today-meta-label">総重量</div>
+              <div class="today-meta-value">-</div>
+            </div>
+            <div class="today-meta-item">
+              <div class="today-meta-label">経過時間計</div>
+              <div class="today-meta-value">-</div>
+            </div>
+          </div>
+          <button class="today-start disabled" disabled>ゆっくり休みましょう</button>
+          <div class="week-strip" id="weekStrip"></div>
+        </div>
+      `;
+      syncTodayCardHeight();
+      renderWeekStrip();
+      return;
+    }
+
+    const menu = getMenu(menuKey);
+    if (!menu) { zone.innerHTML = ''; return; }
+
+    // この日付にこのメニューを実施した履歴があるか
+    const history = loadHistory();
+    const ty = target.getFullYear();
+    const tm = target.getMonth();
+    const td = target.getDate();
+    const sameDaySession = history.find(h => {
+      if (!h.date || h.menuId !== menuKey) return false;
+      const d = new Date(h.date);
+      return d.getFullYear() === ty && d.getMonth() === tm && d.getDate() === td;
+    });
+
+    // 表示する記録を決定：A案
+    // - その日付の実施記録があればそれを表示
+    // - なければ「同メニューの過去最新記録」（選択日より前で最も新しいもの）を表示
+    let displaySession = null;
+    let isPrevRecord = false; // true=前回の記録（過去最新）、false=その日の記録
+    if (sameDaySession) {
+      displaySession = sameDaySession;
+    } else {
+      // 同じメニューの過去最新記録（選択日より前）を探す
+      const sortedHistory = history
+        .filter(h => h.menuId === menuKey && h.date)
+        .filter(h => new Date(h.date) < target) // 選択日より前
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      if (sortedHistory.length > 0) {
+        displaySession = sortedHistory[0];
+        isPrevRecord = true;
+      }
+    }
+
+    // 集計
+    let exerciseCount = 0, totalWeight = 0, totalReps = 0;
+    if (displaySession && Array.isArray(displaySession.exercises)) {
+      displaySession.exercises.forEach(ex => {
+        if (!ex.setRecords || ex.setRecords.length === 0) return;
+        exerciseCount++;
+        ex.setRecords.forEach(s => {
+          const w = parseFloat(s.weight) || 0;
+          const r = parseInt(s.reps) || 0;
+          totalWeight += w * r;
+          totalReps += r;
+        });
+      });
+    }
+    // 経過時間計：履歴サマリーと完全に同じ計算（setRecordsの有無に関係なく全種目のdurationを合計）
+    const totalDuration = (displaySession && Array.isArray(displaySession.exercises))
+      ? displaySession.exercises.reduce((sum, ex) => sum + (Number(ex.duration) || 0), 0)
+      : 0;
+    const totalWeightDisplay = totalWeight >= 1000
+      ? (totalWeight / 1000).toFixed(1) + 't'
+      : totalWeight.toFixed(0) + 'kg';
+
+    // 状態テキスト：未来=「予定」、過去 + 実施記録あり=「実施済」、それ以外=「未実施」
+    let reasonText;
+    if (dayDiff > 0) {
+      reasonText = '予定';
+    } else if (sameDaySession) {
+      reasonText = '実施済';
+    } else {
+      reasonText = '未実施';
+    }
+
+    // 記録のメタタイトル：常に「前回の記録：日付」形式に統一（記録なしは「-」）
+    let metaTitle;
+    if (sameDaySession) {
+      metaTitle = `前回の記録：${dateLabel}`;
+    } else if (isPrevRecord && displaySession) {
+      metaTitle = `前回の記録：${formatPrevDate(displaySession.date)}`;
+    } else {
+      metaTitle = '前回の記録：-';
+    }
+    const exDisp = displaySession ? exerciseCount : '-';
+    const wDisp = displaySession ? totalWeightDisplay : '-';
+    const durDisp = (displaySession && totalDuration > 0) ? formatDuration(totalDuration) : '-';
+
+    // ボタンは今日以外は無効（記録閲覧専用）
+    // 選択日カードは常に「今日以外」なので必ず無効ボタンとなる
+    zone.innerHTML = `
+      <div class="today-card">
+        <div class="today-card-head">
+          <div class="today-label">${label}</div>
+        </div>
+        <div class="today-menu-name">${menu.name}</div>
+        <div class="today-meta-title">${metaTitle}</div>
+        <div class="today-meta">
+          <div class="today-meta-item">
+            <div class="today-meta-label">種目数</div>
+            <div class="today-meta-value">${exDisp}</div>
+          </div>
+          <div class="today-meta-item">
+            <div class="today-meta-label">総重量</div>
+            <div class="today-meta-value">${wDisp}</div>
+          </div>
+          <div class="today-meta-item">
+            <div class="today-meta-label">経過時間計</div>
+            <div class="today-meta-value">${durDisp}</div>
+          </div>
+        </div>
+        <button class="today-start disabled${reasonText === '実施済' ? ' done' : ''}" disabled>${reasonText}</button>
+        <div class="week-strip" id="weekStrip"></div>
+      </div>
+    `;
+    syncTodayCardHeight();
+    renderWeekStrip();
   }
 
   function formatPrevDate(iso) {
     const d = new Date(iso);
     const m = d.getMonth() + 1;
     const day = d.getDate();
-    const days = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-    // 0日前→今日、1日前→昨日、それ以外は N日前
-    const dStr = days === 0 ? '今日' : days === 1 ? '昨日' : `${days}日前`;
-    return `${m}/${day}・${dStr}`;
+    const dow = DOW[d.getDay()];
+    return `${m}/${day}（${dow}）`;
   }
 
   function renderWeekStrip() {
@@ -8828,9 +9728,6 @@
     const today = (isAdminMode && adminSelectedDow !== null) ? adminSelectedDow : realToday;
     const schedule = getCurrentWeekSchedule();
     const history = loadHistory();
-    const weekStart = getWeekStart(now);
-    const thisWeekSessions = history.filter(s => new Date(s.date) >= weekStart);
-    const doneMenus = thisWeekSessions.map(s => s.menuId);
 
     // 起点日(週の開始曜日)から各曜日の日付を計算するためのベース日付を求める
     // 「今日(realToday)」を基準に、orderedDowsの各曜日との日数差を計算する
@@ -8838,6 +9735,7 @@
     baseDate.setHours(0, 0, 0, 0);
 
     const strip = document.getElementById('weekStrip');
+    if (!strip) return; // weekStripはカード内にあるので、カード未描画時はスキップ
     strip.innerHTML = '';
     const orderedDows = getOrderedDows();
     // 起点日の日付を求める：今日から遡る
@@ -8850,39 +9748,60 @@
     orderedDows.forEach((dayIdx, i) => {
       const menuKey = schedule[dayIdx];
       const menu = menuKey ? getMenu(menuKey) : null;
-      const isDone = menuKey && doneMenus.includes(menuKey);
       const isToday = dayIdx === today;
-      // 予定バッジ：今日 かつ メニュー有り かつ 未実施 のみ表示
-      const isUpcoming = isToday && !!menu && !isDone;
       // この曜日チップの日付を計算
       const chipDate = new Date(startDate);
       chipDate.setDate(chipDate.getDate() + i);
-      const dateLabel = `${chipDate.getDate()}(${DOW[dayIdx]})`;
+      // この曜日の日付の履歴に同じメニューがあるかチェック（日単位で判定）
+      const cy = chipDate.getFullYear();
+      const cm = chipDate.getMonth();
+      const cd = chipDate.getDate();
+      const isDone = !!menuKey && history.some(s => {
+        if (!s.date || s.menuId !== menuKey) return false;
+        const d = new Date(s.date);
+        return d.getFullYear() === cy && d.getMonth() === cm && d.getDate() === cd;
+      });
+      // 予定バッジ：今日 かつ メニュー有り かつ 未実施 のみ表示
+      const isUpcoming = isToday && !!menu && !isDone;
+      // 表記変更：上に「月/日」、中央に「曜日」のみ。メニュー短縮名は表示しない
+      const monthDay = `${chipDate.getMonth() + 1}/${chipDate.getDate()}`;
+      const dowLabel = DOW[dayIdx];
       const el = document.createElement('div');
-      el.className = 'week-day' + (isToday ? ' today' : '') + (isDone ? ' done' : '') + (isUpcoming ? ' upcoming' : '');
-      let badgeMark = '';
-      if (isDone) badgeMark = '<div class="week-done-mark">済</div>';
-      else if (isUpcoming) badgeMark = '<div class="week-plan-mark">予定</div>';
-      if (menu) {
-        el.innerHTML = `
-          <div class="week-date">${dateLabel}</div>
-          ${badgeMark}
-          <div class="week-menu">${menu.shortName || menu.name}</div>
-        `;
-      } else {
-        el.innerHTML = `
-          <div class="week-date">${dateLabel}</div>
-          ${badgeMark}
-          <div class="week-menu rest">休</div>
-        `;
-      }
-      // テストモード時：曜日タップで「今日」表示を切替
+      // 選択中の曜日（通常モード時のみ）にも .selected クラスを付与
+      const isHomeSelected = !isAdminMode && homeSelectedDow !== null && homeSelectedDow === dayIdx;
+      el.className = 'week-day' + (isToday ? ' today' : '') + (isDone ? ' done' : '') + (isUpcoming ? ' upcoming' : '') + (isHomeSelected ? ' selected' : '');
+      el.innerHTML = `
+        <div class="week-date">${monthDay}</div>
+        <div class="week-dow">${dowLabel}</div>
+      `;
+      // タップ可能：テストモード時は既存ロジック、通常モード時はホーム画面のメインカード切替
       if (isAdminMode) {
         el.style.cursor = 'pointer';
         el.addEventListener('click', () => selectAdminDow(dayIdx));
+      } else {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => selectHomeDow(dayIdx));
       }
       strip.appendChild(el);
     });
+  }
+
+  // 通常モード：曜日タップでホーム画面のメインカードを切替
+  // 同じ曜日を再タップした場合は選択解除（今日に戻す）
+  function selectHomeDow(dow) {
+    const now = new Date();
+    const realToday = now.getDay();
+    if (dow === realToday) {
+      // 今日をタップ → 選択解除（null = 今日表示）
+      homeSelectedDow = null;
+    } else if (homeSelectedDow === dow) {
+      // 同じ曜日を再タップ → 選択解除
+      homeSelectedDow = null;
+    } else {
+      homeSelectedDow = dow;
+    }
+    renderRecommend();
+    renderWeekStrip();
   }
 
   // テストモード：曜日タップで「今日」視点を切替
@@ -8900,6 +9819,7 @@
 
   function renderMenuGrid() {
     const grid = document.getElementById('menuGrid');
+    if (!grid) return; // ホーム画面からメニュー一覧を削除したため、要素がない場合は何もしない
     grid.innerHTML = '';
     const rec = getTodayRecommendation();
     const history = loadHistory();
@@ -8937,7 +9857,7 @@
       grid.appendChild(btn);
       renderedCount++;
     });
-    // メニュー2件以下のときは、画面に収まるよう動的にパディング調整しスクロール無効化
+    // メニュー5件以下のときは、画面に収まるよう動的にパディング調整しスクロール無効化
     // どのスマホ端末でも下10pxを維持し、余りは上部余白として配分
     const homeScreen = document.getElementById('screen-home');
     if (homeScreen) {
@@ -8950,7 +9870,7 @@
       homeScreen.style.paddingBottom = '';
 
       const isHomeActive = homeScreen.classList.contains('active');
-      const shouldFitScreen = renderedCount <= 2 && isHomeActive;
+      const shouldFitScreen = renderedCount <= 5 && isHomeActive;
 
       if (shouldFitScreen) {
         // 次のフレームで実測（DOM更新後）
@@ -9506,7 +10426,11 @@
       renderHistory();
       renderCalendar();
     }
-    if (name === 'home') { renderDate(); renderRecommend(); renderWeekStrip(); renderMenuGrid(); renderStats(); }
+    if (name === 'home') {
+      // ホームに来るたびに選択中の曜日をリセット（仕様：今日のメニューを表示）
+      homeSelectedDow = null;
+      renderDate(); renderRecommend(); renderWeekStrip(); renderMenuGrid(); renderStats();
+    }
     if (name === 'settings') {
       // 設定画面に入る時、スナップショットを取得（既にあれば維持）
       if (!settingsSnapshot) captureSettingsSnapshot();
@@ -9680,8 +10604,8 @@
   // 管理者モード（テストモード）
   // ============================================================
   // 仕様：
-  // - 通常時：下部ナビの「ホーム」と「履歴」ボタンを同時に2秒以上長押し → 暗証番号モーダル → 正解で起動
-  // - 起動中：下部ナビの「ホーム」と「履歴」ボタンを同時に1秒以上長押し → 確認モーダル → OKで解除
+  // - 通常時：筋LOGロゴを1秒以上長押し → 暗証番号モーダル → 正解で起動
+  // - 起動中：筋LOGロゴを1秒以上長押し → 確認モーダル → OKで解除
   // - 起動中：全画面に仮の記録データが表示される（プレビュー用）
   // - localStorage は一切触らない（メモリ上のモックのみ）
   // - 起動中はバッジ「テストモード」を表示
@@ -9691,106 +10615,62 @@
   let isAdminMode = false;
   let adminMockLastWeights = null;  // 仮の前回記録
   let adminMockHistory = null;      // 仮の履歴
-  let lastBrandTapAt = 0;           // 直近タップ時刻（ms）
-  let brandTapCount = 0;            // 連続タップ回数
   let adminTodayDoneState = true;   // テストモード時：今日を「実施済」とするか（true=実施済 / false=未実施）
   let adminSelectedDow = null;      // テストモード時：選択中の曜日（null=実際の今日、0-6=その曜日視点）
 
+  // ホーム画面の週間スケジュールでタップ選択中の曜日（null=実際の今日、0-6=その曜日）
+  // ホーム画面に来るたびにリセット（ホームを再度開くと今日にリセットされる仕様）
+  let homeSelectedDow = null;
+
   const ADMIN_PIN = '7771';         // テストモード起動用暗証番号
 
-  // ----- ホーム＋履歴ボタンの同時2秒長押しでPINモーダルを起動 -----
+  // ----- 筋LOGロゴの長押し1秒で PIN/解除モーダルを起動 -----
   // 仕様：
-  // - ホームボタンと履歴ボタンの両方を「押している」状態が2秒以上継続したらPINモーダルを開く
-  // - どちらか一方を離した時点でタイマーリセット（誤動作防止）
-  // - PINモーダル表示時はナビの通常クリック（画面切替）を抑制
-  const ADMIN_LONGPRESS_MS_ENTER = 2000;  // 起動時の同時長押し時間
-  const ADMIN_LONGPRESS_MS_EXIT  = 1000;  // 解除時の同時長押し時間（短めに）
-  let adminPressHome = false;       // ホームボタンを押下中か
-  let adminPressHistory = false;    // 履歴ボタンを押下中か
-  let adminLongPressTimer = null;   // タイマーID
-  let adminLongPressFired = false;  // 長押しが発火したか（クリック抑制用）
+  // - ロゴを「押している」状態が1秒以上継続したらモーダルを開く
+  //   - 通常時：PIN入力モーダル
+  //   - テストモード中：解除確認モーダル
+  // - 押下が1秒未満で離されたら何も起きない（普通のタップ）
+  // - 長押し発火後の合成クリックは onclick="handleBrandTap()" 側で抑制
+  const ADMIN_LOGO_LONGPRESS_MS = 1000;  // ロゴ長押し時間（起動・解除共通）
+  let adminLogoTimer = null;        // タイマーID
+  let adminLogoFired = false;       // 長押しが発火したか（クリック抑制用）
 
-  function adminCheckLongPressStart() {
-    if (adminPressHome && adminPressHistory) {
-      // 両方押された瞬間にタイマー開始
-      if (adminLongPressTimer) clearTimeout(adminLongPressTimer);
-      adminLongPressFired = false;
-      // 起動時と解除時で必要時間を切り替え
-      const ms = isAdminMode ? ADMIN_LONGPRESS_MS_EXIT : ADMIN_LONGPRESS_MS_ENTER;
-      adminLongPressTimer = setTimeout(() => {
-        adminLongPressFired = true;
-        adminLongPressTimer = null;
-        // 触覚フィードバック（対応端末のみ）
-        try { if (navigator.vibrate) navigator.vibrate(50); } catch(e) {}
-        // テストモード中なら解除確認、通常時なら起動PIN
-        if (isAdminMode) {
-          openAdminConfirm();
-        } else {
-          openAdminPinModal();
-        }
-      }, ms);
-    }
+  function adminLogoPressStart() {
+    if (adminLogoTimer) clearTimeout(adminLogoTimer);
+    adminLogoFired = false;
+    adminLogoTimer = setTimeout(() => {
+      adminLogoFired = true;
+      adminLogoTimer = null;
+      // 触覚フィードバック（対応端末のみ）
+      try { if (navigator.vibrate) navigator.vibrate(50); } catch(e) {}
+      // テストモード中なら解除確認、通常時なら起動PIN
+      if (isAdminMode) {
+        openAdminConfirm();
+      } else {
+        openAdminPinModal();
+      }
+    }, ADMIN_LOGO_LONGPRESS_MS);
   }
 
-  function adminCheckLongPressCancel() {
-    // どちらか一方でも離されたらキャンセル
-    if (!adminPressHome || !adminPressHistory) {
-      if (adminLongPressTimer) {
-        clearTimeout(adminLongPressTimer);
-        adminLongPressTimer = null;
-      }
+  function adminLogoPressCancel() {
+    if (adminLogoTimer) {
+      clearTimeout(adminLogoTimer);
+      adminLogoTimer = null;
     }
   }
 
   function adminBindLongPress() {
-    const homeBtn = document.querySelector('.nav-btn[data-screen="home"]');
-    const histBtn = document.querySelector('.nav-btn[data-screen="history"]');
-    if (!homeBtn || !histBtn) return;
+    const brand = document.querySelector('.brand');
+    if (!brand) return;
 
-    // ホームボタン
-    const onHomeDown = (e) => { adminPressHome = true; adminCheckLongPressStart(); };
-    const onHomeUp   = (e) => { adminPressHome = false; adminCheckLongPressCancel(); };
-    homeBtn.addEventListener('touchstart', onHomeDown, { passive: true });
-    homeBtn.addEventListener('touchend',   onHomeUp,   { passive: true });
-    homeBtn.addEventListener('touchcancel',onHomeUp,   { passive: true });
-    homeBtn.addEventListener('mousedown',  onHomeDown);
-    homeBtn.addEventListener('mouseup',    onHomeUp);
-    homeBtn.addEventListener('mouseleave', onHomeUp);
-
-    // 履歴ボタン
-    const onHistDown = (e) => { adminPressHistory = true; adminCheckLongPressStart(); };
-    const onHistUp   = (e) => { adminPressHistory = false; adminCheckLongPressCancel(); };
-    histBtn.addEventListener('touchstart', onHistDown, { passive: true });
-    histBtn.addEventListener('touchend',   onHistUp,   { passive: true });
-    histBtn.addEventListener('touchcancel',onHistUp,   { passive: true });
-    histBtn.addEventListener('mousedown',  onHistDown);
-    histBtn.addEventListener('mouseup',    onHistUp);
-    histBtn.addEventListener('mouseleave', onHistUp);
-
-    // クリック時：長押しが発火していたら通常の画面切替を抑制
-    // ※ onclick属性で登録されたハンドラはbubble phaseで動くため、
-    //   stopPropagationだけでは止められない。showScreenをラップして確実にスキップする。
-    if (typeof window.showScreen === 'function' && !window._showScreenWrapped) {
-      const _origShowScreen = window.showScreen;
-      window.showScreen = function(name) {
-        if (adminLongPressFired) {
-          adminLongPressFired = false;
-          return; // 長押し発火後の合成クリックはスキップ
-        }
-        return _origShowScreen.apply(this, arguments);
-      };
-      window._showScreenWrapped = true;
-    }
-    // 念のためevent側も止める（他のリスナーがある場合に備えて）
-    const suppressClick = (e) => {
-      if (adminLongPressFired) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }
-    };
-    homeBtn.addEventListener('click', suppressClick, true);
-    histBtn.addEventListener('click', suppressClick, true);
+    const onDown = (e) => { adminLogoPressStart(); };
+    const onUp   = (e) => { adminLogoPressCancel(); };
+    brand.addEventListener('touchstart', onDown, { passive: true });
+    brand.addEventListener('touchend',   onUp,   { passive: true });
+    brand.addEventListener('touchcancel',onUp,   { passive: true });
+    brand.addEventListener('mousedown',  onDown);
+    brand.addEventListener('mouseup',    onUp);
+    brand.addEventListener('mouseleave', onUp);
   }
 
   // DOM準備完了後にバインド
@@ -9800,11 +10680,13 @@
     adminBindLongPress();
   }
 
-  // ----- ロゴタップ：解除手段は同時長押しに統一したため、何もしない -----
+  // ----- ロゴタップ：長押し発火後の合成クリックを抑制 -----
   function handleBrandTap() {
-    // (旧: 5回タップで起動 / 2回タップで解除 → 廃止)
-    // (旧: 下にスクロール時に最上部へ戻る → 廃止。フッターのアイコン再タップに統一)
-    // 起動・解除はホーム＋履歴の同時長押しに統一
+    if (adminLogoFired) {
+      adminLogoFired = false;
+      return; // 長押しでモーダルが開いたあとの合成クリックは無視
+    }
+    // 普通のタップは何もしない
   }
 
   // ----- PIN入力モーダル -----
@@ -14375,6 +15257,39 @@
       }
       closePicker();
       return;
+    } else if (pickerContext.type === 'pastEntry') {
+      // 過去記録フォーム：setData/maxSetData に値を反映 + DOM更新 + 以降のセルへ伝播
+      if (!pastEntryContext) { closePicker(); return; }
+      const exIdx = pickerContext.exIdx;
+      const setIdx = pickerContext.setIdx;
+      const isMax = pickerContext.isMax;
+      const field = pickerContext.field;
+      const ex = pastEntryContext.exercises[exIdx];
+      if (!ex) { closePicker(); return; }
+      const arr = isMax ? ex.maxSetData : ex.setData;
+      if (!arr[setIdx]) arr[setIdx] = {};
+      arr[setIdx][field] = val;
+      // 対応するDOM入力欄を更新
+      const selector = isMax
+        ? `.past-entry-ex-card[data-ex-idx="${exIdx}"] .past-entry-set-input[data-max-idx="${setIdx}"][data-field="${field}"]`
+        : `.past-entry-ex-card[data-ex-idx="${exIdx}"] .past-entry-set-input[data-set-idx="${setIdx}"][data-field="${field}"]`;
+      const target = document.querySelector(selector);
+      if (target) target.value = val;
+      // 以降のセルに伝播（A案：上書き）
+      const totalLen = isMax
+        ? (ex.maxTraining ? ex.maxTraining.sets : 0)
+        : (ex.bilateral ? (ex.currentSets || 1) * 2 : (ex.currentSets || 1));
+      for (let i = setIdx + 1; i < totalLen; i++) {
+        if (!arr[i]) arr[i] = {};
+        arr[i][field] = val;
+        const sel = isMax
+          ? `.past-entry-ex-card[data-ex-idx="${exIdx}"] .past-entry-set-input[data-max-idx="${i}"][data-field="${field}"]`
+          : `.past-entry-ex-card[data-ex-idx="${exIdx}"] .past-entry-set-input[data-set-idx="${i}"][data-field="${field}"]`;
+      const t = document.querySelector(sel);
+        if (t) t.value = val;
+      }
+      closePicker();
+      return;
     }
     closePicker();
   }
@@ -15372,9 +16287,7 @@
 
   function openAddMenuModal() {
     document.getElementById('newMenuName').value = '';
-    document.getElementById('newMenuShort').value = '';
     document.getElementById('newMenuName').classList.remove('input-error');
-    document.getElementById('newMenuShort').classList.remove('input-error');
     document.getElementById('addMenuModal').classList.add('show');
     setTimeout(() => document.getElementById('newMenuName').focus(), 100);
   }
@@ -15385,9 +16298,7 @@
 
   function saveNewMenu() {
     const nameEl = document.getElementById('newMenuName');
-    const shortEl = document.getElementById('newMenuShort');
     const name = nameEl.value.trim();
-    const shortName = shortEl.value.trim();
     const errorEls = [];
     const showErr = (el, msg) => {
       el.classList.add('input-error');
@@ -15395,8 +16306,6 @@
       el.addEventListener('input', clearErr);
     };
     if (!name) errorEls.push({el: nameEl, msg: '名前を入力してください'});
-    if (!shortName) errorEls.push({el: shortEl, msg: '短縮名を入力してください'});
-    else if ([...shortName].length > 3) errorEls.push({el: shortEl, msg: '短縮名は3文字以内で入力してください'});
     if (errorEls.length > 0) {
       errorEls.forEach(e => showErr(e.el));
       try { setTimeout(() => errorEls[0].el.focus(), 50); } catch (_) { errorEls[0].el.focus(); }
@@ -15404,7 +16313,9 @@
       return;
     }
     nameEl.classList.remove('input-error');
-    shortEl.classList.remove('input-error');
+
+    // 短縮名は名前の先頭3文字から自動生成（後方互換のために保存）
+    const shortName = [...name].slice(0, 3).join('');
 
     // 一意なIDを生成
     const id = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
@@ -18022,6 +18933,1030 @@
   // 編集中の履歴ISO日付（編集モード時のみセット）
   let editingHistoryDate = null;
 
+  // ----- 過去日付の記録追加：メニュー選択モーダル -----
+  function openPastEntryMenuModal(year, month, day) {
+    const modal = document.getElementById('pastEntryMenuModal');
+    const list = document.getElementById('pastEntryMenuList');
+    const dateEl = document.getElementById('pastEntryMenuDate');
+    if (!modal || !list || !dateEl) return;
+    const dateStr = `${year}年${month + 1}月${day}日（${DOW[new Date(year, month, day).getDay()]}）`;
+    dateEl.textContent = dateStr + ' の記録を追加';
+
+    // メニュー一覧を取得（テストモード時は admin1〜7、通常時は priority）
+    const menuIds = isAdminMode ? getAllMenuIds() : getPriority();
+    list.innerHTML = '';
+    menuIds.forEach(menuId => {
+      const menu = getMenu(menuId);
+      if (!menu) return;
+      const btn = document.createElement('button');
+      btn.className = 'past-entry-menu-item';
+      btn.textContent = menu.name + ` (${menu.exercises.length} 種目)`;
+      btn.onclick = () => {
+        closePastEntryMenuModal();
+        openPastEntryFormModal(menuId, year, month, day);
+      };
+      list.appendChild(btn);
+    });
+    modal.classList.add('show');
+  }
+  function closePastEntryMenuModal() {
+    const modal = document.getElementById('pastEntryMenuModal');
+    if (modal) modal.classList.remove('show');
+  }
+
+  // ----- 過去日付の記録追加：シンプル入力フォーム -----
+  // 通常のワークアウト画面とは完全に独立したフォーム。タイマー・インターバルは
+  // 一切使わないが、通常画面で記録できる項目（代替・左右別・MAX・keep等）はすべて対応。
+  let pastEntryContext = null; // { menuId, year, month, day, exercises: [...] }
+  let pastEntrySwapTargetIdx = null; // 代替モーダルで対象とする種目インデックス
+
+  function openPastEntryFormModal(menuId, year, month, day) {
+    const menu = getMenu(menuId);
+    if (!menu) {
+      toast('メニューが見つかりません');
+      return;
+    }
+    // exercises は menu のものを deep copy して、代替や maxTraining 設定変更を扱えるようにする
+    const exercises = menu.exercises.map(e => ({
+      // 元の種目情報（読み取り専用）
+      _originalDef: JSON.parse(JSON.stringify(e)),
+      // 編集可能な状態
+      name: e.name,
+      originalName: e.name,
+      swappedFrom: null,
+      bilateral: !!e.bilateral,
+      startSide: e.startSide || 'R',
+      cardio: !!e.cardio,
+      hiit: !!e.hiit,
+      cardioMachine: !!e.cardioMachine,
+      machineType: e.machineType || null,
+      machineProtocol: e.machineProtocol ? { ...e.machineProtocol } : null,
+      protocol: e.protocol ? { ...e.protocol } : null,
+      core: !!e.core,
+      coreSec: e.coreSec || null,
+      other: !!e.other,
+      otherSec: e.otherSec || null,
+      url: e.url || null,
+      machineKind: e.machineKind || 'plate',
+      // 通常種目のターゲット
+      targetWeight: e.targetWeight !== undefined ? e.targetWeight : (e.weight || 0),
+      targetReps: e.targetReps !== undefined ? e.targetReps : (e.reps || 10),
+      targetSets: e.targetSets !== undefined ? e.targetSets : (e.sets || 3),
+      // 編集中のセット数（ユーザーが調整可能）
+      currentSets: e.targetSets !== undefined ? e.targetSets : (e.sets || 3),
+      // MAX設定（メニュー定義のコピー、ユーザー編集可能）
+      maxTraining: e.maxTraining ? { ...e.maxTraining } : null,
+      // セット別記録（通常セット）
+      setData: [], // [{ weight, reps, judge? }]
+      maxSetData: [], // MAXセット用
+      // セット別の左右順（bilateral種目用）：そのセットで「最初の行」が R か L か
+      // 例：setSideOrders[0]='R' なら 1セット目は 右→左、'L' なら 左→右
+      setSideOrders: [], // セット数だけ持つ
+      maxSideOrders: [],
+      judge: 'ok', // 'ok' | 'keep'
+      keepReps: null,
+      enabled: true
+    }));
+    pastEntryContext = { menuId, year, month, day, exercises };
+
+    const modal = document.getElementById('pastEntryFormModal');
+    const titleEl = document.getElementById('pastEntryFormTitle');
+    const dateEl = document.getElementById('pastEntryFormDate');
+    if (!modal) return;
+
+    const dateStr = `${year}年${month + 1}月${day}日（${DOW[new Date(year, month, day).getDay()]}）`;
+    if (titleEl) titleEl.textContent = menu.name;
+    if (dateEl) dateEl.textContent = dateStr;
+
+    renderPastEntryForm();
+    modal.classList.add('show');
+  }
+
+  // フォーム全体を再レンダリング（代替・MAX切替などで再描画する）
+  function renderPastEntryForm() {
+    if (!pastEntryContext) return;
+    const bodyEl = document.getElementById('pastEntryFormBody');
+    if (!bodyEl) return;
+    bodyEl.innerHTML = '';
+    pastEntryContext.exercises.forEach((ex, idx) => {
+      const card = buildPastEntryExCard(ex, idx);
+      bodyEl.appendChild(card);
+    });
+  }
+
+  // 種目1つぶんのカードを生成
+  function buildPastEntryExCard(ex, idx) {
+    const card = document.createElement('div');
+    card.className = 'past-entry-ex-card';
+    card.dataset.exIdx = String(idx);
+    if (!ex.enabled) card.classList.add('past-entry-ex-disabled');
+
+    const isCardio = ex.cardio || ex.hiit;
+    const isCore = ex.core;
+    const isOther = ex.other;
+    const isHiit = ex.hiit;
+    const isMachine = ex.cardioMachine;
+    const isNormal = !isCardio && !isCore && !isOther;
+
+    const exNameEsc = ex.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const swapInfo = ex.swappedFrom ? `<span class="past-entry-ex-swap-info">(元: ${ex.swappedFrom.replace(/</g,'&lt;')})</span>` : '';
+
+    // ヘッダー：チェックボックス + 種目名 + アクションボタン
+    let head = `
+      <div class="past-entry-ex-head">
+        <label class="past-entry-ex-check">
+          <input type="checkbox" class="past-entry-ex-toggle" ${ex.enabled ? 'checked' : ''} onchange="togglePastEntryEx(${idx}, this.checked)">
+          <span class="past-entry-ex-num">${String(idx + 1).padStart(2, '0')}</span>
+          <span class="past-entry-ex-name">${exNameEsc}${swapInfo}</span>
+        </label>
+        <div class="past-entry-ex-actions">
+    `;
+    // 代替ボタン（通常種目のみ）
+    if (isNormal) {
+      head += `<button class="past-entry-action-btn" onclick="openPastEntrySwapModal(${idx})">代替</button>`;
+    }
+    head += `</div></div>`;
+
+    let body = '';
+
+    if (isHiit && ex.protocol) {
+      // HIIT: ダッシュ速度 × 本数 × タイム
+      body += `
+        <div class="past-entry-detail-grid three-col">
+          <div class="past-entry-field">
+            <label>速度 (km/h)</label>
+            <input type="number" inputmode="decimal" class="past-entry-input" data-field="dashSpeed" placeholder="" step="0.5" min="0">
+          </div>
+          <div class="past-entry-field">
+            <label>本数</label>
+            <input type="number" inputmode="numeric" class="past-entry-input" data-field="rounds" placeholder="" min="1">
+          </div>
+          <div class="past-entry-field">
+            <label>合計時間 (分)</label>
+            <input type="number" inputmode="decimal" class="past-entry-input" data-field="duration" placeholder="" step="0.5" min="0">
+          </div>
+        </div>
+      `;
+    } else if (isMachine && ex.machineProtocol) {
+      // マシン有酸素：トレッドミル(incline/speed/minutes) or クロストレーナー(rpm/minutes)
+      const p = ex.machineProtocol;
+      if (ex.machineType === 'crosstrainer') {
+        body += `
+          <div class="past-entry-detail-grid">
+            <div class="past-entry-field">
+              <label>RPM</label>
+              <input type="number" inputmode="numeric" class="past-entry-input" data-field="rpm" placeholder="" min="0">
+            </div>
+            <div class="past-entry-field">
+              <label>時間 (分)</label>
+              <input type="number" inputmode="numeric" class="past-entry-input" data-field="minutes" placeholder="" min="0">
+            </div>
+          </div>
+        `;
+      } else {
+        body += `
+          <div class="past-entry-detail-grid three-col">
+            <div class="past-entry-field">
+              <label>傾斜 (%)</label>
+              <input type="number" inputmode="decimal" class="past-entry-input" data-field="incline" placeholder="" step="0.5" min="0">
+            </div>
+            <div class="past-entry-field">
+              <label>速度 (km/h)</label>
+              <input type="number" inputmode="decimal" class="past-entry-input" data-field="speed" placeholder="" step="0.5" min="0">
+            </div>
+            <div class="past-entry-field">
+              <label>時間 (分)</label>
+              <input type="number" inputmode="numeric" class="past-entry-input" data-field="minutes" placeholder="" min="0">
+            </div>
+          </div>
+        `;
+      }
+    } else if (isCardio) {
+      // 一般有酸素：時間（分）のみ
+      body += `
+        <div class="past-entry-field">
+          <label>時間 (分)</label>
+          <input type="number" inputmode="numeric" class="past-entry-input" data-field="duration" placeholder="" min="0">
+        </div>
+      `;
+    } else if (isCore || isOther) {
+      // 体幹・その他：セット数 + 時間（秒）
+      body += `
+        <div class="past-entry-ex-fields">
+          <div class="past-entry-field">
+            <label>セット数</label>
+            <input type="number" inputmode="numeric" class="past-entry-input" data-field="sets" placeholder="" min="1" value="${ex.currentSets || ex.targetSets || 3}">
+          </div>
+          <div class="past-entry-field">
+            <label>時間 (秒/セット)</label>
+            <input type="number" inputmode="numeric" class="past-entry-input" data-field="coreSec" placeholder="" min="0">
+          </div>
+        </div>
+      `;
+    } else {
+      // 通常種目：セット数調整 + セット別重量・回数 + (オプション)MAX + judge
+      body += buildPastEntryNormalBody(ex, idx);
+    }
+
+    card.innerHTML = head + body;
+    return card;
+  }
+
+  // 通常種目のボディ（セット数 + セット別入力 + MAX）
+  function buildPastEntryNormalBody(ex, idx) {
+    const isBilateral = ex.bilateral;
+    let html = '';
+
+    // セット数調整行
+    html += `
+      <div class="past-entry-sets-row">
+        <label>セット数</label>
+        <div class="past-entry-sets-controls">
+          <button class="past-entry-sets-btn" onclick="changePastEntrySets(${idx}, -1)">−</button>
+          <span class="past-entry-sets-count">${ex.currentSets}</span>
+          <button class="past-entry-sets-btn" onclick="changePastEntrySets(${idx}, +1)">+</button>
+        </div>
+      </div>
+    `;
+
+    // セット入力ヘッダー（重量・回数・判定の3列 / bilateralは左右追加で4列）
+    if (isBilateral) {
+      html += `
+        <div class="past-entry-set-head bilateral with-judge">
+          <div class="past-entry-set-head-cell">セット</div>
+          <div class="past-entry-set-head-cell">左右</div>
+          <div class="past-entry-set-head-cell">重量(kg)</div>
+          <div class="past-entry-set-head-cell">回数</div>
+          <div class="past-entry-set-head-cell">判定</div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="past-entry-set-head with-judge">
+          <div class="past-entry-set-head-cell">セット</div>
+          <div class="past-entry-set-head-cell">重量(kg)</div>
+          <div class="past-entry-set-head-cell">回数</div>
+          <div class="past-entry-set-head-cell">判定</div>
+        </div>
+      `;
+    }
+
+    // セット別入力
+    html += `<div class="past-entry-set-rows">`;
+    const totalSets = ex.currentSets || 1;
+    if (isBilateral) {
+      const startSide = ex.startSide || 'R';
+      const otherSide = startSide === 'R' ? 'L' : 'R';
+      for (let s = 0; s < totalSets; s++) {
+        const idx1 = s * 2;
+        const idx2 = s * 2 + 1;
+        const v1 = ex.setData[idx1] || {};
+        const v2 = ex.setData[idx2] || {};
+        const j1 = v1.judge || 'ok';
+        const j2 = v2.judge || 'ok';
+        // 各セットの開始side：setSideOrders[s] を優先、未設定ならデフォルト startSide
+        const setStart = ex.setSideOrders[s] || startSide;
+        const setOther = setStart === 'R' ? 'L' : 'R';
+        const label1 = setStart === 'R' ? '右' : '左';
+        const label2 = setOther === 'R' ? '右' : '左';
+        const w1Disp = v1.weight !== undefined ? Number(v1.weight).toFixed(1) : '';
+        const w2Disp = v2.weight !== undefined ? Number(v2.weight).toFixed(1) : '';
+        const r1Disp = v1.reps !== undefined ? v1.reps : '';
+        const r2Disp = v2.reps !== undefined ? v2.reps : '';
+        html += `
+          <div class="past-entry-set-row bilateral with-judge">
+            <div class="past-entry-set-label">${s + 1}</div>
+            <button class="past-entry-set-side ${setStart} clickable" onclick="togglePastEntrySetOrder(${idx}, ${s}, false)">${label1}</button>
+            <input type="number" inputmode="decimal" class="past-entry-set-input" data-set-idx="${idx1}" data-field="weight" placeholder="" step="0.5" min="0" value="${w1Disp}" onchange="propagatePastEntryValue(${idx}, this, false)">
+            <input type="text" inputmode="none" readonly class="past-entry-set-input" data-set-idx="${idx1}" data-field="reps" placeholder="" value="${r1Disp}" onclick="openPastEntryPicker(${idx}, ${idx1}, false, 'reps')">
+            ${buildJudgeCell(idx, idx1, j1, false)}
+          </div>
+          <div class="past-entry-set-row bilateral with-judge">
+            <div class="past-entry-set-label"></div>
+            <div class="past-entry-set-side ${setOther} readonly">${label2}</div>
+            <input type="number" inputmode="decimal" class="past-entry-set-input" data-set-idx="${idx2}" data-field="weight" placeholder="" step="0.5" min="0" value="${w2Disp}" onchange="propagatePastEntryValue(${idx}, this, false)">
+            <input type="text" inputmode="none" readonly class="past-entry-set-input" data-set-idx="${idx2}" data-field="reps" placeholder="" value="${r2Disp}" onclick="openPastEntryPicker(${idx}, ${idx2}, false, 'reps')">
+            ${buildJudgeCell(idx, idx2, j2, false)}
+          </div>
+        `;
+      }
+    } else {
+      for (let s = 0; s < totalSets; s++) {
+        const v = ex.setData[s] || {};
+        const j = v.judge || 'ok';
+        const wDisp = v.weight !== undefined ? Number(v.weight).toFixed(1) : '';
+        const rDisp = v.reps !== undefined ? v.reps : '';
+        html += `
+          <div class="past-entry-set-row with-judge">
+            <div class="past-entry-set-label">${s + 1}</div>
+            <input type="number" inputmode="decimal" class="past-entry-set-input" data-set-idx="${s}" data-field="weight" placeholder="" step="0.5" min="0" value="${wDisp}" onchange="propagatePastEntryValue(${idx}, this, false)">
+            <input type="text" inputmode="none" readonly class="past-entry-set-input" data-set-idx="${s}" data-field="reps" placeholder="" value="${rDisp}" onclick="openPastEntryPicker(${idx}, ${s}, false, 'reps')">
+            ${buildJudgeCell(idx, s, j, false)}
+          </div>
+        `;
+      }
+    }
+    html += `</div>`;
+
+    // MAXセクション（maxTraining.enabled の場合）
+    if (ex.maxTraining && ex.maxTraining.enabled) {
+      const mt = ex.maxTraining;
+      const maxSets = mt.sets || 1;
+      const maxSetCount = isBilateral && maxSets % 2 === 0 ? maxSets / 2 : maxSets;
+      const positionBefore = mt.position === 'before';
+      html += `
+        <div class="past-entry-max-section">
+          <div class="past-entry-max-head">
+            <span class="past-entry-max-title">MAX セット</span>
+            <div class="past-entry-max-position">
+              <button class="past-entry-max-position-btn ${positionBefore ? 'selected' : ''}" onclick="setPastEntryMaxPosition(${idx}, 'before')">前</button>
+              <button class="past-entry-max-position-btn ${!positionBefore ? 'selected' : ''}" onclick="setPastEntryMaxPosition(${idx}, 'after')">後</button>
+            </div>
+          </div>
+          <div class="past-entry-sets-row">
+            <label>MAXセット数</label>
+            <div class="past-entry-sets-controls">
+              <button class="past-entry-sets-btn" onclick="changePastEntryMaxSets(${idx}, -1)">−</button>
+              <span class="past-entry-sets-count">${maxSetCount}</span>
+              <button class="past-entry-sets-btn" onclick="changePastEntryMaxSets(${idx}, +1)">+</button>
+            </div>
+          </div>
+      `;
+      if (isBilateral) {
+        html += `
+          <div class="past-entry-set-head bilateral with-judge">
+            <div class="past-entry-set-head-cell">MAX</div>
+            <div class="past-entry-set-head-cell">左右</div>
+            <div class="past-entry-set-head-cell">重量(kg)</div>
+            <div class="past-entry-set-head-cell">回数</div>
+            <div class="past-entry-set-head-cell">判定</div>
+          </div>
+          <div class="past-entry-set-rows">
+        `;
+        const startSide = ex.startSide || 'R';
+        const otherSide = startSide === 'R' ? 'L' : 'R';
+        for (let s = 0; s < maxSetCount; s++) {
+          const idx1 = s * 2;
+          const idx2 = s * 2 + 1;
+          const v1 = ex.maxSetData[idx1] || {};
+          const v2 = ex.maxSetData[idx2] || {};
+          const j1 = v1.judge || 'ok';
+          const j2 = v2.judge || 'ok';
+          // 各MAXセットの開始side：maxSideOrders[s] を優先、未設定ならデフォルト startSide
+          const setStart = ex.maxSideOrders[s] || startSide;
+          const setOther = setStart === 'R' ? 'L' : 'R';
+          const label1 = setStart === 'R' ? '右' : '左';
+          const label2 = setOther === 'R' ? '右' : '左';
+          const mw1Disp = v1.weight !== undefined ? Number(v1.weight).toFixed(1) : '';
+          const mw2Disp = v2.weight !== undefined ? Number(v2.weight).toFixed(1) : '';
+          const mr1Disp = v1.reps !== undefined ? v1.reps : '';
+          const mr2Disp = v2.reps !== undefined ? v2.reps : '';
+          html += `
+            <div class="past-entry-set-row bilateral with-judge">
+              <div class="past-entry-set-label">${s + 1}</div>
+              <button class="past-entry-set-side ${setStart} clickable" onclick="togglePastEntrySetOrder(${idx}, ${s}, true)">${label1}</button>
+              <input type="number" inputmode="decimal" class="past-entry-set-input" data-max-idx="${idx1}" data-field="weight" placeholder="" step="0.5" min="0" value="${mw1Disp}" onchange="propagatePastEntryValue(${idx}, this, true)">
+              <input type="text" inputmode="none" readonly class="past-entry-set-input" data-max-idx="${idx1}" data-field="reps" placeholder="" value="${mr1Disp}" onclick="openPastEntryPicker(${idx}, ${idx1}, true, 'reps')">
+              ${buildJudgeCell(idx, idx1, j1, true)}
+            </div>
+            <div class="past-entry-set-row bilateral with-judge">
+              <div class="past-entry-set-label"></div>
+              <div class="past-entry-set-side ${setOther} readonly">${label2}</div>
+              <input type="number" inputmode="decimal" class="past-entry-set-input" data-max-idx="${idx2}" data-field="weight" placeholder="" step="0.5" min="0" value="${mw2Disp}" onchange="propagatePastEntryValue(${idx}, this, true)">
+              <input type="text" inputmode="none" readonly class="past-entry-set-input" data-max-idx="${idx2}" data-field="reps" placeholder="" value="${mr2Disp}" onclick="openPastEntryPicker(${idx}, ${idx2}, true, 'reps')">
+              ${buildJudgeCell(idx, idx2, j2, true)}
+            </div>
+          `;
+        }
+        html += `</div>`;
+      } else {
+        html += `
+          <div class="past-entry-set-head with-judge">
+            <div class="past-entry-set-head-cell">MAX</div>
+            <div class="past-entry-set-head-cell">重量(kg)</div>
+            <div class="past-entry-set-head-cell">回数</div>
+            <div class="past-entry-set-head-cell">判定</div>
+          </div>
+          <div class="past-entry-set-rows">
+        `;
+        for (let s = 0; s < maxSetCount; s++) {
+          const v = ex.maxSetData[s] || {};
+          const j = v.judge || 'ok';
+          const wDisp = v.weight !== undefined ? Number(v.weight).toFixed(1) : '';
+          const rDisp = v.reps !== undefined ? v.reps : '';
+          html += `
+            <div class="past-entry-set-row with-judge">
+              <div class="past-entry-set-label">${s + 1}</div>
+              <input type="number" inputmode="decimal" class="past-entry-set-input" data-max-idx="${s}" data-field="weight" placeholder="" step="0.5" min="0" value="${wDisp}" onchange="propagatePastEntryValue(${idx}, this, true)">
+              <input type="text" inputmode="none" readonly class="past-entry-set-input" data-max-idx="${s}" data-field="reps" placeholder="" value="${rDisp}" onclick="openPastEntryPicker(${idx}, ${s}, true, 'reps')">
+              ${buildJudgeCell(idx, s, j, true)}
+            </div>
+          `;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`; // past-entry-max-section
+    }
+
+    return html;
+  }
+
+  // セット単位の判定セル（緑チェック=ok / 赤バツ=keep）
+  function buildJudgeCell(exIdx, setIdx, judge, isMax) {
+    const attr = isMax ? `data-max-judge="${setIdx}"` : `data-set-judge="${setIdx}"`;
+    const okSel = judge === 'ok' ? 'selected' : '';
+    const keepSel = judge === 'keep' ? 'selected' : '';
+    return `
+      <div class="past-entry-judge-cell" ${attr}>
+        <button class="past-entry-judge-mini ok ${okSel}" onclick="setPastEntrySetJudge(${exIdx}, ${setIdx}, 'ok', ${isMax})">○</button>
+        <button class="past-entry-judge-mini ng ${keepSel}" onclick="setPastEntrySetJudge(${exIdx}, ${setIdx}, 'keep', ${isMax})">×</button>
+      </div>
+    `;
+  }
+
+  // ===== 過去記録フォームの操作関数 =====
+  function togglePastEntryEx(idx, enabled) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[idx];
+    if (!ex) return;
+    ex.enabled = !!enabled;
+    const card = document.querySelector(`.past-entry-ex-card[data-ex-idx="${idx}"]`);
+    if (card) {
+      card.classList.toggle('past-entry-ex-disabled', !enabled);
+    }
+  }
+
+  function changePastEntrySets(idx, delta) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[idx];
+    if (!ex) return;
+    // 入力値を一旦保存してから再描画
+    syncPastEntryInputs(idx);
+    const newSets = Math.max(1, Math.min(20, (ex.currentSets || 1) + delta));
+    if (newSets === ex.currentSets) return;
+    ex.currentSets = newSets;
+    // setData の長さを調整（bilateralは×2）
+    const need = ex.bilateral ? newSets * 2 : newSets;
+    while (ex.setData.length < need) ex.setData.push({});
+    if (ex.setData.length > need) ex.setData.length = need;
+    renderPastEntryForm();
+  }
+
+  function changePastEntryMaxSets(idx, delta) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[idx];
+    if (!ex || !ex.maxTraining) return;
+    syncPastEntryInputs(idx);
+    const isBilateral = ex.bilateral;
+    const currentSets = ex.maxTraining.sets || 1;
+    // bilateralの場合、内部的には×2 → UI上のMAXセット数は currentSets/2
+    const currentUiSets = isBilateral && currentSets % 2 === 0 ? currentSets / 2 : currentSets;
+    const newUiSets = Math.max(1, Math.min(10, currentUiSets + delta));
+    if (newUiSets === currentUiSets) return;
+    ex.maxTraining.sets = isBilateral ? newUiSets * 2 : newUiSets;
+    const need = ex.maxTraining.sets;
+    while (ex.maxSetData.length < need) ex.maxSetData.push({});
+    if (ex.maxSetData.length > need) ex.maxSetData.length = need;
+    renderPastEntryForm();
+  }
+
+  function setPastEntryMaxPosition(idx, pos) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[idx];
+    if (!ex || !ex.maxTraining) return;
+    syncPastEntryInputs(idx);
+    ex.maxTraining.position = pos;
+    renderPastEntryForm();
+  }
+
+  // セット単位の判定（緑チェック=ok / 赤バツ=keep）
+  function setPastEntrySetJudge(exIdx, setIdx, judge, isMax) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[exIdx];
+    if (!ex) return;
+    syncPastEntryInputs(exIdx);
+    const arr = isMax ? ex.maxSetData : ex.setData;
+    if (!arr[setIdx]) arr[setIdx] = {};
+    arr[setIdx].judge = judge;
+    renderPastEntryForm();
+  }
+
+  // セット単位で左右順を反転（そのセットの上行をタップ）
+  // setIdx は UI上のセット番号（0始まり）。isMax は MAXセットかどうか。
+  // タップしたセット以降すべて連動して反転される。
+  function togglePastEntrySetOrder(exIdx, setIdx, isMax) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[exIdx];
+    if (!ex) return;
+    syncPastEntryInputs(exIdx);
+    const orders = isMax ? ex.maxSideOrders : ex.setSideOrders;
+    const defaultStart = ex.startSide || 'R';
+    // 対象セットの現在のside（未設定なら defaultStart）
+    const current = orders[setIdx] || defaultStart;
+    const newSide = (current === 'R') ? 'L' : 'R';
+    const newOther = newSide === 'R' ? 'L' : 'R';
+    // 必要なセット数を取得
+    const totalSets = isMax
+      ? (ex.maxTraining ? (ex.bilateral && ex.maxTraining.sets % 2 === 0 ? ex.maxTraining.sets / 2 : ex.maxTraining.sets) : 0)
+      : (ex.currentSets || 1);
+    // タップしたセット以降を newSide で揃える（連動切替）
+    for (let s = setIdx; s < totalSets; s++) {
+      orders[s] = newSide;
+    }
+    renderPastEntryForm();
+  }
+
+  // 過去記録フォーム用：repsピッカーを開く（通常画面のopenPickerと同じスクロール式UI）
+  // exIdx: pastEntryContext.exercises のインデックス
+  // setIdx: setData/maxSetData のインデックス（bilateral種目の場合は内部index）
+  // isMax: MAXセットかどうか
+  // field: 'reps'（現状は回数のみ対応）
+  function openPastEntryPicker(exIdx, setIdx, isMax, field) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[exIdx];
+    if (!ex) return;
+    const arr = isMax ? ex.maxSetData : ex.setData;
+    const v = arr[setIdx] || {};
+    let current, step, min, max, title, unit;
+    if (field === 'reps') {
+      // 既に値があればそれを優先、なければデフォルトは1から開始
+      current = v.reps !== undefined ? v.reps : 1;
+      // クランプ：1〜20の範囲外なら範囲内に丸める
+      if (current < 1) current = 1;
+      if (current > 20) current = 20;
+      step = 1; min = 1; max = 20; title = '回数'; unit = '回';
+    } else {
+      // 現状はreps以外は未対応（将来weightも追加する場合の余地）
+      return;
+    }
+    pickerContext = { type: 'pastEntry', exIdx, setIdx, isMax, field, step, min, max, customValues: null };
+    document.getElementById('pickerTitle').textContent = title;
+    document.getElementById('pickerUnit').textContent = unit;
+    showPicker(current, step, min, max);
+  }
+  // inputEl : 変更された入力欄DOM要素 / isMax : MAXセット側かどうか
+  function propagatePastEntryValue(exIdx, inputEl, isMax) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[exIdx];
+    if (!ex || !inputEl) return;
+    const field = inputEl.dataset.field; // 'weight' or 'reps'
+    const idxAttr = isMax ? inputEl.dataset.maxIdx : inputEl.dataset.setIdx;
+    const sourceIdx = parseInt(idxAttr, 10);
+    if (isNaN(sourceIdx)) return;
+    const val = inputEl.value.trim();
+    const arr = isMax ? ex.maxSetData : ex.setData;
+
+    // ソースセル自体に値をセット
+    if (!arr[sourceIdx]) arr[sourceIdx] = {};
+    if (val === '') {
+      delete arr[sourceIdx][field];
+      return; // 空にした場合は伝播しない（意図せず消すと困るため）
+    }
+    const numVal = parseFloat(val);
+    if (isNaN(numVal)) return;
+    arr[sourceIdx][field] = numVal;
+
+    // weight は表示を小数1桁固定に整形（50 → 50.0）
+    // reps は整数のまま
+    const displayVal = (field === 'weight') ? numVal.toFixed(1) : String(numVal);
+    inputEl.value = displayVal;
+
+    // 配列の長さ（必要に応じて拡張）
+    const totalLen = isMax
+      ? (ex.maxTraining ? ex.maxTraining.sets : 0)
+      : (ex.bilateral ? (ex.currentSets || 1) * 2 : (ex.currentSets || 1));
+
+    // sourceIdx より後ろの全セルに同じ値をコピー（A案：上書き）
+    for (let i = sourceIdx + 1; i < totalLen; i++) {
+      if (!arr[i]) arr[i] = {};
+      arr[i][field] = numVal;
+      // 対応する入力欄DOMも更新（再描画せずに値だけ反映）
+      const selector = isMax
+        ? `.past-entry-ex-card[data-ex-idx="${exIdx}"] .past-entry-set-input[data-max-idx="${i}"][data-field="${field}"]`
+        : `.past-entry-ex-card[data-ex-idx="${exIdx}"] .past-entry-set-input[data-set-idx="${i}"][data-field="${field}"]`;
+      const target = document.querySelector(selector);
+      if (target) target.value = displayVal;
+    }
+  }
+
+  // 入力欄から ex.setData / ex.maxSetData へ値を吸い上げる
+  // （セット数変更や代替・MAX切替で再描画する前に呼ぶ）
+  // 注意：judgeフィールドは setData[i].judge にすでに保存されているのでそのまま保持
+  function syncPastEntryInputs(idx) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[idx];
+    if (!ex) return;
+    const card = document.querySelector(`.past-entry-ex-card[data-ex-idx="${idx}"]`);
+    if (!card) return;
+    // setData
+    card.querySelectorAll('.past-entry-set-input[data-set-idx]').forEach(inp => {
+      const sIdx = parseInt(inp.dataset.setIdx, 10);
+      const field = inp.dataset.field;
+      const val = inp.value.trim();
+      if (!ex.setData[sIdx]) ex.setData[sIdx] = {};
+      if (val === '') {
+        delete ex.setData[sIdx][field];
+      } else {
+        ex.setData[sIdx][field] = parseFloat(val);
+      }
+    });
+    // maxSetData
+    card.querySelectorAll('.past-entry-set-input[data-max-idx]').forEach(inp => {
+      const sIdx = parseInt(inp.dataset.maxIdx, 10);
+      const field = inp.dataset.field;
+      const val = inp.value.trim();
+      if (!ex.maxSetData[sIdx]) ex.maxSetData[sIdx] = {};
+      if (val === '') {
+        delete ex.maxSetData[sIdx][field];
+      } else {
+        ex.maxSetData[sIdx][field] = parseFloat(val);
+      }
+    });
+  }
+
+  // ----- 代替モーダル -----
+  function openPastEntrySwapModal(idx) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[idx];
+    if (!ex) return;
+    syncPastEntryInputs(idx);
+    pastEntrySwapTargetIdx = idx;
+    const modal = document.getElementById('pastEntrySwapModal');
+    const list = document.getElementById('pastEntrySwapList');
+    const desc = document.getElementById('pastEntrySwapDesc');
+    if (!modal || !list) return;
+    desc.textContent = `「${ex.swappedFrom || ex.originalName}」の代替を選択`;
+    list.innerHTML = '';
+
+    // 元の種目に戻すオプション
+    const origBtn = document.createElement('button');
+    origBtn.className = 'past-entry-swap-option' + (!ex.swappedFrom ? ' original' : '');
+    origBtn.textContent = `元: ${ex.originalName}` + (!ex.swappedFrom ? '（現在）' : '');
+    origBtn.onclick = () => {
+      restorePastEntryOriginal(idx);
+      closePastEntrySwapModal();
+    };
+    list.appendChild(origBtn);
+
+    // 代替候補プールから取得
+    const swapPool = loadSwapPool();
+    const candidates = swapPool[ex.originalName] || [];
+    candidates.forEach(c => {
+      if (c.name === ex.name) return; // 現在の代替はスキップ
+      const btn = document.createElement('button');
+      btn.className = 'past-entry-swap-option';
+      btn.textContent = `${c.name} (${c.weight}kg×${c.reps}回×${c.sets}セット)`;
+      btn.onclick = () => {
+        applyPastEntrySwap(idx, c);
+        closePastEntrySwapModal();
+      };
+      list.appendChild(btn);
+    });
+
+    // 自由入力での代替（任意の種目名を入力可能）
+    const customBtn = document.createElement('button');
+    customBtn.className = 'past-entry-swap-option';
+    customBtn.style.borderStyle = 'dashed';
+    customBtn.textContent = '＋ 別の種目名を入力';
+    customBtn.onclick = () => {
+      const name = prompt('代替種目名を入力してください', '');
+      if (name && name.trim()) {
+        applyPastEntrySwap(idx, {
+          name: name.trim(),
+          weight: ex.targetWeight,
+          reps: ex.targetReps,
+          sets: ex.targetSets
+        });
+        closePastEntrySwapModal();
+      }
+    };
+    list.appendChild(customBtn);
+
+    modal.classList.add('show');
+  }
+  function closePastEntrySwapModal() {
+    const modal = document.getElementById('pastEntrySwapModal');
+    if (modal) modal.classList.remove('show');
+    pastEntrySwapTargetIdx = null;
+  }
+  function applyPastEntrySwap(idx, candidate) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[idx];
+    if (!ex) return;
+    if (!ex.swappedFrom) ex.swappedFrom = ex.originalName;
+    ex.name = candidate.name;
+    if (candidate.weight !== undefined) ex.targetWeight = candidate.weight;
+    if (candidate.reps !== undefined) ex.targetReps = candidate.reps;
+    if (candidate.sets !== undefined) {
+      ex.targetSets = candidate.sets;
+      ex.currentSets = candidate.sets;
+      const need = ex.bilateral ? candidate.sets * 2 : candidate.sets;
+      while (ex.setData.length < need) ex.setData.push({});
+      if (ex.setData.length > need) ex.setData.length = need;
+    }
+    renderPastEntryForm();
+  }
+  function restorePastEntryOriginal(idx) {
+    if (!pastEntryContext) return;
+    const ex = pastEntryContext.exercises[idx];
+    if (!ex) return;
+    const orig = ex._originalDef;
+    ex.name = ex.originalName;
+    ex.swappedFrom = null;
+    ex.targetWeight = orig.targetWeight !== undefined ? orig.targetWeight : (orig.weight || 0);
+    ex.targetReps = orig.targetReps !== undefined ? orig.targetReps : (orig.reps || 10);
+    ex.targetSets = orig.targetSets !== undefined ? orig.targetSets : (orig.sets || 3);
+    ex.currentSets = ex.targetSets;
+    const need = ex.bilateral ? ex.currentSets * 2 : ex.currentSets;
+    ex.setData = ex.setData.slice(0, need);
+    while (ex.setData.length < need) ex.setData.push({});
+    renderPastEntryForm();
+  }
+
+  function closePastEntryFormModal() {
+    const modal = document.getElementById('pastEntryFormModal');
+    if (modal) modal.classList.remove('show');
+    pastEntryContext = null;
+  }
+
+  // ===== 過去記録フォームの保存 =====
+  function submitPastEntryForm() {
+    if (!pastEntryContext) {
+      toast('入力内容が見つかりません');
+      return;
+    }
+    const { menuId, year, month, day } = pastEntryContext;
+    const menu = getMenu(menuId);
+    if (!menu) {
+      toast('メニューが見つかりません');
+      return;
+    }
+
+    // 各カードの入力値を吸い上げ
+    pastEntryContext.exercises.forEach((_, idx) => syncPastEntryInputs(idx));
+
+    // 保存対象の種目を組み立て
+    const exercises = [];
+    let recordedCount = 0;
+
+    pastEntryContext.exercises.forEach(ex => {
+      if (!ex.enabled) return;
+
+      const isCardio = ex.cardio || ex.hiit;
+      const isCore = ex.core;
+      const isOther = ex.other;
+      const isHiit = ex.hiit;
+      const isMachine = ex.cardioMachine;
+      const isNormal = !isCardio && !isCore && !isOther;
+
+      // 基本フィールド（finishWorkoutで保存される構造に合わせる）
+      const exRecord = {
+        name: ex.name,
+        originalName: ex.originalName,
+        swappedFrom: ex.swappedFrom,
+        bilateral: ex.bilateral,
+        startSide: ex.startSide,
+        cardio: ex.cardio,
+        hiit: ex.hiit,
+        cardioMachine: ex.cardioMachine,
+        machineType: ex.machineType,
+        machineProtocol: ex.machineProtocol ? { ...ex.machineProtocol } : null,
+        protocol: ex.protocol ? { ...ex.protocol } : null,
+        core: ex.core,
+        coreSec: ex.coreSec,
+        other: ex.other,
+        otherSec: ex.otherSec,
+        url: ex.url,
+        machineKind: ex.machineKind,
+        targetWeight: ex.targetWeight,
+        targetReps: ex.targetReps,
+        targetSets: ex.targetSets,
+        currentSets: ex.currentSets,
+        currentWeight: ex.targetWeight,
+        currentReps: ex.targetReps,
+        maxTraining: ex.maxTraining ? { ...ex.maxTraining } : null,
+        setRecords: [],
+        judge: 'ok',
+        keepReps: null,
+        position: null,
+        positions: null,
+        positionList: null,
+        positionMemo: null
+      };
+
+      // 種別ごとに組み立て
+      if (isHiit) {
+        // HIIT：dashSpeed・rounds・duration
+        const card = document.querySelector(`.past-entry-ex-card[data-ex-idx="${pastEntryContext.exercises.indexOf(ex)}"]`);
+        const dashSpeedInp = card?.querySelector('[data-field="dashSpeed"]');
+        const roundsInp = card?.querySelector('[data-field="rounds"]');
+        const durInp = card?.querySelector('[data-field="duration"]');
+        const dashSpeed = parseFloat(dashSpeedInp?.value) || (ex.protocol?.dashSpeed || 12);
+        const rounds = parseInt(roundsInp?.value, 10) || (ex.protocol?.rounds || 8);
+        const dur = parseFloat(durInp?.value);
+        if (dashSpeed > 0 && rounds > 0) {
+          exRecord.protocol = { ...(exRecord.protocol || {}), dashSpeed, rounds };
+          // setRecordsに各ラウンドぶん（時間は均等割）
+          const totalSec = !isNaN(dur) && dur > 0 ? Math.round(dur * 60) : 0;
+          const perRound = totalSec > 0 ? Math.floor(totalSec / rounds) : 0;
+          for (let r = 0; r < rounds; r++) {
+            exRecord.setRecords.push({ weight: dashSpeed, reps: 1, time: perRound });
+          }
+          if (totalSec > 0) exRecord.duration = totalSec;
+          exRecord.judge = 'ok';
+          exercises.push(exRecord);
+          recordedCount++;
+        }
+      } else if (isMachine) {
+        // マシン有酸素：incline/speed/minutes or rpm/minutes
+        const card = document.querySelector(`.past-entry-ex-card[data-ex-idx="${pastEntryContext.exercises.indexOf(ex)}"]`);
+        if (ex.machineType === 'crosstrainer') {
+          const rpm = parseFloat(card?.querySelector('[data-field="rpm"]')?.value);
+          const min = parseInt(card?.querySelector('[data-field="minutes"]')?.value, 10);
+          if (!isNaN(rpm) && !isNaN(min) && min > 0) {
+            exRecord.machineProtocol = { rpm, minutes: min };
+            exRecord.duration = min * 60;
+            exRecord.judge = 'ok';
+            exercises.push(exRecord);
+            recordedCount++;
+          }
+        } else {
+          const incline = parseFloat(card?.querySelector('[data-field="incline"]')?.value);
+          const speed = parseFloat(card?.querySelector('[data-field="speed"]')?.value);
+          const min = parseInt(card?.querySelector('[data-field="minutes"]')?.value, 10);
+          if (!isNaN(incline) && !isNaN(speed) && !isNaN(min) && min > 0) {
+            exRecord.machineProtocol = { incline, speed, minutes: min };
+            exRecord.duration = min * 60;
+            exRecord.judge = 'ok';
+            exercises.push(exRecord);
+            recordedCount++;
+          }
+        }
+      } else if (isCardio) {
+        // 一般有酸素：時間（分）のみ
+        const card = document.querySelector(`.past-entry-ex-card[data-ex-idx="${pastEntryContext.exercises.indexOf(ex)}"]`);
+        const dur = parseFloat(card?.querySelector('[data-field="duration"]')?.value);
+        if (!isNaN(dur) && dur > 0) {
+          exRecord.duration = Math.round(dur * 60);
+          exRecord.judge = 'ok';
+          exercises.push(exRecord);
+          recordedCount++;
+        }
+      } else if (isCore || isOther) {
+        // 体幹・その他：セット数 + 時間（秒）
+        const card = document.querySelector(`.past-entry-ex-card[data-ex-idx="${pastEntryContext.exercises.indexOf(ex)}"]`);
+        const sets = parseInt(card?.querySelector('[data-field="sets"]')?.value, 10);
+        const sec = parseInt(card?.querySelector('[data-field="coreSec"]')?.value, 10);
+        if (!isNaN(sets) && sets > 0) {
+          exRecord.currentSets = sets;
+          if (!isNaN(sec) && sec > 0) {
+            if (isCore) exRecord.coreSec = sec;
+            else exRecord.otherSec = sec;
+          }
+          for (let s = 0; s < sets; s++) {
+            const rec = { seconds: !isNaN(sec) ? sec : (ex.coreSec || ex.otherSec || 60) };
+            if (ex.bilateral) {
+              rec.side = (ex.startSide === 'L') ? (s % 2 === 0 ? 'L' : 'R') : (s % 2 === 0 ? 'R' : 'L');
+            }
+            exRecord.setRecords.push(rec);
+          }
+          exRecord.judge = 'ok';
+          exercises.push(exRecord);
+          recordedCount++;
+        }
+      } else if (isNormal) {
+        // 通常種目：セット別重量・回数 + (オプション)MAX + セット単位の judge
+        const setRecs = [];
+        let hasKeep = false; // 1セットでもkeepがあればex.judge=keepにする
+        // 通常セット
+        const totalSets = ex.currentSets || 1;
+        const internalSets = ex.bilateral ? totalSets * 2 : totalSets;
+        for (let s = 0; s < internalSets; s++) {
+          const v = ex.setData[s] || {};
+          if (v.weight !== undefined && v.reps !== undefined && !isNaN(v.weight) && !isNaN(v.reps) && v.reps > 0) {
+            const judge = v.judge || 'ok';
+            if (judge === 'keep') hasKeep = true;
+            const rec = {
+              weight: v.weight,
+              reps: v.reps,
+              targetWeight: ex.targetWeight,
+              targetReps: ex.targetReps,
+              judge: judge
+            };
+            if (ex.bilateral) {
+              const defaultStart = ex.startSide || 'R';
+              // UI上のセット番号（s/2）。各セット内の上下行は s%2 で判別
+              const uiSetIdx = Math.floor(s / 2);
+              const setStart = ex.setSideOrders[uiSetIdx] || defaultStart;
+              const setOther = setStart === 'R' ? 'L' : 'R';
+              rec.side = (s % 2 === 0) ? setStart : setOther;
+            }
+            setRecs.push(rec);
+          }
+        }
+        // MAXセット
+        if (ex.maxTraining && ex.maxTraining.enabled) {
+          const mt = ex.maxTraining;
+          const maxInternalSets = mt.sets || 1;
+          const maxRecs = [];
+          for (let s = 0; s < maxInternalSets; s++) {
+            const v = ex.maxSetData[s] || {};
+            if (v.weight !== undefined && v.reps !== undefined && !isNaN(v.weight) && !isNaN(v.reps) && v.reps > 0) {
+              const judge = v.judge || 'ok';
+              if (judge === 'keep') hasKeep = true;
+              const rec = {
+                weight: v.weight,
+                reps: v.reps,
+                targetWeight: mt.weight,
+                targetReps: mt.reps,
+                isMax: true,
+                judge: judge
+              };
+              if (ex.bilateral) {
+                const defaultStart = ex.startSide || 'R';
+                const uiSetIdx = Math.floor(s / 2);
+                const setStart = ex.maxSideOrders[uiSetIdx] || defaultStart;
+                const setOther = setStart === 'R' ? 'L' : 'R';
+                rec.side = (s % 2 === 0) ? setStart : setOther;
+              }
+              maxRecs.push(rec);
+            }
+          }
+          // position に応じて MAX を前/後に配置
+          if (mt.position === 'before') {
+            exRecord.setRecords = maxRecs.concat(setRecs);
+          } else {
+            exRecord.setRecords = setRecs.concat(maxRecs);
+          }
+        } else {
+          exRecord.setRecords = setRecs;
+        }
+
+        if (exRecord.setRecords.length === 0) return; // 入力なし → 保存しない
+
+        // judge集約：1セットでもkeepがあれば全体keep、それ以外はok
+        exRecord.judge = hasKeep ? 'keep' : 'ok';
+        // currentWeight / currentReps は最終セット
+        const lastSet = exRecord.setRecords[exRecord.setRecords.length - 1];
+        exRecord.currentWeight = lastSet.weight;
+        exRecord.currentReps = lastSet.reps;
+        exercises.push(exRecord);
+        recordedCount++;
+      }
+    });
+
+    if (recordedCount === 0) {
+      toast('入力された種目がありません');
+      return;
+    }
+
+    // 履歴に保存
+    const dateObj = new Date(year, month, day, 12, 0, 0);
+    const newSession = {
+      menuId,
+      date: dateObj.toISOString(),
+      exercises,
+      totalSeconds: 0
+    };
+    const hist = loadHistory();
+    hist.push(newSession);
+    hist.sort((a, b) => new Date(b.date) - new Date(a.date));
+    saveHistory(hist);
+
+    // 前回重量を更新：過去日付の入力でも整合性を保つため、履歴全体から再構築する
+    // （単純な上書きだと、最新記録より古い日付の値で前回が上書きされる問題がある）
+    const swapPool = loadSwapPool();
+    if (typeof rebuildLastWeightsFromHistory === 'function') {
+      rebuildLastWeightsFromHistory(hist);
+    }
+    // 代替プールは新たに使われた組み合わせを追加（履歴に残るので）
+    exercises.forEach(ex => {
+      if (ex.cardio || ex.hiit || ex.core || ex.other) return;
+      if (!Array.isArray(ex.setRecords) || ex.setRecords.length === 0) return;
+      const normalSets = ex.setRecords.filter(r => !r.isMax);
+      const lastNormal = normalSets.length > 0 ? normalSets[normalSets.length - 1] : ex.setRecords[ex.setRecords.length - 1];
+      // 代替プール更新（代替を使った場合のみ）
+      if (ex.swappedFrom) {
+        if (!swapPool[ex.swappedFrom]) swapPool[ex.swappedFrom] = [];
+        const cands = swapPool[ex.swappedFrom];
+        const existIdx = cands.findIndex(c => c.name === ex.name);
+        const updated = {
+          name: ex.name,
+          weight: lastNormal.weight,
+          reps: lastNormal.reps,
+          sets: ex.currentSets
+        };
+        if (existIdx >= 0) cands[existIdx] = updated;
+        else cands.push(updated);
+      }
+    });
+    saveSwapPool(swapPool);
+
+    closePastEntryFormModal();
+    toast(`✓ ${year}年${month + 1}月${day}日の記録を追加`);
+    if (typeof renderCalendar === 'function') renderCalendar();
+  }
+
   function openHistoryEditor(dateIso) {
     const hist = loadHistory();
     const session = hist.find(h => h.date === dateIso);
@@ -18233,7 +20168,7 @@
       const totalStr = (typeof s.totalSeconds === 'number' && s.totalSeconds > 0)
         ? formatDuration(s.totalSeconds) : '--:--';
       const activeStr = effSec > 0 ? formatDuration(effSec) : '--:--';
-      const summaryHtml = `<div class="history-summary">総合計時間：【${totalStr}】｜ 経過時間合計：【${activeStr}】</div>`;
+      const summaryHtml = `<div class="history-summary"><div class="history-summary-row">▪︎総合計時間【${totalStr}】</div><div class="history-summary-row">▪︎経過時間計【${activeStr}】</div></div>`;
       const item = document.createElement('div');
       item.className = 'history-item';
       item.dataset.date = s.date;
@@ -18639,7 +20574,11 @@
   // ========== CALENDAR ==========
   let calYear = new Date().getFullYear();
   let calMonth = new Date().getMonth(); // 0-11
-  let calSelectedDate = null;
+  // 初期表示で今日を選択状態にする（「日付をタップして詳細を表示」を出さず、いきなり今日の詳細を出すため）
+  let calSelectedDate = (() => {
+    const t = new Date();
+    return { year: t.getFullYear(), month: t.getMonth(), day: t.getDate() };
+  })();
 
   function changeCalMonth(delta) {
     const newMonth = calMonth + delta;
@@ -18648,13 +20587,26 @@
     else if (newM > 11) { newM = 0; newY++; }
     calYear = newY;
     calMonth = newM;
-    calSelectedDate = null;
+    // 月を切り替えたとき：今日が対象月内ならその日、それ以外なら1日を選択
+    const today = new Date();
+    if (newY === today.getFullYear() && newM === today.getMonth()) {
+      calSelectedDate = { year: newY, month: newM, day: today.getDate() };
+    } else {
+      calSelectedDate = { year: newY, month: newM, day: 1 };
+    }
     renderCalendar();
   }
 
   function changeCalYear(delta) {
     calYear += delta;
-    calSelectedDate = null;
+    // 年切替時も同様に：今年なら今日、それ以外はその年の1月1日
+    const today = new Date();
+    if (calYear === today.getFullYear()) {
+      calMonth = today.getMonth();
+      calSelectedDate = { year: calYear, month: calMonth, day: today.getDate() };
+    } else {
+      calSelectedDate = { year: calYear, month: calMonth, day: 1 };
+    }
     renderCalendar();
   }
 
@@ -18708,13 +20660,18 @@
 
   function selectCalYear(y) {
     calYear = y;
-    calSelectedDate = null;
     // 選んだ年が今年なら月はそのまま、それ以前なら12月にジャンプ（過去を俯瞰しやすく）
     const now = new Date();
     if (y < now.getFullYear()) {
       calMonth = 11;
+      calSelectedDate = { year: y, month: 11, day: 1 };
     } else if (y === now.getFullYear() && calMonth > now.getMonth()) {
       calMonth = now.getMonth();
+      calSelectedDate = { year: y, month: calMonth, day: now.getDate() };
+    } else if (y === now.getFullYear()) {
+      calSelectedDate = { year: y, month: calMonth, day: now.getDate() };
+    } else {
+      calSelectedDate = { year: y, month: calMonth, day: 1 };
     }
     closeYearDropdown();
     renderCalendar();
@@ -18879,9 +20836,12 @@
     let html = '';
     // 各日（最初の日に grid-column-start を指定して曜日位置に配置）
     for (let d = 1; d <= daysInMonth; d++) {
-      const dow = new Date(calYear, calMonth, d).getDay();
+      const cellDate = new Date(calYear, calMonth, d);
+      const dow = cellDate.getDay();
       const records = getRecordsForDate(calYear, calMonth, d);
-      const dowClass = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
+      // 祝日は日曜と同じ赤色扱い（既存の.sunクラスを再利用）
+      const isHoliday = isJapaneseHoliday(cellDate);
+      const dowClass = (dow === 0 || isHoliday) ? 'sun' : dow === 6 ? 'sat' : '';
       // 選択日が存在する場合は今日のハイライトは出さない（選択表記は1個だけ）
       const isThisCellToday = isCurrentMonth && d === todayDate;
       const todayClass = (isThisCellToday && !calSelectedDate) ? 'today' : '';
@@ -18945,7 +20905,34 @@
     const dateStr = `${year}年${month + 1}月${day}日（${DOW[new Date(year, month, day).getDay()]}）`;
 
     if (records.length === 0) {
-      detail.innerHTML = `<div class="detail-date">${dateStr}</div><div class="detail-empty">記録はありません</div>`;
+      // 過去日付（今日より前）かどうか判定
+      const selectedDateObj = new Date(year, month, day);
+      const todayObj = new Date();
+      todayObj.setHours(0, 0, 0, 0);
+      selectedDateObj.setHours(0, 0, 0, 0);
+      const isPastDate = selectedDateObj.getTime() < todayObj.getTime();
+
+      if (isPastDate) {
+        // 過去日付：「記録はありません」表示 ＋ 「＋追加」ボタンを同じラインの右端に
+        // 1枚目（今日）と同じ構造を保ちつつ、detail-empty内にボタンを内包
+        detail.innerHTML = `
+          <div class="detail-date">${dateStr}</div>
+          <div class="detail-empty detail-empty-with-add">
+            記録はありません
+            <button class="detail-add-btn" id="addPastRecordTrigger">＋ 追加</button>
+          </div>
+        `;
+        const trigger = document.getElementById('addPastRecordTrigger');
+        if (trigger) {
+          trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openPastEntryMenuModal(year, month, day);
+          });
+        }
+      } else {
+        // 今日・未来日付：通常の空表示（タップ無反応）
+        detail.innerHTML = `<div class="detail-date">${dateStr}</div><div class="detail-empty">記録はありません</div>`;
+      }
       return;
     }
 
