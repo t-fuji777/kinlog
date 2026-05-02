@@ -77,8 +77,8 @@
     --warn-dim: rgba(239, 68, 68, 0.1);
 
     --safe-top: env(safe-area-inset-top);
-    /* PWAでステータスバーとヘッダーの間が広すぎるため、safe-topを50%に縮めた値 */
-    --safe-top-trim: calc(env(safe-area-inset-top) * 0.5);
+    /* PWAでステータスバーとヘッダーボタンの間隔を確保（safe-topの85%） */
+    --safe-top-trim: calc(env(safe-area-inset-top) * 0.85);
     --safe-bottom: env(safe-area-inset-bottom);
 
     --radius-sm: 8px;
