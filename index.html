@@ -5447,12 +5447,13 @@
 
   /* ========== CALENDAR ========== */
   /* カレンダータブを表示中はページ全体のスクロールを無効化（画面が動かないように固定） */
+  /* 注意：touch-action: none は子モーダル（picker等）のタップを殺すため使わない。
+     overflow: hidden + position: fixed の組み合わせで十分。 */
   html.calendar-no-scroll,
   body.calendar-no-scroll,
   body.calendar-no-scroll .app,
   body.calendar-no-scroll .screen {
     overflow: hidden !important;
-    touch-action: none !important;
     overscroll-behavior: none !important;
   }
   body.calendar-no-scroll {
