@@ -5447,21 +5447,16 @@
 
   /* ========== CALENDAR ========== */
   /* カレンダータブを表示中はページ全体のスクロールを無効化（画面が動かないように固定） */
-  /* 注意：touch-action: none は子モーダル（picker等）のタップを殺すため使わない。
-     overflow: hidden + position: fixed の組み合わせで十分。 */
+  /* 注意：
+     - touch-action: none は子モーダル（picker等）のタップを殺すため使わない
+     - body{position:fixed} は iOS Safari でタッチ座標を歪めるバグがあるため使わない
+     - overflow: hidden + overscroll-behavior: none の組み合わせのみ */
   html.calendar-no-scroll,
   body.calendar-no-scroll,
   body.calendar-no-scroll .app,
   body.calendar-no-scroll .screen {
     overflow: hidden !important;
     overscroll-behavior: none !important;
-  }
-  body.calendar-no-scroll {
-    /* iOS Safari でページ全体が動くのを完全に止めるため、bodyを固定する */
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    width: 100%;
-    height: 100%;
   }
   .calendar-wrap {
     padding: 0 0 4px;
