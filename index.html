@@ -323,14 +323,14 @@
   /* ==================== SCREEN ==================== */
   .screen { display: none; padding: 0 18px calc(20px + var(--safe-bottom)); }
   .screen.active { display: block; animation: fadeIn 0.25s ease; }
-  /* ホーム画面のみ：メインカードをやや上め中央に配置（下より上の余白を少し狭く） */
+  /* ホーム画面のみ：メインカードを画面の縦中央に配置（上下の白余白を均等に） */
   #screen-home.active {
     display: flex;
     flex-direction: column;
     justify-content: center;
     min-height: calc(100dvh - var(--safe-top-trim) - 60px - var(--safe-bottom));
-    /* 上下中央から少し上にシフト：下の余白をやや多く取る */
-    padding-bottom: calc(20px + var(--safe-bottom) + 8vh);
+    /* 上下中央配置：padding-bottom は標準のままにして上下対称にする */
+    padding-bottom: calc(20px + var(--safe-bottom));
   }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(6px); }
@@ -3062,6 +3062,11 @@
     flex-shrink: 0;
     min-width: 22px;
   }
+  /* 代替種目のマーカー▸はメイン番号より大きめにする（位置は変えない） */
+  .swap-edit-item .exercise-edit-num {
+    font-size: 14px;
+    line-height: 1;
+  }
   .exercise-edit-main {
     flex: 1; min-width: 0;
   }
@@ -5439,11 +5444,20 @@
 
   /* ========== CALENDAR ========== */
   /* カレンダータブを表示中はページ全体のスクロールを無効化（画面が動かないように固定） */
+  html.calendar-no-scroll,
   body.calendar-no-scroll,
+  body.calendar-no-scroll .app,
   body.calendar-no-scroll .screen {
     overflow: hidden !important;
     touch-action: none !important;
     overscroll-behavior: none !important;
+  }
+  body.calendar-no-scroll {
+    /* iOS Safari でページ全体が動くのを完全に止めるため、bodyを固定する */
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
   }
   .calendar-wrap {
     padding: 0 0 4px;
@@ -10971,6 +10985,7 @@
     // 履歴画面以外に移動するときはカレンダーのスクロール禁止を解除
     if (name !== 'history') {
       document.body.classList.remove('calendar-no-scroll');
+      document.documentElement.classList.remove('calendar-no-scroll');
     }
     if (name === 'history') {
       // デフォルトタブをカレンダーに
@@ -10982,6 +10997,7 @@
       if (calContent) calContent.style.display = 'block';
       // カレンダータブが初期表示なのでスクロール禁止
       document.body.classList.add('calendar-no-scroll');
+      document.documentElement.classList.add('calendar-no-scroll');
       renderHistory();
       renderCalendar();
     }
@@ -17151,7 +17167,7 @@
         const p = ex.machineProtocol;
         const inc = (p.incline == null || isNaN(p.incline)) ? '0' : Number(p.incline).toFixed(1);
         const sp = (p.speed == null || isNaN(p.speed)) ? '0' : Number(p.speed).toFixed(1);
-        params = `傾斜${inc}% / ${sp}km/h × ${p.minutes}分`;
+        params = `傾斜${inc}% × ${sp}km/h × ${p.minutes}分`;
       } else if (ex.cardio) {
         // 通常の有酸素（マシン情報なし）：補足情報なし
         params = '';
@@ -17187,7 +17203,8 @@
           const mt = ex.maxTraining;
           const mwStr = (mt.weight == null || isNaN(mt.weight)) ? '0.0' : Number(mt.weight).toFixed(1);
           const displayMaxSets = ex.bilateral ? Math.ceil((mt.sets || 0) / 2) : mt.sets;
-          params += `<br>MAX ${mwStr}kg × ${mt.reps}回 × ${displayMaxSets}`;
+          const maxSideStr = ex.bilateral ? '（左右）' : '';
+          params += `<br>${mwStr}kg × ${mt.reps}回 × ${displayMaxSets}セット【MAX】${maxSideStr}`;
         }
       }
       const urlMark = ex.url ? '<span class="menu-url-mark" title="参考URLあり">↗</span>' : '';
@@ -17571,6 +17588,7 @@
         const wStr = (c.weight == null || isNaN(c.weight)) ? '0.0' : Number(c.weight).toFixed(1);
         return `
         <div class="exercise-edit-item swap-edit-item draggable-item" data-swap-idx="${idx}" data-drag-type="swap">
+          <span class="exercise-edit-num">▸</span>
           <div class="exercise-edit-main">
             <div class="exercise-edit-name">${escapeAttr(c.name)}</div>
             <div class="exercise-edit-params">${wStr}kg × ${c.reps}回 × ${c.sets}セット</div>
@@ -21333,9 +21351,11 @@
     // カレンダータブ表示中はページ全体のスクロールを無効化、それ以外は解除
     if (id === 'tab-calendar') {
       document.body.classList.add('calendar-no-scroll');
+      document.documentElement.classList.add('calendar-no-scroll');
       renderCalendar();
     } else {
       document.body.classList.remove('calendar-no-scroll');
+      document.documentElement.classList.remove('calendar-no-scroll');
     }
     if (id === 'tab-chart') {
       setTimeout(() => {
@@ -21857,6 +21877,7 @@
     if (logContent) logContent.style.display = 'block';
     // カレンダー特有のスクロール禁止を解除
     document.body.classList.remove('calendar-no-scroll');
+    document.documentElement.classList.remove('calendar-no-scroll');
     // 履歴を最新化
     if (typeof renderHistory === 'function') renderHistory();
     // 該当アイテムまでスクロール＋ハイライト
