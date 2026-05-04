@@ -328,8 +328,9 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    min-height: calc(100dvh - var(--safe-top-trim) - 60px - var(--safe-bottom));
-    /* 上下中央配置：padding-bottom は標準のままにして上下対称にする */
+    /* .app は flex column なので、flex:1 で残り高さを全部使う＝画面全体の中央配置になる */
+    flex: 1;
+    min-height: 0;
     padding-bottom: calc(20px + var(--safe-bottom));
   }
   @keyframes fadeIn {
