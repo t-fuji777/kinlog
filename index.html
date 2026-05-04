@@ -8587,6 +8587,38 @@
     // タイマー停止
     if (typeof stopElapsedTimer === 'function') stopElapsedTimer();
     if (typeof stopInterval === 'function') stopInterval();
+    // 種目内タイマー（core / HIIT / HIIT round）を全部停止＋state破棄
+    // これをやらないと、新しいセッションで同じindexのタイマーが
+    // 旧stateの running/handle を引きずり、誤動作する
+    try {
+      if (typeof coreTimers === 'object' && coreTimers) {
+        Object.keys(coreTimers).forEach(k => {
+          const s = coreTimers[k];
+          if (s && s.handle) { try { clearInterval(s.handle); } catch (e) {} }
+          delete coreTimers[k];
+        });
+      }
+    } catch (e) {}
+    try {
+      if (typeof hiitRoundTimers === 'object' && hiitRoundTimers) {
+        Object.keys(hiitRoundTimers).forEach(k => {
+          const s = hiitRoundTimers[k];
+          if (s && s.handle) { try { clearInterval(s.handle); } catch (e) {} }
+          delete hiitRoundTimers[k];
+        });
+      }
+    } catch (e) {}
+    try {
+      if (typeof hiitSimpleTimers === 'object' && hiitSimpleTimers) {
+        Object.keys(hiitSimpleTimers).forEach(k => {
+          const s = hiitSimpleTimers[k];
+          if (s && s.handle) { try { clearInterval(s.handle); } catch (e) {} }
+          delete hiitSimpleTimers[k];
+        });
+      }
+    } catch (e) {}
+    // currentWorkout もリセット（旧メニュー参照が残るのを防ぐ）
+    try { currentWorkout = null; } catch (e) {}
     // 遷移先が指定されていれば再度 showScreen 呼び出し（hasWorkoutProgress=falseになるのでループしない）
     if (target) {
       showScreen(target);
