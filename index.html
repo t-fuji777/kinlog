@@ -331,6 +331,8 @@
     /* .app は flex column なので、flex:1 で残り高さを全部使う＝画面全体の中央配置になる */
     flex: 1;
     min-height: 0;
+    /* メインカードを縦中央からやや下にシフト */
+    padding-top: 50px;
     padding-bottom: calc(20px + var(--safe-bottom));
   }
   @keyframes fadeIn {
@@ -6758,13 +6760,15 @@
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
+    /* リサイズで縮小したとき子要素（iframe等）に幅を引き延ばされないように */
+    min-width: 0;
   }
   .url-mini-player.show {
     display: flex;
   }
   .url-mp-header {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     gap: 8px;
     padding: 8px;
@@ -6772,6 +6776,10 @@
     border-bottom: 1px solid var(--border);
     -webkit-user-select: none;
     user-select: none;
+    /* 幅縮小時にgridセル/ボタンに引き延ばされないように */
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
   .url-mp-drag-handle {
     height: 32px;
@@ -6794,19 +6802,27 @@
     opacity: 0.5;
   }
   .url-mp-btn {
-    padding: 8px 14px;
+    padding: 6px 8px;
     border: none;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
+    /* 縮小時にボタン枠は小さくなるが、テキスト自体は省略しない */
+    min-width: 0;
   }
   .url-mp-btn-open {
     justify-self: start;
+    /* 両ボタンに同じ最小幅を強制して、文字数差による幅違いをなくす */
+    min-width: 56px;
+    text-align: center;
   }
   .url-mp-btn-close {
     justify-self: end;
+    /* 両ボタンに同じ最小幅を強制して、文字数差による幅違いをなくす */
+    min-width: 56px;
+    text-align: center;
   }
   .url-mp-btn-open {
     background: var(--accent);
@@ -6828,6 +6844,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* iframe の固有幅で親が引き延ばされないように */
+    min-width: 0;
+    box-sizing: border-box;
   }
   .url-mp-body iframe {
     width: 100%;
@@ -6858,6 +6877,32 @@
     color: var(--text-3);
     word-break: break-all;
     text-align: left;
+  }
+  /* ミニプレーヤー4角リサイズハンドル（透明・タップ領域のみ） */
+  .url-mp-resize-handle {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    z-index: 10;
+    touch-action: none;
+    background: transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .url-mp-resize-tl {
+    top: 0; left: 0;
+    cursor: nwse-resize;
+  }
+  .url-mp-resize-tr {
+    top: 0; right: 0;
+    cursor: nesw-resize;
+  }
+  .url-mp-resize-bl {
+    bottom: 0; left: 0;
+    cursor: nesw-resize;
+  }
+  .url-mp-resize-br {
+    bottom: 0; right: 0;
+    cursor: nwse-resize;
   }
   .modal-title {
     font-family: var(--font-display);
@@ -8150,6 +8195,11 @@
     <button class="url-mp-btn url-mp-btn-close" onclick="closeUrlViewer()">閉じる</button>
   </div>
   <div class="url-mp-body" id="urlMpBody"></div>
+  <!-- 4つの角リサイズハンドル（透明・タップ領域のみ） -->
+  <div class="url-mp-resize-handle url-mp-resize-tl" data-corner="tl"></div>
+  <div class="url-mp-resize-handle url-mp-resize-tr" data-corner="tr"></div>
+  <div class="url-mp-resize-handle url-mp-resize-bl" data-corner="bl"></div>
+  <div class="url-mp-resize-handle url-mp-resize-br" data-corner="br"></div>
 </div>
 
 <div class="modal-backdrop" id="importDataModal">
@@ -19679,6 +19729,115 @@
     document.addEventListener('mouseup', onEnd);
     document.addEventListener('touchend', onEnd);
     document.addEventListener('touchcancel', onEnd);
+  })();
+
+  // ミニプレーヤー4角リサイズ処理：幅をドラッグで変更、高さは aspect-ratio (16:9) で自動連動
+  (function setupMiniPlayerResize() {
+    try {
+      const player = document.getElementById('urlMiniPlayer');
+      if (!player) return;
+      const handles = player.querySelectorAll('.url-mp-resize-handle');
+      if (!handles || handles.length === 0) return;
+
+      let resizing = false;
+      let startX = 0, startY = 0;
+      let initWidth = 0;
+      let initLeft = 0, initTop = 0;
+      let corner = '';
+
+      // 幅の最小（左右ボタンの文字が完全に表示される最小幅）
+      const MIN_WIDTH = 240;
+
+      function onResizeStart(e) {
+        try {
+          const target = e.currentTarget;
+          if (!target || !target.dataset) return;
+          corner = target.dataset.corner;
+          if (!corner) return;
+          resizing = true;
+
+          const rect = player.getBoundingClientRect();
+          initWidth = rect.width;
+          initLeft = rect.left;
+          initTop = rect.top;
+
+          const point = e.touches ? e.touches[0] : e;
+          startX = point.clientX;
+          startY = point.clientY;
+
+          player.style.right = '';
+          player.style.left = initLeft + 'px';
+          player.style.top = initTop + 'px';
+          player.style.maxWidth = 'none';
+
+          if (e.cancelable) e.preventDefault();
+          e.stopPropagation();
+        } catch (err) { resizing = false; }
+      }
+
+      function onResizeMove(e) {
+        if (!resizing) return;
+        try {
+          const point = e.touches ? e.touches[0] : e;
+          const dx = point.clientX - startX;
+          const dy = point.clientY - startY;
+
+          let widthDelta = 0;
+          if (corner === 'br') {
+            widthDelta = (dx + dy) / 2;
+          } else if (corner === 'tr') {
+            widthDelta = (dx - dy) / 2;
+          } else if (corner === 'bl') {
+            widthDelta = (-dx + dy) / 2;
+          } else if (corner === 'tl') {
+            widthDelta = (-dx - dy) / 2;
+          }
+
+          let newWidth = initWidth + widthDelta;
+          const margin = 8;
+          const maxAllowed = window.innerWidth - margin * 2;
+          newWidth = Math.max(MIN_WIDTH, Math.min(maxAllowed, newWidth));
+
+          const widthDiff = newWidth - initWidth;
+          let newLeft = initLeft;
+          let newTop = initTop;
+
+          if (corner === 'tl' || corner === 'bl') {
+            newLeft = initLeft - widthDiff;
+          }
+          if (corner === 'tl' || corner === 'tr') {
+            const heightDiff = widthDiff * (9 / 16);
+            newTop = initTop - heightDiff;
+          }
+
+          newLeft = Math.max(margin, Math.min(window.innerWidth - newWidth - margin, newLeft));
+          newTop = Math.max(margin, newTop);
+
+          player.style.width = newWidth + 'px';
+          player.style.left = newLeft + 'px';
+          player.style.top = newTop + 'px';
+
+          if (e.cancelable) e.preventDefault();
+          e.stopPropagation();
+        } catch (err) { /* noop */ }
+      }
+
+      function onResizeEnd() {
+        resizing = false;
+        corner = '';
+      }
+
+      handles.forEach(h => {
+        h.addEventListener('mousedown', onResizeStart);
+        h.addEventListener('touchstart', onResizeStart, { passive: false });
+      });
+      // mousemove/touchmove はリサイズ中だけ動く（resizing=falseで即return）
+      document.addEventListener('mousemove', onResizeMove);
+      document.addEventListener('touchmove', onResizeMove, { passive: false });
+      document.addEventListener('mouseup', onResizeEnd);
+      document.addEventListener('touchend', onResizeEnd);
+      document.addEventListener('touchcancel', onResizeEnd);
+    } catch (err) { /* setup失敗時はサイレント */ }
   })();
 
   // 種目タイマー起動：GO初回押下で上タイマー再開＋elapsedSecondsを0リセット
