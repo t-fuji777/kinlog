@@ -20001,11 +20001,23 @@
     const list = document.getElementById('pastEntryMenuList');
     const dateEl = document.getElementById('pastEntryMenuDate');
     if (!modal || !list || !dateEl) return;
+    // カレンダーのスクロール固定を一時解除（body の position:fixed が iOS Safari で
+    // 子モーダルのタッチイベント座標を誤らせるバグの回避）
+    document.body.classList.remove('calendar-no-scroll');
+    document.documentElement.classList.remove('calendar-no-scroll');
     const dateStr = `${year}年${month + 1}月${day}日（${DOW[new Date(year, month, day).getDay()]}）`;
     dateEl.textContent = dateStr + ' の記録を追加';
 
     // メニュー一覧を取得（テストモード時は admin1〜7、通常時は priority）
-    const menuIds = isAdminMode ? getAllMenuIds() : getPriority();
+    // 通常モードで customPriority が未設定だと getPriority() が空配列になり
+    // メニュー一覧が空になってしまうため、その場合は getAllMenuIds() で全メニューを表示する
+    let menuIds;
+    if (isAdminMode) {
+      menuIds = getAllMenuIds();
+    } else {
+      const priority = getPriority();
+      menuIds = (priority && priority.length > 0) ? priority : getAllMenuIds();
+    }
     list.innerHTML = '';
     menuIds.forEach(menuId => {
       const menu = getMenu(menuId);
@@ -20024,6 +20036,20 @@
   function closePastEntryMenuModal() {
     const modal = document.getElementById('pastEntryMenuModal');
     if (modal) modal.classList.remove('show');
+    // カレンダー画面に戻るので、スクロール固定を再付与
+    // ただし pastEntryFormModal が開いている時は再付与しない（フォーム→ピッカーで支障）
+    const formModal = document.getElementById('pastEntryFormModal');
+    const isFormShown = formModal && formModal.classList.contains('show');
+    if (!isFormShown) {
+      // 履歴画面のカレンダータブが今表示されているなら付け直す
+      const historyScreen = document.getElementById('screen-history');
+      const calTab = document.getElementById('tab-calendar');
+      if (historyScreen && historyScreen.classList.contains('active')
+          && calTab && calTab.style.display !== 'none') {
+        document.body.classList.add('calendar-no-scroll');
+        document.documentElement.classList.add('calendar-no-scroll');
+      }
+    }
   }
 
   // ----- 過去日付の記録追加：シンプル入力フォーム -----
@@ -20546,7 +20572,7 @@
       // クランプ：1〜20の範囲外なら範囲内に丸める
       if (current < 1) current = 1;
       if (current > 20) current = 20;
-      step = 1; min = 1; max = 20; title = '回数'; unit = '回';
+      step = 1; min = 1; max = 20; title = '回数'; unit = '';
     } else {
       // 現状はreps以外は未対応（将来weightも追加する場合の余地）
       return;
@@ -20739,6 +20765,14 @@
     const modal = document.getElementById('pastEntryFormModal');
     if (modal) modal.classList.remove('show');
     pastEntryContext = null;
+    // カレンダー画面に戻るので、スクロール固定を再付与
+    const historyScreen = document.getElementById('screen-history');
+    const calTab = document.getElementById('tab-calendar');
+    if (historyScreen && historyScreen.classList.contains('active')
+        && calTab && calTab.style.display !== 'none') {
+      document.body.classList.add('calendar-no-scroll');
+      document.documentElement.classList.add('calendar-no-scroll');
+    }
   }
 
   // ===== 過去記録フォームの保存 =====
