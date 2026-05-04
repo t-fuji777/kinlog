@@ -11630,10 +11630,11 @@
       try {
         if (typeof navigator.share !== 'function') return false;
         // 1. まずJSON形式で試す（PWA環境などで成功する可能性）
+        // title は指定しない（iOSで title 文字列が別ファイルとして保存される問題回避）
         try {
           const fileJson = new File([json], filename, { type: 'application/json' });
           if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [fileJson] })) {
-            await navigator.share({ files: [fileJson], title: filename });
+            await navigator.share({ files: [fileJson] });
             showExportMsg('✓ ダウンロード完了', 'success');
             return true;
           }
@@ -11644,20 +11645,14 @@
           const filenameTxt = filename.replace(/\.json$/i, '.txt');
           const fileTxt = new File([json], filenameTxt, { type: 'text/plain' });
           if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [fileTxt] })) {
-            await navigator.share({ files: [fileTxt], title: filenameTxt });
+            await navigator.share({ files: [fileTxt] });
             showExportMsg('✓ ダウンロード完了', 'success');
             return true;
           }
         } catch (eTxt) { /* 次へ */ }
-        // 3. ファイル共有が使えない場合、テキスト本文として共有
-        try {
-          await navigator.share({ title: filename, text: json });
-          showExportMsg('✓ 共有を完了しました', 'success');
-          return true;
-        } catch (eText) {
-          if (eText && eText.name === 'AbortError') return true;
-          return false;
-        }
+        // 3. ファイル共有が使えない場合は失敗扱いにして通常ダウンロードへフォールバック
+        // （text本文での共有はiOSで余分な短いテキストファイルを生成するため使わない）
+        return false;
       } catch (e) {
         if (e && e.name === 'AbortError') {
           showExportMsg('共有をキャンセルしました');
@@ -20111,6 +20106,14 @@
 
     renderPastEntryForm();
     modal.classList.add('show');
+    // 開いた直後は最上部から表示（前回のスクロール位置が残らないように）
+    requestAnimationFrame(() => {
+      const bodyEl = document.getElementById('pastEntryFormBody');
+      if (bodyEl) bodyEl.scrollTop = 0;
+      // モーダル自体（中身がスクロールしている場合）も初期位置に
+      const modalInner = modal.querySelector('.past-entry-form-modal');
+      if (modalInner) modalInner.scrollTop = 0;
+    });
   }
 
   // フォーム全体を再レンダリング（代替・MAX切替などで再描画する）
@@ -20140,7 +20143,7 @@
     const isNormal = !isCardio && !isCore && !isOther;
 
     const exNameEsc = ex.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const swapInfo = ex.swappedFrom ? `<span class="past-entry-ex-swap-info">(元: ${ex.swappedFrom.replace(/</g,'&lt;')})</span>` : '';
+    const swapInfo = '';
 
     // ヘッダー：チェックボックス + 種目名 + アクションボタン
     let head = `
@@ -20672,21 +20675,21 @@
     // 元の種目に戻すオプション
     const origBtn = document.createElement('button');
     origBtn.className = 'past-entry-swap-option' + (!ex.swappedFrom ? ' original' : '');
-    origBtn.textContent = `元: ${ex.originalName}` + (!ex.swappedFrom ? '（現在）' : '');
+    // 未代替時：「現在：xxx」/ 代替済み時：「元：xxx」（元に戻す意味）
+    origBtn.textContent = (!ex.swappedFrom ? '現在：' : '元：') + ex.originalName;
     origBtn.onclick = () => {
       restorePastEntryOriginal(idx);
       closePastEntrySwapModal();
     };
     list.appendChild(origBtn);
 
-    // 代替候補プールから取得
-    const swapPool = loadSwapPool();
-    const candidates = swapPool[ex.originalName] || [];
+    // 代替候補プールから取得（メニューID単位で管理されている）
+    const candidates = getSwapCandidatesByMenu(pastEntryContext.menuId);
     candidates.forEach(c => {
       if (c.name === ex.name) return; // 現在の代替はスキップ
       const btn = document.createElement('button');
       btn.className = 'past-entry-swap-option';
-      btn.textContent = `${c.name} (${c.weight}kg×${c.reps}回×${c.sets}セット)`;
+      btn.textContent = c.name;
       btn.onclick = () => {
         applyPastEntrySwap(idx, c);
         closePastEntrySwapModal();
