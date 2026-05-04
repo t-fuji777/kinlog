@@ -20053,46 +20053,53 @@
       return;
     }
     // exercises は menu のものを deep copy して、代替や maxTraining 設定変更を扱えるようにする
-    const exercises = menu.exercises.map(e => ({
-      // 元の種目情報（読み取り専用）
-      _originalDef: JSON.parse(JSON.stringify(e)),
-      // 編集可能な状態
-      name: e.name,
-      originalName: e.name,
-      swappedFrom: null,
-      bilateral: !!e.bilateral,
-      startSide: e.startSide || 'R',
-      cardio: !!e.cardio,
-      hiit: !!e.hiit,
-      cardioMachine: !!e.cardioMachine,
-      machineType: e.machineType || null,
-      machineProtocol: e.machineProtocol ? { ...e.machineProtocol } : null,
-      protocol: e.protocol ? { ...e.protocol } : null,
-      core: !!e.core,
-      coreSec: e.coreSec || null,
-      other: !!e.other,
-      otherSec: e.otherSec || null,
-      url: e.url || null,
-      machineKind: e.machineKind || 'plate',
-      // 通常種目のターゲット
-      targetWeight: e.targetWeight !== undefined ? e.targetWeight : (e.weight || 0),
-      targetReps: e.targetReps !== undefined ? e.targetReps : (e.reps || 10),
-      targetSets: e.targetSets !== undefined ? e.targetSets : (e.sets || 3),
-      // 編集中のセット数（ユーザーが調整可能）
-      currentSets: e.targetSets !== undefined ? e.targetSets : (e.sets || 3),
-      // MAX設定（メニュー定義のコピー、ユーザー編集可能）
-      maxTraining: e.maxTraining ? { ...e.maxTraining } : null,
-      // セット別記録（通常セット）
-      setData: [], // [{ weight, reps, judge? }]
-      maxSetData: [], // MAXセット用
-      // セット別の左右順（bilateral種目用）：そのセットで「最初の行」が R か L か
-      // 例：setSideOrders[0]='R' なら 1セット目は 右→左、'L' なら 左→右
-      setSideOrders: [], // セット数だけ持つ
-      maxSideOrders: [],
-      judge: 'ok', // 'ok' | 'keep'
-      keepReps: null,
-      enabled: true
-    }));
+    const exercises = menu.exercises.map(e => {
+      // メニュー定義の targetSets は bilateral種目だと「左右ペア合計」で保存されているため、
+      // 過去日フォーム内では「実質セット数」（左右ペア=1セット換算）に変換する。
+      // 例：bilateral種目で 8 → 4 セット
+      const rawSets = e.targetSets !== undefined ? e.targetSets : (e.sets || 3);
+      const effectiveSets = e.bilateral ? Math.max(1, Math.floor(rawSets / 2)) : rawSets;
+      return ({
+        // 元の種目情報（読み取り専用）
+        _originalDef: JSON.parse(JSON.stringify(e)),
+        // 編集可能な状態
+        name: e.name,
+        originalName: e.name,
+        swappedFrom: null,
+        bilateral: !!e.bilateral,
+        startSide: e.startSide || 'R',
+        cardio: !!e.cardio,
+        hiit: !!e.hiit,
+        cardioMachine: !!e.cardioMachine,
+        machineType: e.machineType || null,
+        machineProtocol: e.machineProtocol ? { ...e.machineProtocol } : null,
+        protocol: e.protocol ? { ...e.protocol } : null,
+        core: !!e.core,
+        coreSec: e.coreSec || null,
+        other: !!e.other,
+        otherSec: e.otherSec || null,
+        url: e.url || null,
+        machineKind: e.machineKind || 'plate',
+        // 通常種目のターゲット
+        targetWeight: e.targetWeight !== undefined ? e.targetWeight : (e.weight || 0),
+        targetReps: e.targetReps !== undefined ? e.targetReps : (e.reps || 10),
+        targetSets: effectiveSets,
+        // 編集中のセット数（ユーザーが調整可能）
+        currentSets: effectiveSets,
+        // MAX設定（メニュー定義のコピー、ユーザー編集可能）
+        maxTraining: e.maxTraining ? { ...e.maxTraining } : null,
+        // セット別記録（通常セット）
+        setData: [], // [{ weight, reps, judge? }]
+        maxSetData: [], // MAXセット用
+        // セット別の左右順（bilateral種目用）：そのセットで「最初の行」が R か L か
+        // 例：setSideOrders[0]='R' なら 1セット目は 右→左、'L' なら 左→右
+        setSideOrders: [], // セット数だけ持つ
+        maxSideOrders: [],
+        judge: 'ok', // 'ok' | 'keep'
+        keepReps: null,
+        enabled: true
+      });
+    });
     pastEntryContext = { menuId, year, month, day, exercises };
 
     const modal = document.getElementById('pastEntryFormModal');
@@ -20732,9 +20739,11 @@
     if (candidate.weight !== undefined) ex.targetWeight = candidate.weight;
     if (candidate.reps !== undefined) ex.targetReps = candidate.reps;
     if (candidate.sets !== undefined) {
-      ex.targetSets = candidate.sets;
-      ex.currentSets = candidate.sets;
-      const need = ex.bilateral ? candidate.sets * 2 : candidate.sets;
+      // bilateral種目では candidate.sets は左右合計で保存されているため、実質セット数（半分）に変換
+      const effectiveSets = ex.bilateral ? Math.max(1, Math.floor(candidate.sets / 2)) : candidate.sets;
+      ex.targetSets = effectiveSets;
+      ex.currentSets = effectiveSets;
+      const need = ex.bilateral ? effectiveSets * 2 : effectiveSets;
       while (ex.setData.length < need) ex.setData.push({});
       if (ex.setData.length > need) ex.setData.length = need;
     }
@@ -20749,7 +20758,9 @@
     ex.swappedFrom = null;
     ex.targetWeight = orig.targetWeight !== undefined ? orig.targetWeight : (orig.weight || 0);
     ex.targetReps = orig.targetReps !== undefined ? orig.targetReps : (orig.reps || 10);
-    ex.targetSets = orig.targetSets !== undefined ? orig.targetSets : (orig.sets || 3);
+    // bilateral種目では targetSets は左右合計で保存されているため、実質セット数（半分）に変換
+    const rawSets = orig.targetSets !== undefined ? orig.targetSets : (orig.sets || 3);
+    ex.targetSets = ex.bilateral ? Math.max(1, Math.floor(rawSets / 2)) : rawSets;
     ex.currentSets = ex.targetSets;
     const need = ex.bilateral ? ex.currentSets * 2 : ex.currentSets;
     ex.setData = ex.setData.slice(0, need);
