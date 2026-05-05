@@ -8557,7 +8557,10 @@
     if (!workoutSession || !Array.isArray(workoutSession.exercises)) return true;
     const prev = workoutSession.exercises[idx - 1];
     if (!prev) return true;
-    return prev.judge === 'ok' || prev.judge === 'skip';
+    // 'ok'（達成）または 'skip'（スキップ）または 'keep'（未達だが全セット記録済み）を完了とみなす
+    // 'keep' は autoJudgeExercise で全セット記録完了時に未達なら付与されるので、
+    // 種目自体は完了しているため次の種目へ進めて良い
+    return prev.judge === 'ok' || prev.judge === 'skip' || prev.judge === 'keep';
   }
   function hasWorkoutProgress() {
     if (!workoutSession || !Array.isArray(workoutSession.exercises)) return false;
@@ -12048,6 +12051,8 @@
       const diff = Date.now() - elapsedStartMs + elapsedAccumulatedMs;
       const el2 = document.getElementById('elapsedTimer');
       if (el2) el2.innerHTML = formatElapsedHtml(diff);
+      // メインタイマーの累積秒数（絶対時刻ベース、正確）
+      const totalElapsedSec = Math.floor(diff / 1000);
       // 「現在実施中の種目」=duration未確定で最初の対象 を1つだけカウント
       if (workoutSession && workoutSession.exercises) {
         // 【新仕様】exStarted フラグが立っていて、duration未確定 & 完了/スキップでない種目を対象に
@@ -12059,7 +12064,13 @@
         });
         if (activeIdx >= 0) {
           const ex = workoutSession.exercises[activeIdx];
-          ex.elapsedSeconds = (ex.elapsedSeconds || 0) + 1;
+          // 種目開始時のメインタイマー累積秒（_elapsedAtStart）が未設定なら、
+          // 既存の elapsedSeconds から逆算して基準点を設定（復元時の互換性）
+          if (ex._elapsedAtStart === undefined || ex._elapsedAtStart === null) {
+            ex._elapsedAtStart = totalElapsedSec - (ex.elapsedSeconds || 0);
+          }
+          // 絶対時刻ベースで経過秒数を計算（メインタイマーと完全連動）
+          ex.elapsedSeconds = Math.max(0, totalElapsedSec - ex._elapsedAtStart);
           // 種目ごとの経過時間表示要素を更新（time-X / coreElapsedTime-X 両方対応）
           const displayEl = document.getElementById(`time-${activeIdx}`);
           if (displayEl) {
@@ -13153,8 +13164,9 @@
     // 未完了種目：judge が無くて、かつ exStarted（開始済）の種目
     // 未開始＋未スキップ＋未代替の種目も「未着手」として未完了扱い
     const incomplete = workoutSession.exercises.filter(ex => {
-      // judgeが ok / skip ならOK扱い
-      if (ex.judge === 'ok' || ex.judge === 'skip') return false;
+      // judgeが ok / skip / keep ならOK扱い
+      // ('keep' は autoJudgeで全セット記録完了時に未達なら付与される＝種目自体は完了している)
+      if (ex.judge === 'ok' || ex.judge === 'skip' || ex.judge === 'keep') return false;
       // それ以外（未開始 or 開始したが未完了）は未完了
       return true;
     });
@@ -19890,6 +19902,14 @@
       if (typeof startElapsedTimer === 'function') {
         startElapsedTimer();
       }
+    }
+    // 種目開始時のメインタイマー累積秒を記録（種目タイマーをメインと完全連動させるため）
+    // この時点でメインタイマーは動いている（or たった今開始された）ので、現在の累積を取得
+    try {
+      const mainNowMs = (elapsedStartMs ? (Date.now() - elapsedStartMs) : 0) + (elapsedAccumulatedMs || 0);
+      ex._elapsedAtStart = Math.floor(mainNowMs / 1000);
+    } catch (e) {
+      ex._elapsedAtStart = 0;
     }
     // 即座に表示更新
     const displayEl = document.getElementById(`time-${exIdx}`);
