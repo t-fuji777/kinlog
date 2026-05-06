@@ -12710,11 +12710,31 @@
       card.className = 'exercise' + (ex.judge ? ' ' + ex.judge : '') + (reorderMode && idx === reorderingIdx ? ' reordering' : '') + (ex.swappedFrom ? ' swapped' : '');
 
       // 前回記録の表示文字列を生成
-      // targetReps と比較して各セットに ✓ / ✗ を表示、全体判定も計算
+      // 各セットが目標を満たしているか判定して ✓ / ✗ を表示
+      // MAXセット（s.isMax=true）なら maxTraining 目標と比較、通常セットなら targetReps/targetWeight と比較
       const buildSetsTable = (setRecords, targetReps) => {
+        const mt = ex.maxTraining;
         const rows = setRecords.map((s, i) => {
           const reps = s.reps || 0;
-          const cleared = targetReps ? (reps >= targetReps) : null;
+          const weight = s.weight || 0;
+          // 目標値を「MAXセットなら maxTraining、通常セットなら ex.target* 」から取得
+          let targetR, targetW;
+          if (s.isMax && mt) {
+            targetR = mt.reps;
+            targetW = mt.weight;
+          } else {
+            targetR = targetReps;
+            targetW = ex.targetWeight;
+          }
+          // 判定：回数が目標以上 かつ 重量が目標以上（targetW未設定時は重量条件スキップ）
+          let cleared;
+          if (!targetR) {
+            cleared = null;
+          } else {
+            const repsOk = reps >= targetR;
+            const weightOk = (targetW === undefined || targetW === null) || (weight >= targetW);
+            cleared = repsOk && weightOk;
+          }
           const mark = cleared === true
             ? '<span class="last-set-mark ok">✓</span>'
             : cleared === false
@@ -17283,14 +17303,23 @@
         const wStr = (w == null || isNaN(w)) ? '0.0' : Number(w).toFixed(1);
         const displaySets = ex.bilateral ? Math.ceil((s || 0) / 2) : s;
         const sideStr = ex.bilateral ? '（左右）' : '';
-        params = `${wStr}kg × ${r}回 × ${displaySets}セット${sideStr}`;
-        // マックスセットがあれば改行して追記
+        const normalLine = `${wStr}kg × ${r}回 × ${displaySets}セット${sideStr}`;
+        // マックスセットがあれば、position に応じて上か下に追記
         if (ex.maxTraining && ex.maxTraining.enabled) {
           const mt = ex.maxTraining;
           const mwStr = (mt.weight == null || isNaN(mt.weight)) ? '0.0' : Number(mt.weight).toFixed(1);
           const displayMaxSets = ex.bilateral ? Math.ceil((mt.sets || 0) / 2) : mt.sets;
           const maxSideStr = ex.bilateral ? '（左右）' : '';
-          params += `<br>${mwStr}kg × ${mt.reps}回 × ${displayMaxSets}セット【MAX】${maxSideStr}`;
+          const maxLine = `${mwStr}kg × ${mt.reps}回 × ${displayMaxSets}セット【MAX】${maxSideStr}`;
+          if (mt.position === 'before') {
+            // MAXが先：表記も上
+            params = `${maxLine}<br>${normalLine}`;
+          } else {
+            // MAXが後（デフォルト）：表記も下
+            params = `${normalLine}<br>${maxLine}`;
+          }
+        } else {
+          params = normalLine;
         }
       }
       const urlMark = ex.url ? '<span class="menu-url-mark" title="参考URLあり">↗</span>' : '';
