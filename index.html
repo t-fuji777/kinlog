@@ -10078,17 +10078,21 @@
     else label = `${dayDiff}日後`;
     const dateLabel = `${m}/${day}（${DOW[dow]}）`;
 
-    // 過去日で履歴に記録がない場合は休息日表示（履歴カレンダーと整合・記録ベース）
-    // スケジュールに割り当てがあっても、過去で記録なしなら「実施されなかった日」として休息日扱い
+    // 過去日の場合は週間スケジュール（schedule[dow]）を完全に無視する。
+    // 理由：週間スケジュールはユーザーが変更できるため、過去のスケジュール設定が
+    // 現在のスケジュールに反映されてしまうと「過去にやった内容」と矛盾する表示になる。
+    // → 過去日は「記録があればその記録のメニュー、なければ休息日」というシンプルな仕様にする。
+    let pastDaySession = null; // 過去日で記録があった場合のセッション（後段で使う）
     if (dayDiff < 0) {
       const targetHistory = loadHistory();
-      const hasAnyRecord = targetHistory.some(h => {
+      const matchedSessions = targetHistory.filter(h => {
         if (!h.date) return false;
         const d = new Date(h.date);
         return d.getFullYear() === target.getFullYear()
             && d.getMonth() === target.getMonth()
             && d.getDate() === target.getDate();
       });
+      const hasAnyRecord = matchedSessions.length > 0;
       if (!hasAnyRecord) {
         zone.innerHTML = `
           <div class="today-card is-rest">
@@ -10129,10 +10133,25 @@
         renderWeekStrip();
         return;
       }
+      // 履歴あり：その日のセッションを保持（後段で利用）
+      // 複数あれば最新（最後に追加された）を採用
+      pastDaySession = matchedSessions[matchedSessions.length - 1];
+    }
+
+    // 表示するメニューを決定：
+    // - 過去日（dayDiff < 0）：schedule を無視し、履歴の menuId のみを使う
+    // - 今日／未来日：schedule[dow] を使う（従来通り）
+    let effectiveMenuKey;
+    if (dayDiff < 0 && pastDaySession && pastDaySession.menuId) {
+      effectiveMenuKey = pastDaySession.menuId;
+    } else if (dayDiff >= 0) {
+      effectiveMenuKey = menuKey;
+    } else {
+      effectiveMenuKey = null;
     }
 
     // メニューが割り当てられていない曜日：休息日表示（today-cardと同じ統一デザイン）
-    if (!menuKey) {
+    if (!effectiveMenuKey) {
       zone.innerHTML = `
         <div class="today-card is-rest">
           <div class="today-card-head">
@@ -10173,7 +10192,7 @@
       return;
     }
 
-    const menu = getMenu(menuKey);
+    const menu = getMenu(effectiveMenuKey);
     if (!menu) { zone.innerHTML = ''; return; }
 
     // この日付にこのメニューを実施した履歴があるか
@@ -10182,7 +10201,7 @@
     const tm = target.getMonth();
     const td = target.getDate();
     const sameDaySession = history.find(h => {
-      if (!h.date || h.menuId !== menuKey) return false;
+      if (!h.date || h.menuId !== effectiveMenuKey) return false;
       const d = new Date(h.date);
       return d.getFullYear() === ty && d.getMonth() === tm && d.getDate() === td;
     });
@@ -10197,7 +10216,7 @@
     } else {
       // 同じメニューの過去最新記録（選択日より前）を探す
       const sortedHistory = history
-        .filter(h => h.menuId === menuKey && h.date)
+        .filter(h => h.menuId === effectiveMenuKey && h.date)
         .filter(h => new Date(h.date) < target) // 選択日より前
         .sort((a, b) => new Date(b.date) - new Date(a.date));
       if (sortedHistory.length > 0) {
@@ -12711,20 +12730,44 @@
 
       // 前回記録の表示文字列を生成
       // 各セットが目標を満たしているか判定して ✓ / ✗ を表示
-      // MAXセット（s.isMax=true）なら maxTraining 目標と比較、通常セットなら targetReps/targetWeight と比較
+      // 判定の優先順位：
+      //   1. レコード自身に保存された当時の目標値 (s.targetWeight / s.targetReps) があればそれを使う
+      //   2. 無い場合、isMax フラグがあれば maxTraining 目標、無ければ通常目標と比較
+      //   3. isMaxフラグも無い場合は、メニュー定義の mt.position/sets から推定
       const buildSetsTable = (setRecords, targetReps) => {
         const mt = ex.maxTraining;
+        // 過去データ用の MAX セット範囲を推定（isMaxフラグも targetReps保存も無い旧データ用）
+        const hasMaxConfig = !!(mt && mt.enabled && mt.sets);
+        let inferredMaxRange = null; // { start, end } 半開区間 [start, end)
+        if (hasMaxConfig) {
+          const totalRec = setRecords.length;
+          const maxRec = mt.sets || 0;
+          // position が未設定の場合は 'before' をデフォルトとして扱う（古いデータの互換性）
+          const pos = mt.position || 'before';
+          if (pos === 'before') {
+            inferredMaxRange = { start: 0, end: Math.min(maxRec, totalRec) };
+          } else {
+            inferredMaxRange = { start: Math.max(0, totalRec - maxRec), end: totalRec };
+          }
+        }
         const rows = setRecords.map((s, i) => {
           const reps = s.reps || 0;
           const weight = s.weight || 0;
-          // 目標値を「MAXセットなら maxTraining、通常セットなら ex.target* 」から取得
-          let targetR, targetW;
-          if (s.isMax && mt) {
-            targetR = mt.reps;
-            targetW = mt.weight;
-          } else {
-            targetR = targetReps;
-            targetW = ex.targetWeight;
+          // 目標値取得：レコード自身に保存された当時の目標値を最優先
+          let targetR = (s.targetReps !== undefined && s.targetReps !== null) ? s.targetReps : null;
+          let targetW = (s.targetWeight !== undefined && s.targetWeight !== null) ? s.targetWeight : null;
+          // レコードに保存されていない場合は、現行のmt または ex.target* で補完
+          if (targetR === null || targetW === null) {
+            // このセットがMAXかどうか判定：isMaxフラグ優先、なければ推定範囲で判定
+            const isMaxSet = s.isMax === true
+              || (s.isMax === undefined && inferredMaxRange && i >= inferredMaxRange.start && i < inferredMaxRange.end);
+            if (isMaxSet && mt) {
+              if (targetR === null) targetR = mt.reps;
+              if (targetW === null) targetW = mt.weight;
+            } else {
+              if (targetR === null) targetR = targetReps;
+              if (targetW === null) targetW = ex.targetWeight;
+            }
           }
           // 判定：回数が目標以上 かつ 重量が目標以上（targetW未設定時は重量条件スキップ）
           let cleared;
@@ -21109,6 +21152,22 @@
     closePastEntryFormModal();
     toast(`✓ ${year}年${month + 1}月${day}日の記録を追加`);
     if (typeof renderCalendar === 'function') renderCalendar();
+    // ホーム画面のメインカード（前回の記録、種目数、総重量等）も再描画
+    if (typeof renderRecommend === 'function') {
+      try { renderRecommend(); } catch (_) {}
+    }
+    // 履歴画面が開いていれば再描画（リストに反映）
+    if (typeof renderHistory === 'function') {
+      try { renderHistory(); } catch (_) {}
+    }
+    // 統計画面も再描画（合計時間・総重量などが変わるため）
+    if (typeof renderStats === 'function') {
+      try { renderStats(); } catch (_) {}
+    }
+    // 週ストリップ（曜日選択UI）も更新（記録ありマーク）
+    if (typeof renderWeekStrip === 'function') {
+      try { renderWeekStrip(); } catch (_) {}
+    }
   }
 
   function openHistoryEditor(dateIso) {
@@ -21203,9 +21262,31 @@
     workoutSession.exercises.forEach(ex => {
       if (ex.cardio) return;
       if (!ex.judge && (!ex.setRecords || ex.setRecords.length === 0)) return;
-      // 全セット記録を保存用に整形
+      // 全セット記録を保存用に整形（isMax, side, 当時の目標値も保持）
+      // ※後から目標値が変更されても、判定に使う「当時の目標値」を残しておく
       const allSetRecords = ex.setRecords && ex.setRecords.length > 0
-        ? ex.setRecords.map(s => ({ weight: s.weight, reps: s.reps }))
+        ? ex.setRecords.map(s => {
+            const obj = { weight: s.weight, reps: s.reps };
+            if (s.isMax) obj.isMax = true;
+            if (s.side) obj.side = s.side;
+            // 当時の目標値を保存（無ければ ex から補完）
+            // MAXセットは maxTraining 目標、通常セットは targetWeight/targetReps
+            if (s.targetWeight !== undefined && s.targetWeight !== null) {
+              obj.targetWeight = s.targetWeight;
+            } else if (s.isMax && ex.maxTraining && ex.maxTraining.weight !== undefined) {
+              obj.targetWeight = ex.maxTraining.weight;
+            } else if (ex.targetWeight !== undefined) {
+              obj.targetWeight = ex.targetWeight;
+            }
+            if (s.targetReps !== undefined && s.targetReps !== null) {
+              obj.targetReps = s.targetReps;
+            } else if (s.isMax && ex.maxTraining && ex.maxTraining.reps !== undefined) {
+              obj.targetReps = ex.maxTraining.reps;
+            } else if (ex.targetReps !== undefined) {
+              obj.targetReps = ex.targetReps;
+            }
+            return obj;
+          })
         : [];
       const lastSet = allSetRecords.length > 0
         ? allSetRecords[allSetRecords.length - 1]
