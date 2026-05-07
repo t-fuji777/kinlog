@@ -12731,9 +12731,10 @@
       // 前回記録の表示文字列を生成
       // 各セットが目標を満たしているか判定して ✓ / ✗ を表示
       // 判定の優先順位：
-      //   1. レコード自身に保存された当時の目標値 (s.targetWeight / s.targetReps) があればそれを使う
-      //   2. 無い場合、isMax フラグがあれば maxTraining 目標、無ければ通常目標と比較
-      //   3. isMaxフラグも無い場合は、メニュー定義の mt.position/sets から推定
+      //   1. レコード自身に保存された判定結果 (s.judge='ok'/'keep') があればそれを使う（最優先）
+      //   2. 無い場合、レコード自身に保存された当時の目標値 (s.targetWeight / s.targetReps) があればそれを使う
+      //   3. 無い場合、isMax フラグがあれば maxTraining 目標、無ければ通常目標と比較
+      //   4. isMaxフラグも無い場合は、メニュー定義の mt.position/sets から推定
       const buildSetsTable = (setRecords, targetReps) => {
         const mt = ex.maxTraining;
         // 過去データ用の MAX セット範囲を推定（isMaxフラグも targetReps保存も無い旧データ用）
@@ -12753,30 +12754,38 @@
         const rows = setRecords.map((s, i) => {
           const reps = s.reps || 0;
           const weight = s.weight || 0;
-          // 目標値取得：レコード自身に保存された当時の目標値を最優先
-          let targetR = (s.targetReps !== undefined && s.targetReps !== null) ? s.targetReps : null;
-          let targetW = (s.targetWeight !== undefined && s.targetWeight !== null) ? s.targetWeight : null;
-          // レコードに保存されていない場合は、現行のmt または ex.target* で補完
-          if (targetR === null || targetW === null) {
-            // このセットがMAXかどうか判定：isMaxフラグ優先、なければ推定範囲で判定
-            const isMaxSet = s.isMax === true
-              || (s.isMax === undefined && inferredMaxRange && i >= inferredMaxRange.start && i < inferredMaxRange.end);
-            if (isMaxSet && mt) {
-              if (targetR === null) targetR = mt.reps;
-              if (targetW === null) targetW = mt.weight;
-            } else {
-              if (targetR === null) targetR = targetReps;
-              if (targetW === null) targetW = ex.targetWeight;
-            }
-          }
-          // 判定：回数が目標以上 かつ 重量が目標以上（targetW未設定時は重量条件スキップ）
+          // 【最優先】記録時に保存された判定結果（s.judge）があればそれを使う
           let cleared;
-          if (!targetR) {
-            cleared = null;
+          if (s.judge === 'ok') {
+            cleared = true;
+          } else if (s.judge === 'keep') {
+            cleared = false;
           } else {
-            const repsOk = reps >= targetR;
-            const weightOk = (targetW === undefined || targetW === null) || (weight >= targetW);
-            cleared = repsOk && weightOk;
+            // judge が無い場合は従来のロジックで判定
+            // 目標値取得：レコード自身に保存された当時の目標値を最優先
+            let targetR = (s.targetReps !== undefined && s.targetReps !== null) ? s.targetReps : null;
+            let targetW = (s.targetWeight !== undefined && s.targetWeight !== null) ? s.targetWeight : null;
+            // レコードに保存されていない場合は、現行のmt または ex.target* で補完
+            if (targetR === null || targetW === null) {
+              // このセットがMAXかどうか判定：isMaxフラグ優先、なければ推定範囲で判定
+              const isMaxSet = s.isMax === true
+                || (s.isMax === undefined && inferredMaxRange && i >= inferredMaxRange.start && i < inferredMaxRange.end);
+              if (isMaxSet && mt) {
+                if (targetR === null) targetR = mt.reps;
+                if (targetW === null) targetW = mt.weight;
+              } else {
+                if (targetR === null) targetR = targetReps;
+                if (targetW === null) targetW = ex.targetWeight;
+              }
+            }
+            // 判定：回数が目標以上 かつ 重量が目標以上（targetW未設定時は重量条件スキップ）
+            if (!targetR) {
+              cleared = null;
+            } else {
+              const repsOk = reps >= targetR;
+              const weightOk = (targetW === undefined || targetW === null) || (weight >= targetW);
+              cleared = repsOk && weightOk;
+            }
           }
           const mark = cleared === true
             ? '<span class="last-set-mark ok">✓</span>'
@@ -13014,15 +13023,21 @@
             const rec = ex.setRecords[recIdx];
             let chipClass = '';
             if (rec) {
-              // 緑(ok)条件: 回数が目標以上 かつ 重量が目標以上（targetWeight未設定時は重量条件スキップ）
-              // 過去セットは記録時の目標値(rec.targetWeight/rec.targetReps)で判定する。
-              // 後からデフォルト値を変更しても過去セットの判定が変わらないようにする。
-              const tReps = (rec.targetReps != null) ? rec.targetReps : ex.targetReps;
-              const tWeight = (rec.targetWeight != null) ? rec.targetWeight : ex.targetWeight;
-              const repsOk = rec.reps >= tReps;
-              const weightOk = (tWeight === undefined || tWeight === null)
-                || (rec.weight >= tWeight);
-              chipClass = (repsOk && weightOk) ? 'done-set ok' : 'done-set keep';
+              // 【最優先】記録時に保存された判定結果（rec.judge）があればそれを使う。
+              // 後からデフォルト値を変更しても、記録時の判定色は変わらない。
+              if (rec.judge === 'ok' || rec.judge === 'keep') {
+                chipClass = 'done-set ' + rec.judge;
+              } else {
+                // 旧データ互換：judge が無い場合は従来のロジックで判定。
+                // 過去セットは記録時の目標値(rec.targetWeight/rec.targetReps)で判定する。
+                // 後からデフォルト値を変更しても過去セットの判定が変わらないようにする。
+                const tReps = (rec.targetReps != null) ? rec.targetReps : ex.targetReps;
+                const tWeight = (rec.targetWeight != null) ? rec.targetWeight : ex.targetWeight;
+                const repsOk = rec.reps >= tReps;
+                const weightOk = (tWeight === undefined || tWeight === null)
+                  || (rec.weight >= tWeight);
+                chipClass = (repsOk && weightOk) ? 'done-set ok' : 'done-set keep';
+              }
             }
             // bilateral種目: 2件で1セット（右+左をまとめて1チップに表示）
             // normalIdx が偶数(0, 2, 4...)のときのみチップを描画。奇数は空文字を返してスキップ
@@ -13031,13 +13046,27 @@
               // si と si+1 の2件をペアで表示（右と左）
               const recIdx2 = recIdx + 1;
               const rec2 = ex.setRecords[recIdx2];
-              // 両方の記録から chipClass を決定: 両方OKなら ok、どちらか記録ありなら keep、無記録なら空
+              // 両方の記録から chipClass を決定: 両方OKなら ok、両方記録ありで未達なら keep、片方だけは無色（中間状態）
+              // 【最優先】記録時に保存された判定結果（r.judge）があればそれを使う。
+              // 後からデフォルト値を変更しても、記録時の判定色は変わらない。
               let pairClass = '';
-              if (rec || rec2) {
-                const checkOk = (r) => r && r.reps >= ex.targetReps &&
-                  ((ex.targetWeight === undefined || ex.targetWeight === null) || r.weight >= ex.targetWeight);
-                pairClass = (rec && rec2 && checkOk(rec) && checkOk(rec2)) ? 'done-set ok' : 'done-set keep';
+              if (rec && rec2) {
+                // 両方記録あり：判定して色付け
+                const checkOk = (r) => {
+                  if (!r) return false;
+                  // judge が保存されていればそれを使う
+                  if (r.judge === 'ok') return true;
+                  if (r.judge === 'keep') return false;
+                  // 旧データ互換：judge が無い場合は当時の目標値で判定
+                  const tR = (r.targetReps != null) ? r.targetReps : ex.targetReps;
+                  const tW = (r.targetWeight != null) ? r.targetWeight : ex.targetWeight;
+                  const repsOk = r.reps >= tR;
+                  const weightOk = (tW === undefined || tW === null) || (r.weight >= tW);
+                  return repsOk && weightOk;
+                };
+                pairClass = (checkOk(rec) && checkOk(rec2)) ? 'done-set ok' : 'done-set keep';
               }
+              // 片方だけ記録あり（右のみ／左のみ）の中間状態は無色（chipClass='')
               const displayNumPair = toCircledNum(Math.ceil((normalIdx + 1) / 2));
               // 右と左を判別（rec.side / rec2.side で表示順を決める。記録がない場合は通常R→Lの順）
               const formatSide = (r) => r ? `${Number(r.weight).toFixed(1)}×${r.reps}` : '−';
@@ -13069,22 +13098,35 @@
             // mt は外側のスコープで定義済み (ex.maxTraining)
             let chipClass = '';
             if (rec) {
-              // 緑(ok)条件: 回数が目標以上 かつ 重量が目標以上（mt.weight未設定時は重量条件スキップ）
-              const repsOk = rec.reps >= mt.reps;
-              const weightOk = (mt.weight === undefined || mt.weight === null)
-                || (rec.weight >= mt.weight);
-              chipClass = (repsOk && weightOk) ? 'done-set ok' : 'done-set keep';
+              // 【最優先】記録時に保存された判定結果（rec.judge）があればそれを使う。
+              if (rec.judge === 'ok' || rec.judge === 'keep') {
+                chipClass = 'done-set ' + rec.judge;
+              } else {
+                // 旧データ互換：judge が無い場合は従来のロジック
+                const repsOk = rec.reps >= mt.reps;
+                const weightOk = (mt.weight === undefined || mt.weight === null)
+                  || (rec.weight >= mt.weight);
+                chipClass = (repsOk && weightOk) ? 'done-set ok' : 'done-set keep';
+              }
             }
             // bilateral種目: 2件で1セット（右+左をまとめて1チップに表示）
             if (ex.bilateral) {
               if (mi % 2 !== 0) return '';
               const recIdx2 = recIdx + 1;
               const rec2 = ex.setRecords[recIdx2];
+              // 両方記録あって初めて色付け（中間状態は無色）
+              // 【最優先】記録時に保存された判定結果（r.judge）があればそれを使う。
               let pairClass = '';
-              if (rec || rec2) {
-                const checkOk = (r) => r && r.reps >= mt.reps &&
-                  ((mt.weight === undefined || mt.weight === null) || r.weight >= mt.weight);
-                pairClass = (rec && rec2 && checkOk(rec) && checkOk(rec2)) ? 'done-set ok' : 'done-set keep';
+              if (rec && rec2) {
+                const checkOk = (r) => {
+                  if (!r) return false;
+                  if (r.judge === 'ok') return true;
+                  if (r.judge === 'keep') return false;
+                  // 旧データ互換
+                  return r.reps >= mt.reps &&
+                    ((mt.weight === undefined || mt.weight === null) || r.weight >= mt.weight);
+                };
+                pairClass = (checkOk(rec) && checkOk(rec2)) ? 'done-set ok' : 'done-set keep';
               }
               const displayNumPair = toCircledNum(Math.ceil((mi + 1) / 2));
               const formatSide = (r) => r ? `${Number(r.weight).toFixed(1)}×${r.reps}` : '−';
@@ -13150,7 +13192,7 @@
             <div class="nav-time-display ${getNavTimeStateClass(ex)}" id="time-${idx}" onclick="askTimeReset(${idx})">${ex.duration ? formatDuration(ex.duration) : formatDuration(ex.elapsedSeconds || 0)}</div>
           </div>
           ${ex.bilateral ? `
-          <button class="nav-btn-side ${(ex.currentSide || 'R') === 'R' ? 'side-r' : 'side-l'}" onclick="toggleSide(${idx})" title="記録する側を切り替え" ${(ex.setRecords.length > 0 || ex.exStarted) ? 'disabled' : ''}>${sideLabel(ex.currentSide || 'R')}</button>
+          <button class="nav-btn-side ${(ex.currentSide || 'R') === 'R' ? 'side-r' : 'side-l'}" onclick="toggleSide(${idx})" title="記録する側を切り替え" ${(ex.setRecords.length % 2 !== 0) ? 'disabled' : ''}>${sideLabel(ex.currentSide || 'R')}</button>
           <button class="nav-btn-step back" onclick="stepBack(${idx})" ${ex.setRecords.length === 0 ? 'disabled' : ''}>
             戻る
           </button>
@@ -19548,6 +19590,25 @@
     const isMax = isMaxSetIndex(ex, nextIdx);
     const rec = { weight: ex.currentWeight, reps: ex.currentReps };
     if (isMax) rec.isMax = true;
+    // 記録時点の目標値を保存（後から目標値が変わっても判定が変わらないようにするため）
+    // MAXセットなら maxTraining 目標、通常セットなら ex.target* を保存
+    let recTargetWeight, recTargetReps;
+    if (isMax && ex.maxTraining) {
+      recTargetWeight = ex.maxTraining.weight;
+      recTargetReps = ex.maxTraining.reps;
+    } else {
+      recTargetWeight = ex.targetWeight;
+      recTargetReps = ex.targetReps;
+    }
+    if (recTargetWeight !== undefined) rec.targetWeight = recTargetWeight;
+    if (recTargetReps !== undefined) rec.targetReps = recTargetReps;
+    // 記録時点の達成判定を保存（緑=ok / 赤=keep）。後から目標値を変更しても判定色が変わらないようにする。
+    // 重量と回数の両方を満たせば 'ok'、どちらか満たさなければ 'keep'
+    {
+      const repsOk = (recTargetReps === undefined || recTargetReps === null) ? true : (rec.reps >= recTargetReps);
+      const weightOk = (recTargetWeight === undefined || recTargetWeight === null) ? true : (rec.weight >= recTargetWeight);
+      rec.judge = (repsOk && weightOk) ? 'ok' : 'keep';
+    }
     // bilateralの場合はサイドを記録（MAXセットも含む）
     if (ex.bilateral) {
       rec.side = ex.currentSide || 'R';
@@ -19589,6 +19650,10 @@
       } else if (!nextIsMax && isMax) {
         // マックスセット直後で次が通常セット → 保存値があればそれを、なければ通常の目標値
         ex.currentWeight = (ex.userNormalWeight !== undefined) ? ex.userNormalWeight : ex.targetWeight;
+        ex.currentReps = ex.targetReps;
+      } else if (!nextIsMax && !isMax && !isBilateralMidSet) {
+        // 通常→通常の切り替えで、bilateralの同セット内（右→左、左→右）でもないとき：
+        // 回数だけ目標値（targetReps）に戻す（重量はユーザーが変えた値を維持）
         ex.currentReps = ex.targetReps;
       }
     }
@@ -19696,8 +19761,8 @@
   function toggleSide(exIdx) {
     const ex = workoutSession.exercises[exIdx];
     if (!ex || !ex.bilateral) return;
-    // 1セット以上記録済みなら変更不可
-    if (Array.isArray(ex.setRecords) && ex.setRecords.length > 0) return;
+    // セットの途中（片方だけ記録済み）は変更不可。各セットの最初（記録数が偶数）なら変更可。
+    if (Array.isArray(ex.setRecords) && ex.setRecords.length % 2 !== 0) return;
     ex.currentSide = (ex.currentSide || 'R') === 'R' ? 'L' : 'R';
     renderExerciseList();
   }
@@ -21262,13 +21327,15 @@
     workoutSession.exercises.forEach(ex => {
       if (ex.cardio) return;
       if (!ex.judge && (!ex.setRecords || ex.setRecords.length === 0)) return;
-      // 全セット記録を保存用に整形（isMax, side, 当時の目標値も保持）
-      // ※後から目標値が変更されても、判定に使う「当時の目標値」を残しておく
+      // 全セット記録を保存用に整形（isMax, side, 当時の目標値, 判定結果も保持）
+      // ※後から目標値が変更されても、記録時の判定（緑/赤）が変わらないようにする
       const allSetRecords = ex.setRecords && ex.setRecords.length > 0
         ? ex.setRecords.map(s => {
             const obj = { weight: s.weight, reps: s.reps };
             if (s.isMax) obj.isMax = true;
             if (s.side) obj.side = s.side;
+            // 記録時の判定結果（'ok' or 'keep'）を保存（最優先で使われる）
+            if (s.judge === 'ok' || s.judge === 'keep') obj.judge = s.judge;
             // 当時の目標値を保存（無ければ ex から補完）
             // MAXセットは maxTraining 目標、通常セットは targetWeight/targetReps
             if (s.targetWeight !== undefined && s.targetWeight !== null) {
