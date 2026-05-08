@@ -8629,10 +8629,19 @@
         clearWorkoutDraft();
         return;
       }
+      // タイマーの現在値を計算（実行中なら elapsedStartMs から経過分も加算）
+      let totalElapsedMs = elapsedAccumulatedMs || 0;
+      if (elapsedStartMs) {
+        totalElapsedMs += (Date.now() - elapsedStartMs);
+      }
       const draft = {
         savedAt: Date.now(),
         workoutSession: workoutSession,
-        currentWorkoutId: currentWorkout ? (currentWorkout.id || currentWorkout.menuId) : null
+        currentWorkoutId: currentWorkout ? (currentWorkout.id || currentWorkout.menuId) : null,
+        // 上タイマーの累積時間（ミリ秒）。復元時はこの値から再開
+        timerAccumulatedMs: totalElapsedMs,
+        // 保存時点でタイマーが動いていたか（復元時に動かすかの判断用）
+        timerWasRunning: !!elapsedStartMs
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch (_) { /* noop */ }
@@ -8747,6 +8756,25 @@
             workoutSession = draft.workoutSession;
             // currentWorkout は復元しない（workoutSession.menuId 経由でほとんどの参照は動作する）
             currentWorkout = null;
+            // 上タイマーの累積時間も復元（強制終了対策）
+            if (typeof draft.timerAccumulatedMs === 'number' && draft.timerAccumulatedMs > 0) {
+              elapsedAccumulatedMs = draft.timerAccumulatedMs;
+              elapsedStartMs = null; // 一旦停止状態にする
+              // 強制終了前に動いていたなら自動で再開する
+              // （ユーザーは「タイマーを動かしたままアプリが落ちた」と認識しているはず）
+              if (draft.timerWasRunning && typeof startElapsedTimer === 'function') {
+                // 画面遷移後に動かす（DOMが揃ってから）
+                setTimeout(() => {
+                  try { startElapsedTimer(); } catch (_) {}
+                }, 100);
+              } else {
+                // 表示だけ更新
+                try {
+                  const elTimer = document.getElementById('elapsedTimer');
+                  if (elTimer) elTimer.innerHTML = formatElapsedHtml(elapsedAccumulatedMs);
+                } catch (_) {}
+              }
+            }
             document.getElementById('setup-screen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'flex';
             showScreen('workout');
@@ -12072,6 +12100,12 @@
       if (el2) el2.innerHTML = formatElapsedHtml(diff);
       // メインタイマーの累積秒数（絶対時刻ベース、正確）
       const totalElapsedSec = Math.floor(diff / 1000);
+      // 10秒ごとに draft を自動保存（強制終了時にタイマー値も復元できるように）
+      if (totalElapsedSec > 0 && totalElapsedSec % 10 === 0) {
+        if (typeof saveWorkoutDraft === 'function') {
+          try { saveWorkoutDraft(); } catch (_) {}
+        }
+      }
       // 「現在実施中の種目」=duration未確定で最初の対象 を1つだけカウント
       if (workoutSession && workoutSession.exercises) {
         // 【新仕様】exStarted フラグが立っていて、duration未確定 & 完了/スキップでない種目を対象に
@@ -12733,9 +12767,10 @@
       // 判定の優先順位：
       //   1. レコード自身に保存された判定結果 (s.judge='ok'/'keep') があればそれを使う（最優先）
       //   2. 無い場合、レコード自身に保存された当時の目標値 (s.targetWeight / s.targetReps) があればそれを使う
-      //   3. 無い場合、isMax フラグがあれば maxTraining 目標、無ければ通常目標と比較
-      //   4. isMaxフラグも無い場合は、メニュー定義の mt.position/sets から推定
-      const buildSetsTable = (setRecords, targetReps) => {
+      //   3. 無い場合、引数で渡された当時の種目目標値（sessionTargetW/sessionTargetR）を使う
+      //   4. それも無い場合、isMax フラグがあれば maxTraining 目標、無ければ通常目標と比較
+      //   5. isMaxフラグも無い場合は、メニュー定義の mt.position/sets から推定
+      const buildSetsTable = (setRecords, targetReps, sessionTargetW, sessionTargetR) => {
         const mt = ex.maxTraining;
         // 過去データ用の MAX セット範囲を推定（isMaxフラグも targetReps保存も無い旧データ用）
         const hasMaxConfig = !!(mt && mt.enabled && mt.sets);
@@ -12765,26 +12800,31 @@
             // 目標値取得：レコード自身に保存された当時の目標値を最優先
             let targetR = (s.targetReps !== undefined && s.targetReps !== null) ? s.targetReps : null;
             let targetW = (s.targetWeight !== undefined && s.targetWeight !== null) ? s.targetWeight : null;
-            // レコードに保存されていない場合は、現行のmt または ex.target* で補完
+            // レコードに保存されていない場合の補完
             if (targetR === null || targetW === null) {
               // このセットがMAXかどうか判定：isMaxフラグ優先、なければ推定範囲で判定
               const isMaxSet = s.isMax === true
                 || (s.isMax === undefined && inferredMaxRange && i >= inferredMaxRange.start && i < inferredMaxRange.end);
               if (isMaxSet && mt) {
+                // MAXセット：現行の maxTraining 目標で判定
                 if (targetR === null) targetR = mt.reps;
                 if (targetW === null) targetW = mt.weight;
               } else {
-                if (targetR === null) targetR = targetReps;
-                if (targetW === null) targetW = ex.targetWeight;
+                // 通常セット：当時の種目目標値（sessionTarget*）を優先、無ければ現行の ex.target* を使う
+                // これにより重量を変更しても、過去の前回記録の判定は当時のままで保たれる
+                if (targetR === null) {
+                  targetR = (sessionTargetR != null) ? sessionTargetR : targetReps;
+                }
+                if (targetW === null) {
+                  targetW = (sessionTargetW != null) ? sessionTargetW : ex.targetWeight;
+                }
               }
             }
-            // 判定：回数が目標以上 かつ 重量が目標以上（targetW未設定時は重量条件スキップ）
+            // 判定：回数のみで決定（重量は判定対象外）
             if (!targetR) {
               cleared = null;
             } else {
-              const repsOk = reps >= targetR;
-              const weightOk = (targetW === undefined || targetW === null) || (weight >= targetW);
-              cleared = repsOk && weightOk;
+              cleared = reps >= targetR;
             }
           }
           const mark = cleared === true
@@ -12815,11 +12855,13 @@
 
       let lastText;
       if (last && Array.isArray(last.setRecords) && last.setRecords.length > 0) {
-        lastText = buildSetsTable(last.setRecords, ex.targetReps);
+        // 当時の種目目標値（sessionTargetW/R）を渡す。後で目標値を変更しても、
+        // 当時の値で判定されるので前回記録の表示が安定する。
+        lastText = buildSetsTable(last.setRecords, ex.targetReps, last.sessionTargetWeight, last.sessionTargetReps);
       } else if (last) {
         // 旧データ互換：セット数分展開
         const records = Array.from({ length: last.sets || 1 }, () => ({ weight: last.weight, reps: last.reps }));
-        lastText = buildSetsTable(records, ex.targetReps);
+        lastText = buildSetsTable(records, ex.targetReps, last.sessionTargetWeight, last.sessionTargetReps);
       } else {
         // 初回：履歴がない場合は前回記録を表示しない
         lastText = '<div class="last-empty">前回の記録はありません</div>';
@@ -13028,15 +13070,11 @@
               if (rec.judge === 'ok' || rec.judge === 'keep') {
                 chipClass = 'done-set ' + rec.judge;
               } else {
-                // 旧データ互換：judge が無い場合は従来のロジックで判定。
-                // 過去セットは記録時の目標値(rec.targetWeight/rec.targetReps)で判定する。
-                // 後からデフォルト値を変更しても過去セットの判定が変わらないようにする。
+                // 旧データ互換：judge が無い場合は回数のみで判定。
+                // 仕様：重量は判定対象外、回数が目標以上なら緑、未満なら赤
                 const tReps = (rec.targetReps != null) ? rec.targetReps : ex.targetReps;
-                const tWeight = (rec.targetWeight != null) ? rec.targetWeight : ex.targetWeight;
                 const repsOk = rec.reps >= tReps;
-                const weightOk = (tWeight === undefined || tWeight === null)
-                  || (rec.weight >= tWeight);
-                chipClass = (repsOk && weightOk) ? 'done-set ok' : 'done-set keep';
+                chipClass = repsOk ? 'done-set ok' : 'done-set keep';
               }
             }
             // bilateral種目: 2件で1セット（右+左をまとめて1チップに表示）
@@ -13057,12 +13095,9 @@
                   // judge が保存されていればそれを使う
                   if (r.judge === 'ok') return true;
                   if (r.judge === 'keep') return false;
-                  // 旧データ互換：judge が無い場合は当時の目標値で判定
+                  // 旧データ互換：judge が無い場合は回数のみで判定（重量は判定対象外）
                   const tR = (r.targetReps != null) ? r.targetReps : ex.targetReps;
-                  const tW = (r.targetWeight != null) ? r.targetWeight : ex.targetWeight;
-                  const repsOk = r.reps >= tR;
-                  const weightOk = (tW === undefined || tW === null) || (r.weight >= tW);
-                  return repsOk && weightOk;
+                  return r.reps >= tR;
                 };
                 pairClass = (checkOk(rec) && checkOk(rec2)) ? 'done-set ok' : 'done-set keep';
               }
@@ -13102,11 +13137,8 @@
               if (rec.judge === 'ok' || rec.judge === 'keep') {
                 chipClass = 'done-set ' + rec.judge;
               } else {
-                // 旧データ互換：judge が無い場合は従来のロジック
-                const repsOk = rec.reps >= mt.reps;
-                const weightOk = (mt.weight === undefined || mt.weight === null)
-                  || (rec.weight >= mt.weight);
-                chipClass = (repsOk && weightOk) ? 'done-set ok' : 'done-set keep';
+                // 旧データ互換：judge が無い場合は回数のみで判定（重量は判定対象外）
+                chipClass = (rec.reps >= mt.reps) ? 'done-set ok' : 'done-set keep';
               }
             }
             // bilateral種目: 2件で1セット（右+左をまとめて1チップに表示）
@@ -13122,9 +13154,8 @@
                   if (!r) return false;
                   if (r.judge === 'ok') return true;
                   if (r.judge === 'keep') return false;
-                  // 旧データ互換
-                  return r.reps >= mt.reps &&
-                    ((mt.weight === undefined || mt.weight === null) || r.weight >= mt.weight);
+                  // 旧データ互換：回数のみで判定
+                  return r.reps >= mt.reps;
                 };
                 pairClass = (checkOk(rec) && checkOk(rec2)) ? 'done-set ok' : 'done-set keep';
               }
@@ -13192,7 +13223,7 @@
             <div class="nav-time-display ${getNavTimeStateClass(ex)}" id="time-${idx}" onclick="askTimeReset(${idx})">${ex.duration ? formatDuration(ex.duration) : formatDuration(ex.elapsedSeconds || 0)}</div>
           </div>
           ${ex.bilateral ? `
-          <button class="nav-btn-side ${(ex.currentSide || 'R') === 'R' ? 'side-r' : 'side-l'}" onclick="toggleSide(${idx})" title="記録する側を切り替え" ${(ex.setRecords.length % 2 !== 0) ? 'disabled' : ''}>${sideLabel(ex.currentSide || 'R')}</button>
+          <button class="nav-btn-side ${(ex.currentSide || 'R') === 'R' ? 'side-r' : 'side-l'}" onclick="toggleSide(${idx})" title="記録する側を切り替え" ${(ex.setRecords.length % 2 !== 0 || ex.setRecords.length >= getTotalSetsCount(ex)) ? 'disabled' : ''}>${sideLabel(ex.currentSide || 'R')}</button>
           <button class="nav-btn-step back" onclick="stepBack(${idx})" ${ex.setRecords.length === 0 ? 'disabled' : ''}>
             戻る
           </button>
@@ -19433,7 +19464,8 @@
   }
 
   // 全セット完了時に目標回数を全セットでクリアしたかで自動判定
-  // 緑(ok)条件: 回数が目標以上 かつ 重量が目標以上（targetWeight/mt.weight未設定時は重量条件スキップ）
+  // 仕様：判定は「回数」のみで決定する（重量は判定対象外）
+  // 緑(ok)条件: 全セットの回数が目標回数以上
   function autoJudgeExercise(ex) {
     if (ex.cardio) return; // 有酸素系は完了ボタンでmanual判定
     const totalSets = getTotalSetsCount(ex);
@@ -19441,19 +19473,13 @@
       ex.judge = null;
       return;
     }
-    // 全セット記録完了 → 目標回数・重量と比較（マックスセットはmaxTraining基準）
+    // 全セット記録完了 → 目標回数と比較（マックスセットはmaxTraining基準）
     const mt = ex.maxTraining;
     const allCleared = ex.setRecords.every((r, i) => {
       if (r.isMax && mt) {
-        const repsOk = (r.reps || 0) >= mt.reps;
-        const weightOk = (mt.weight === undefined || mt.weight === null)
-          || ((r.weight || 0) >= mt.weight);
-        return repsOk && weightOk;
+        return (r.reps || 0) >= mt.reps;
       }
-      const repsOk = (r.reps || 0) >= ex.targetReps;
-      const weightOk = (ex.targetWeight === undefined || ex.targetWeight === null)
-        || ((r.weight || 0) >= ex.targetWeight);
-      return repsOk && weightOk;
+      return (r.reps || 0) >= ex.targetReps;
     });
     ex.judge = allCleared ? 'ok' : 'keep';
   }
@@ -19603,11 +19629,12 @@
     if (recTargetWeight !== undefined) rec.targetWeight = recTargetWeight;
     if (recTargetReps !== undefined) rec.targetReps = recTargetReps;
     // 記録時点の達成判定を保存（緑=ok / 赤=keep）。後から目標値を変更しても判定色が変わらないようにする。
-    // 重量と回数の両方を満たせば 'ok'、どちらか満たさなければ 'keep'
+    // 仕様：判定は「回数」のみで決定する（重量は判定対象外）
+    // - 回数が目標以上 → 'ok'（緑）
+    // - 回数が目標未満 → 'keep'（赤）
     {
       const repsOk = (recTargetReps === undefined || recTargetReps === null) ? true : (rec.reps >= recTargetReps);
-      const weightOk = (recTargetWeight === undefined || recTargetWeight === null) ? true : (rec.weight >= recTargetWeight);
-      rec.judge = (repsOk && weightOk) ? 'ok' : 'keep';
+      rec.judge = repsOk ? 'ok' : 'keep';
     }
     // bilateralの場合はサイドを記録（MAXセットも含む）
     if (ex.bilateral) {
@@ -19763,6 +19790,8 @@
     if (!ex || !ex.bilateral) return;
     // セットの途中（片方だけ記録済み）は変更不可。各セットの最初（記録数が偶数）なら変更可。
     if (Array.isArray(ex.setRecords) && ex.setRecords.length % 2 !== 0) return;
+    // 全セット完了後はロック（変更しても次の記録ができないため）
+    if (Array.isArray(ex.setRecords) && ex.setRecords.length >= getTotalSetsCount(ex)) return;
     ex.currentSide = (ex.currentSide || 'R') === 'R' ? 'L' : 'R';
     renderExerciseList();
   }
@@ -21233,6 +21262,10 @@
     if (typeof renderWeekStrip === 'function') {
       try { renderWeekStrip(); } catch (_) {}
     }
+    // 【重要】ワークアウト中の場合、種目リストも再描画して「前回」表示を最新の lastWeights に反映
+    if (typeof renderExerciseList === 'function' && workoutSession && Array.isArray(workoutSession.exercises) && workoutSession.exercises.length > 0) {
+      try { renderExerciseList(); } catch (_) {}
+    }
   }
 
   function openHistoryEditor(dateIso) {
@@ -21577,13 +21610,42 @@
         const lastSet = (Array.isArray(ex.setRecords) && ex.setRecords.length > 0)
           ? ex.setRecords[ex.setRecords.length - 1]
           : null;
+        // 当時の種目目標値（lastSet にあれば優先、無ければ ex 自身から取得）
+        // この値は judge 補完と表示時のフォールバック判定に使う
+        const sessionTargetWeight = (lastSet && lastSet.targetWeight != null) ? lastSet.targetWeight
+          : (ex.targetWeight != null ? ex.targetWeight : (ex.weight != null ? ex.weight : null));
+        const sessionTargetReps = (lastSet && lastSet.targetReps != null) ? lastSet.targetReps
+          : (ex.targetReps != null ? ex.targetReps : (ex.reps != null ? ex.reps : null));
+        // setRecords を整形：judge が無いセットには、当時の回数目標で判定を補完
+        // 仕様：判定は回数のみ（重量は判定対象外）
+        const enrichedSetRecords = Array.isArray(ex.setRecords) ? ex.setRecords.map(s => {
+          const obj = { ...s };
+          // judge が既にあれば維持、無ければ当時の回数目標で判定して付与
+          if (obj.judge !== 'ok' && obj.judge !== 'keep') {
+            // セット個別の回数目標、無ければ種目の回数目標（sessionTargetReps）でフォールバック
+            const tR = (obj.targetReps != null) ? obj.targetReps : sessionTargetReps;
+            // 回数目標がある場合のみ判定を付与
+            if (tR !== null && tR !== undefined) {
+              obj.judge = ((obj.reps || 0) >= tR) ? 'ok' : 'keep';
+              // 当時の目標値もレコードに保存（後続処理で再利用）
+              if (obj.targetReps == null) obj.targetReps = tR;
+              // 当時の重量目標は記録には残すが、判定には使わない
+              if (obj.targetWeight == null && sessionTargetWeight != null) obj.targetWeight = sessionTargetWeight;
+            }
+          }
+          return obj;
+        }) : [];
         newLastW[key] = {
           weight: lastSet ? lastSet.weight : (ex.weight || 0),
           reps: ex.reps || (lastSet ? lastSet.reps : 0),
           sets: ex.sets || (Array.isArray(ex.setRecords) ? ex.setRecords.length : 0),
           judge: ex.judge || null,
-          setRecords: Array.isArray(ex.setRecords) ? ex.setRecords : [],
-          date: session.date
+          setRecords: enrichedSetRecords,
+          date: session.date,
+          // 当時の種目目標値も保存（buildSetsTable のフォールバック判定で使う）
+          // ※後から ex.targetWeight が変更されても、この値は当時の値のまま残る
+          sessionTargetWeight: sessionTargetWeight,
+          sessionTargetReps: sessionTargetReps
         };
       });
     });
@@ -22572,6 +22634,23 @@
         t.dispatchEvent(new Event('change', { bubbles: true }));
       }
     }
+  });
+
+  // ページのライフサイクルイベントで強制保存（強制終了・バックグラウンド遷移対策）
+  // visibilitychange: タブ切替・ホーム画面に戻ったとき → 保存
+  // pagehide: ページが破棄される直前 → 保存
+  // beforeunload: タブを閉じる前 → 保存（モバイルでは発火しないことが多いが念のため）
+  // ※ visibilitychange は最も信頼性が高く、iOSでもバックグラウンド遷移時にほぼ確実に発火する
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      try { if (typeof saveWorkoutDraft === 'function') saveWorkoutDraft(); } catch (_) {}
+    }
+  });
+  window.addEventListener('pagehide', () => {
+    try { if (typeof saveWorkoutDraft === 'function') saveWorkoutDraft(); } catch (_) {}
+  });
+  window.addEventListener('beforeunload', () => {
+    try { if (typeof saveWorkoutDraft === 'function') saveWorkoutDraft(); } catch (_) {}
   });
 
   boot();
