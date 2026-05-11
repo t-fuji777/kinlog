@@ -7580,13 +7580,13 @@
         選択した曜日が週の始まりになります。
       </p>
       <div class="weekstart-grid" id="settingsWeekStart">
-        <button class="weekstart-chip" data-dow="0">日</button>
         <button class="weekstart-chip" data-dow="1">月</button>
         <button class="weekstart-chip" data-dow="2">火</button>
         <button class="weekstart-chip" data-dow="3">水</button>
         <button class="weekstart-chip" data-dow="4">木</button>
         <button class="weekstart-chip" data-dow="5">金</button>
         <button class="weekstart-chip" data-dow="6">土</button>
+        <button class="weekstart-chip" data-dow="0">日</button>
       </div>
     </div>
 
@@ -8167,15 +8167,13 @@
 </div>
 
 <div class="modal-backdrop" id="exerciseActionModal">
-  <div class="modal">
+  <div class="modal" style="padding-bottom: calc(24px + var(--safe-bottom));">
     <h3 class="modal-title" id="exerciseActionTitle"></h3>
-    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px">
-      <button class="modal-btn" onclick="actionRename()" style="width: 100%">名前を変更</button>
-      <button class="modal-btn" onclick="actionUrlSet()" style="width: 100%">参考URLを設定</button>
-      <button class="modal-btn" onclick="actionImageRegister()" style="width: 100%">画像を登録</button>
-    </div>
-    <div class="modal-actions">
-      <button class="modal-btn" onclick="closeExerciseAction()" style="width: 100%">キャンセル</button>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px">
+      <button class="modal-btn" onclick="actionRename()">名前を変更</button>
+      <button class="modal-btn" onclick="actionUrlSet()">参考URLを設定</button>
+      <button class="modal-btn" onclick="actionImageRegister()">画像を登録</button>
+      <button class="modal-btn warn" onclick="closeExerciseAction()">キャンセル</button>
     </div>
   </div>
 </div>
@@ -8934,8 +8932,33 @@
     const target = document.querySelector(`.setup-step[data-step="${n}"]`);
     if (target) target.style.display = 'block';
     initStepIndicator();
-    // Step 1（スケジュール画面）で優先順の説明文を動的更新
-    if (n === 1) updateSetupPriorityDesc();
+    // Step 1（スケジュール画面）で優先順の説明文を動的更新 + 曜日チップを起点日基準で並べ替え
+    if (n === 1) {
+      updateSetupPriorityDesc();
+      reorderSetupDaysGrid();
+    }
+  }
+  // 週次設定画面の曜日チップを起点日基準で並べ替える
+  // 例：起点=日曜なら「日月火水木金土」の順、起点=月曜なら「月火水木金土日」の順
+  function reorderSetupDaysGrid() {
+    const grid = document.getElementById('days-grid');
+    if (!grid) return;
+    const startDow = (typeof getWeekStartDow === 'function') ? getWeekStartDow() : 1;
+    // 既存のチップをdow番号→DOM要素のマップにする
+    const chipMap = {};
+    grid.querySelectorAll('.day-chip').forEach(chip => {
+      const dow = parseInt(chip.dataset.dow, 10);
+      if (!isNaN(dow)) chipMap[dow] = chip;
+    });
+    // 起点日から順に並べ直す（startDow, startDow+1, ..., startDow+6）
+    const orderedDows = [];
+    for (let i = 0; i < 7; i++) {
+      orderedDows.push((startDow + i) % 7);
+    }
+    // DOMの順序を更新（既存要素を順番にappendChildで並べ替え）
+    orderedDows.forEach(dow => {
+      if (chipMap[dow]) grid.appendChild(chipMap[dow]);
+    });
   }
 
   function getUserName() {
