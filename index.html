@@ -3501,6 +3501,15 @@
   .ex-form-hiit-section.hiit-main {
     display: block;
   }
+  /* 新レイアウト用：準備・クールダウンセクション（速度のみ） */
+  .ex-form-hiit-section.hiit-prep-cool-section {
+    display: block;
+  }
+  /* 「クールダウン」は文字数が多いのでラベルだけ小さく */
+  .ex-form-hiit-section.hiit-prep-cool-section .ex-form-hiit-params .ex-form-hiit-param:nth-child(2) .ex-form-hiit-label {
+    font-size: 11px;
+    letter-spacing: -0.2px;
+  }
   .ex-form-hiit-head {
     font-family: var(--font-mono);
     font-size: 14px;
@@ -4474,6 +4483,90 @@
     margin-bottom: 8px;
   }
   .hiit-phase:last-child { margin-bottom: 0; }
+  /* 準備・クールダウンの行（本番の下）：横並びで均等配置 */
+  .hiit-prep-cool-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  /* 各アイテムはダッシュと同じスタイル（hiit-sub-label を継承）、左寄せをやめて中央寄せ */
+  .hiit-prep-cool-row .hiit-prep-cool-item {
+    flex: 1;
+    align-items: center;
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 10px;
+  }
+  /* 準備・クールダウンの横表記スタイル（ラベル横に数値、コンパクト） */
+  .hiit-prep-cool-item.hiit-prep-cool-item-horizontal {
+    display: flex;
+    flex-direction: row;
+    align-items: center; /* ラベルと数値を枠内で上下中央揃え */
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .hiit-prep-cool-item.hiit-prep-cool-item-horizontal .hiit-prep-cool-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-2);
+    letter-spacing: 0.3px;
+  }
+  /* 「クールダウン」は文字数が多いのでラベルを少し小さく */
+  .hiit-prep-cool-row .hiit-prep-cool-item:nth-child(2) .hiit-prep-cool-label {
+    font-size: 10px;
+    letter-spacing: -0.2px;
+  }
+  .hiit-prep-cool-item.hiit-prep-cool-item-horizontal .hiit-phase-speed {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    padding: 2px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .hiit-prep-cool-item.hiit-prep-cool-item-horizontal .hiit-phase-speed:active {
+    background: var(--bg-3);
+  }
+  .hiit-prep-cool-item.hiit-prep-cool-item-horizontal .hiit-prep-cool-unit {
+    font-size: 10px;
+    color: var(--text-2);
+  }
+  /* 本番ヘッダー内の本数・ダッシュ・回復：下のカウンタ枠と同じ見た目に統一 */
+  /* 背景は準備・クールダウンと同じ bg-1（黒）に揃える */
+  .hiit-main-head .hiit-prep-cool-item {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 8px;
+    min-height: 56px;
+    box-sizing: border-box;
+  }
+  /* 本番セクション：外枠線を削除（中の本数・ダッシュなどは個別に枠を持つ） */
+  .hiit-phase.hiit-phase-main-noframe {
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+  /* 「本番」文言を削除したので、左ラベル列を空けてヘッダーレイアウト調整 */
+  /* !important を使って、後段の .hiit-main-head（auto 1fr）を確実に上書き */
+  .hiit-main-head.hiit-main-head-no-label {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+  }
+  .hiit-main-head.hiit-main-head-no-label .hiit-sub-labels-wrap {
+    grid-column: 1 / -1 !important; /* 全カラムを占有して左端から右端まで */
+    width: 100%;
+    /* gridではなくflexで space-between：本数=左端、回復=右端、ダッシュ=中央 */
+    display: flex !important;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
   .hiit-phase-head {
     display: flex; align-items: baseline; gap: 8px;
     margin-bottom: 8px;
@@ -4551,7 +4644,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
   }
   /* 本数・ダッシュ・回復のサブラベル：白字・細字・小さく */
   .hiit-sub-num {
@@ -4662,6 +4755,16 @@
   .hiit-round-num-tappable:active {
     background: var(--bg-3);
     transform: scale(0.97);
+  }
+  /* カウントダウン稼働中：取消無効状態（タップ不可、見た目も薄く） */
+  .hiit-round-num-tappable.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .hiit-round-num-tappable.is-disabled:active {
+    background: var(--bg-2);
+    transform: none;
   }
   /* 最終ラウンド+0到達：完了色（緑） */
   .hiit-round-num-tappable.done-final {
@@ -7893,22 +7996,9 @@
 
     <!-- HIIT用フィールド -->
     <div id="exFormHiitFields" style="display:none">
-      <div class="ex-form-hiit-section hiit-prep">
-        <div class="ex-form-hiit-head">① 準備</div>
-        <div class="ex-form-hiit-params two-col">
-          <div class="ex-form-hiit-param">
-            <div class="ex-form-hiit-label">速度</div>
-            <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitPrepSpeedInput" placeholder="1.0" onclick="openHiitFormPicker('prepSpeed')"><span class="ex-form-hiit-unit">km/h</span>
-          </div>
-          <div class="ex-form-hiit-param">
-            <div class="ex-form-hiit-label">時間</div>
-            <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitPrepMinInput" placeholder="01:00" onclick="openHiitFormTimePicker('prep')">
-          </div>
-        </div>
-      </div>
+      <!-- 本番：本数・ダッシュ・回復を上部に -->
       <div class="ex-form-hiit-section hiit-main">
-        <div class="ex-form-hiit-head">② 本番</div>
-        <div class="ex-form-hiit-params four-col">
+        <div class="ex-form-hiit-params three-col">
           <div class="ex-form-hiit-param">
             <div class="ex-form-hiit-label">本数</div>
             <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitRoundsInput" placeholder="8" onclick="openSetsFormPicker('hiitRounds')"><span class="ex-form-hiit-unit">本</span>
@@ -7921,25 +8011,30 @@
             <div class="ex-form-hiit-label">回復</div>
             <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitRecoverSpeedInput" placeholder="1.0" onclick="openHiitFormPicker('recoverSpeed')"><span class="ex-form-hiit-unit">km/h</span>
           </div>
+        </div>
+        <div class="ex-form-hiit-params one-col" style="margin-top:8px;">
           <div class="ex-form-hiit-param">
             <div class="ex-form-hiit-label">1本の時間</div>
             <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitRoundSecInput" placeholder="00:10" onclick="openHiitFormTimePicker('round')">
           </div>
         </div>
       </div>
-      <div class="ex-form-hiit-section hiit-cool">
-        <div class="ex-form-hiit-head ex-form-hiit-head-cool">③ クールダウン</div>
+      <!-- 準備・クールダウン：速度のみ（時間削除） -->
+      <div class="ex-form-hiit-section hiit-prep-cool-section">
         <div class="ex-form-hiit-params two-col">
           <div class="ex-form-hiit-param">
-            <div class="ex-form-hiit-label">速度</div>
-            <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitCoolSpeedInput" placeholder="1.0" onclick="openHiitFormPicker('coolSpeed')"><span class="ex-form-hiit-unit">km/h</span>
+            <div class="ex-form-hiit-label">準備</div>
+            <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitPrepSpeedInput" placeholder="1.0" onclick="openHiitFormPicker('prepSpeed')"><span class="ex-form-hiit-unit">km/h</span>
           </div>
           <div class="ex-form-hiit-param">
-            <div class="ex-form-hiit-label">時間</div>
-            <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitCooldownMinInput" placeholder="01:00" onclick="openHiitFormTimePicker('cool')">
+            <div class="ex-form-hiit-label">クールダウン</div>
+            <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitCoolSpeedInput" placeholder="1.0" onclick="openHiitFormPicker('coolSpeed')"><span class="ex-form-hiit-unit">km/h</span>
           </div>
         </div>
       </div>
+      <!-- 隠しフィールド：時間データは保持（将来復活用、保存ロジックの互換性確保） -->
+      <input type="hidden" id="exFormHiitPrepMinInput" value="">
+      <input type="hidden" id="exFormHiitCooldownMinInput" value="">
     </div>
 
     <!-- 有酸素用フィールド（トレッドミル固定） -->
@@ -8977,10 +9072,9 @@
   }
 
   function shouldShowWeeklyTutorial() {
-    // 今日が起点日か確認
-    const now = new Date();
-    if (now.getDay() !== getWeekStartDow()) return false;
-    // 今週のチュートリアルを既に見たか
+    // 今週のチュートリアルを既に見たかで判定する。
+    // 【仕様変更】起点日にアプリを開かなくても、その週内なら次回起動時に表示される。
+    // 例：起点=日曜、日曜は開かず月曜に開いた場合 → 月曜の起動時に週次設定画面を表示
     const lastWeek = localStorage.getItem('wo_last_setup_week') || '';
     const currentWeek = getCurrentWeekKey();
     return lastWeek !== currentWeek;
@@ -13597,18 +13691,18 @@
     // 独立タイマーの状態を取得
     const timerState = (hiitRoundTimers && hiitRoundTimers[idx]) || { elapsed: 0, running: false };
     // カウンタ表示の仕様：
-    // - 開始前 / タイマー停止中: setRecords.length（記録済み本数）
-    // - タイマー稼働中 or 0到達待機中: setRecords.length + 1（実行中のラウンド番号）
-    // - 全完了(judge=ok): setRecords.length (=totalRounds)
-    const isInProgress = !!(timerState.running || timerState.completed || timerState.waiting);
-    let currentRound;
-    if (ex && ex.judge === 'ok') {
-      currentRound = Math.min(setRecords.length, totalRounds);
-    } else if (isInProgress) {
-      currentRound = Math.min(setRecords.length + 1, totalRounds);
-    } else {
-      currentRound = setRecords.length;
-    }
+    // タイマーが起動したら +1。アラート（completed=true）状態でも同じ本数のまま。
+    // 次のラウンドのタイマーが起動したら +1。取消したら -1。
+    // - 開始前: 0/N
+    // - 1本目のタイマー起動中 or アラート中: 1/N
+    // - 1本目完了（次へ進んでインターバル中など）: 1/N
+    // - 2本目のタイマー起動中: 2/N
+    // - 全完了: N/N
+    // = 「実行中のラウンド ある時はその番号 / それ以外は完了本数」
+    const isRoundActive = !!(timerState.running || timerState.completed);
+    const currentRound = isRoundActive
+      ? Math.min(setRecords.length + 1, totalRounds)
+      : Math.min(setRecords.length, totalRounds);
     const isAllDone = setRecords.length >= totalRounds;
     // ラウンド目標時間：ex.roundTargetSec → protocol.roundSec → 40 の順で決定
     const roundTargetSec = ex && ex.roundTargetSec != null
@@ -13633,31 +13727,18 @@
     const bodyText = `心拍：162〜180 bpm　時間：${roundTargetSec}秒`;
     return `
       <div class="hiit-protocol">
-        <div class="hiit-phase">
-          <div class="hiit-phase-line">
-            <div class="hiit-phase-label">
-              <div class="hiit-phase-num">① 準備</div>
-              <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitSimpleSpeedPicker(${idx}, 'prep')">${(p.prepSpeed || 1.0).toFixed(1)}</span>km/h</div>
-            </div>
-            ${renderHiitSimpleTimer(idx, 'prep', p.prepSpeed || 1.0)}
-          </div>
-        </div>
-
-        <div class="hiit-phase">
-          <div class="hiit-main-head">
-            <div class="hiit-phase-label">
-              <div class="hiit-phase-num">② 本番</div>
-            </div>
+        <div class="hiit-phase hiit-phase-main-noframe">
+          <div class="hiit-main-head hiit-main-head-no-label">
             <div class="hiit-sub-labels-wrap">
-              <div class="hiit-phase-label hiit-sub-label">
+              <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
                 <div class="hiit-sub-num"><span class="hiit-sub-num-text">本数</span><span class="hiit-sub-num-unit-spacer">本</span></div>
                 <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitPicker(${idx}, 'rounds')">${p.rounds}</span><span class="hiit-sub-unit">本</span></div>
               </div>
-              <div class="hiit-phase-label hiit-sub-label">
+              <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
                 <div class="hiit-sub-num"><span class="hiit-sub-num-text">ダッシュ</span><span class="hiit-sub-num-unit-spacer">km/h</span></div>
                 <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitPicker(${idx}, 'dashSpeed')">${p.dashSpeed.toFixed(1)}</span><span class="hiit-sub-unit">km/h</span></div>
               </div>
-              <div class="hiit-phase-label hiit-sub-label">
+              <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
                 <div class="hiit-sub-num"><span class="hiit-sub-num-text">回復</span><span class="hiit-sub-num-unit-spacer">km/h</span></div>
                 <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitPicker(${idx}, 'recoverSpeed')">${p.recoverSpeed.toFixed(1)}</span><span class="hiit-sub-unit">km/h</span></div>
               </div>
@@ -13665,11 +13746,11 @@
           </div>
           <div class="hiit-rounds-wrap">
             <div class="hiit-main-row">
-              <div class="hiit-round-num hiit-round-num-tappable ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" onclick="confirmEraseLastHiitRound(${idx})" title="タップで前のラウンドに戻る">
-                <div class="hiit-round-num-text">${isAllDone ? totalRounds : currentRound}<span class="hiit-round-total">/${totalRounds}</span></div>
+              <div class="hiit-round-num hiit-round-num-tappable ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="confirmEraseLastHiitRound(${idx})"`} title="タップで前のラウンドに戻る">
+                <div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div>
                 <div class="hiit-round-num-hint">※タップ</div>
               </div>
-              <div class="hiit-simple-time hiit-time-with-steps ${(timerState.running || isAllDone) ? 'running' : ''} ${(!timerState.running && timerState.elapsed > 0 && remainingSec > 0 && !timerState.completed) ? 'paused' : ''}" id="hiitRoundTime-${idx}" data-target="${roundTargetSec}" onclick="toggleHiitRoundTimer(${idx})">
+              <div class="hiit-simple-time hiit-time-with-steps ${(timerState.running || isAllDone) ? 'running' : ''} ${(!timerState.running && timerState.elapsed > 0 && remainingSec > 0 && !timerState.completed) ? 'paused' : ''} ${timerState.completed ? 'done' : ''}" id="hiitRoundTime-${idx}" data-target="${roundTargetSec}" onclick="toggleHiitRoundTimer(${idx})">
                 <button class="hiit-time-step minus" onclick="event.stopPropagation(); adjustHiitTargetSec(${idx}, -10)" ${(timerState.running || isAllDone) ? 'disabled' : ''} title="−10秒">−</button>
                 <div class="hiit-time-center">
                   <span class="hiit-simple-time-value">${formatDuration(isAllDone ? 0 : remainingSec)}</span>
@@ -13682,13 +13763,17 @@
           </div>
         </div>
 
-        <div class="hiit-phase">
-          <div class="hiit-phase-line">
-            <div class="hiit-phase-label">
-              <div class="hiit-phase-num hiit-phase-num-cool">③ クールダウン</div>
-              <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitSimpleSpeedPicker(${idx}, 'cool')">${(p.coolSpeed || p.recoverSpeed || 1.0).toFixed(1)}</span>km/h</div>
-            </div>
-            ${renderHiitSimpleTimer(idx, 'cool', p.coolSpeed || p.recoverSpeed || 1.0)}
+        <!-- 準備・クールダウンの速度を横表記でコンパクト表示 -->
+        <div class="hiit-prep-cool-row">
+          <div class="hiit-prep-cool-item hiit-prep-cool-item-horizontal">
+            <span class="hiit-prep-cool-label">準備</span>
+            <span class="hiit-phase-speed" onclick="openHiitSimpleSpeedPicker(${idx}, 'prep')">${(p.prepSpeed || 1.0).toFixed(1)}</span>
+            <span class="hiit-prep-cool-unit">km/h</span>
+          </div>
+          <div class="hiit-prep-cool-item hiit-prep-cool-item-horizontal">
+            <span class="hiit-prep-cool-label">クールダウン</span>
+            <span class="hiit-phase-speed" onclick="openHiitSimpleSpeedPicker(${idx}, 'cool')">${(p.coolSpeed || p.recoverSpeed || 1.0).toFixed(1)}</span>
+            <span class="hiit-prep-cool-unit">km/h</span>
           </div>
         </div>
       </div>
@@ -14659,6 +14744,12 @@
       if (typeof stopNotifyLoop === 'function') stopNotifyLoop();
     } else {
       // START
+      // 【インターバル稼働中ガード】インターバルが動いている間は新しいラウンドに進めない
+      // ただし、completedな状態（アラート止める）はガードしない（intervalは「アラート止める」処理で起動するため）
+      if (!state.completed && typeof isIntervalRunning === 'function' && isIntervalRunning()) {
+        if (typeof flashIntervalAlert === 'function') flashIntervalAlert();
+        return;
+      }
       // 0到達アラート後の処理
       if (state.completed) {
         const totalRounds = ex && ex.protocol ? (ex.protocol.rounds || 8) : 8;
@@ -14669,29 +14760,56 @@
         const el = document.getElementById(`hiitRoundTime-${idx}`);
         if (el) el.classList.remove('done');
         if (willBeFinal && ex && ex.protocol) {
-          // 最終ラウンド：自動記録 + judge=ok（緑化）+ 完了確定
+          // 最終ラウンド：自動記録 + 自動完了（judge=ok）+ インターバル起動
           if (!Array.isArray(ex.setRecords)) ex.setRecords = [];
           ex.setRecords.push({
             weight: ex.protocol.dashSpeed,
             reps: 1,
             time: Math.round(state.elapsed)
           });
-          // judge='ok'は設定しない（完了ボタンで確定）
           state.completed = false;
           state.waiting = false;
+          // 【新仕様】最終ラウンドのアラート止めた瞬間に種目完了確定
+          // ユーザーが「完了」ボタンを別途タップする手間を省く
+          ex.judge = 'ok';
+          ex.duration = ex.elapsedSeconds || 0;
+          // インターバルタイマー自動スタート（クールダウン用の休憩時間計測）
+          // ※startInterval()は「全種目完了なら起動しない」ロジックがあるため、直接startIntervalTimer()を呼ぶ。
+          //   HIIT最終ラウンドはクールダウン待機が必要なので、最後の種目でもインターバルを起動する。
+          try {
+            if (typeof isIntervalRunning === 'function' && !isIntervalRunning()) {
+              intervalAccumulatedMs = 0;
+              const el = document.getElementById('intervalTimer');
+              if (el) el.innerHTML = '00<span class="timer-colon">:</span>00';
+              if (typeof startIntervalTimer === 'function') startIntervalTimer();
+            }
+          } catch (_) { /* noop */ }
+          // 通知音停止（鳴っていれば）
+          if (typeof stopNotifyLoop === 'function') stopNotifyLoop();
           renderExerciseList();
           renderProgress();
-          toast(`${ex.setRecords.length}本目を記録`);
+          toast(`✓ 全${ex.protocol.rounds || 8}本完了！`);
           return;
         }
-        // 非最終：1回目タップでアラート停止+待機状態
-        state.completed = false;
-        state.waiting = true; // 待機フラグ：次タップでラウンドカウントアップ
-        updateHiitToggleUI(idx);
+        // 非最終：1回目タップでアラート停止 + 本数確定（setRecords.push）+ インターバル起動
+        // 【修正】アラート停止時に本数を確定（push）することで、カウンタが0/10に戻らずに維持される
+        if (!Array.isArray(ex.setRecords)) ex.setRecords = [];
+        ex.setRecords.push({
+          weight: ex.protocol.dashSpeed,
+          reps: 1,
+          time: Math.round(state.elapsed)
+        });
+        // タイマーを次ラウンド用にリセット（completed=false でアラート解除）
+        if (state.handle) clearInterval(state.handle);
+        hiitRoundTimers[idx] = { elapsed: 0, running: false, handle: null, startMs: null, completed: false, waiting: false };
+        if (navigator.vibrate) navigator.vibrate(10);
         // 【新仕様】アラート停止と同時にインターバルタイマー自動スタート
         try {
           if (typeof startInterval === 'function') startInterval();
         } catch (_) { /* noop */ }
+        renderExerciseList();
+        renderProgress();
+        toast(`${ex.setRecords.length}本目を記録`);
         return;
       }
       if (state.waiting) {
@@ -15097,17 +15215,8 @@
           }
           // ラウンド枠の running 表示を解除
           if (typeof updateHiitToggleUI === 'function') updateHiitToggleUI(idx);
-          const totalRounds = ex.protocol.rounds || 8;
-          const setRecCount = (ex.setRecords || []).length;
-          const willBeFinal = (setRecCount + 1) >= totalRounds;
-          // bilateralで「同じラウンド内の側切替」の場合はインターバル起動しない
-          const isBilateralMidRoundHiit = ex.bilateral && ((setRecCount + 1) % 2 === 1);
-          if (!willBeFinal && !isBilateralMidRoundHiit) {
-            // 非最終ラウンド かつ bilateral同ラウンド内切替でない：インターバルタイマー自動スタート
-            if (typeof startInterval === 'function') {
-              try { startInterval(); } catch (_) { /* noop */ }
-            }
-          }
+          // 【注意】インターバルタイマーの自動起動は「アラートを止めた時」のみ行う。
+          // ここ（0秒到達時）では起動しない（マスター指示：赤いアラートを止めるまでインターバル起動しない）
         }
       }
       // 0到達時の通知（1回のみ）
@@ -15169,6 +15278,9 @@
   function confirmEraseLastHiitRound(idx) {
     const ex = workoutSession.exercises[idx];
     if (!ex || !Array.isArray(ex.setRecords) || ex.setRecords.length === 0) return;
+    // カウントダウン稼働中は取消不可（タイマー実行中のミスタップ防止）
+    const state = (hiitRoundTimers && hiitRoundTimers[idx]) || null;
+    if (state && state.running) return;
     const lastNum = ex.setRecords.length;
     const totalRounds = (ex.protocol && ex.protocol.rounds) || 8;
     // 取り消し後の表示：setRecords.length が lastNum-1 になる
@@ -18629,13 +18741,23 @@
         if (isNaN(v)) { errorEls.push(el); return null; }
         return v;
       };
-      const prepSec = checkRequiredSec('exFormHiitPrepMinInput');
+      // 準備・クールダウンの時間入力は削除されたため、デフォルト60秒（1分）を使う
+      // 既存データの編集時には dataset.seconds が残っている場合があるのでそれを優先
+      const getSecOrDefault = (id, defaultSec) => {
+        const el = document.getElementById(id);
+        if (!el) return defaultSec;
+        const raw = el.dataset.seconds;
+        if (raw == null || raw === '') return defaultSec;
+        const v = parseInt(raw, 10);
+        return isNaN(v) ? defaultSec : v;
+      };
+      const prepSec = getSecOrDefault('exFormHiitPrepMinInput', 60);
       const prepSpeed = checkRequired('exFormHiitPrepSpeedInput', asFloat);
       const dashSpeed = checkRequired('exFormHiitDashSpeedInput', asFloat);
       const recoverSpeed = checkRequired('exFormHiitRecoverSpeedInput', asFloat);
       const rounds = checkRequired('exFormHiitRoundsInput', asInt);
       const roundSec = checkRequiredSec('exFormHiitRoundSecInput');
-      const cooldownSec = checkRequiredSec('exFormHiitCooldownMinInput');
+      const cooldownSec = getSecOrDefault('exFormHiitCooldownMinInput', 60);
       const coolSpeed = checkRequired('exFormHiitCoolSpeedInput', asFloat);
       if (errorEls.length === 0) {
         // 後方互換のため prepMin/cooldownMin も計算（分単位）
