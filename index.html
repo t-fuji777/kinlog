@@ -3537,7 +3537,8 @@
   .ex-form-hiit-params.one-col { grid-template-columns: 1fr; }
   .ex-form-hiit-params.two-col { grid-template-columns: 1fr 1fr; }
   .ex-form-hiit-params.three-col { grid-template-columns: 1fr 1fr 1fr; }
-  .ex-form-hiit-params.four-col { grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; }
+  /* 4列：本数（短い）は狭く、ダッシュ/回復/1本の時間は均等に広く */
+  .ex-form-hiit-params.four-col { grid-template-columns: 0.7fr 1fr 1fr 1fr; gap: 4px; }
   /* 4列のときは入力unitを少し小さく（フォントは16px以上維持してiOS自動ズーム防止） */
   .ex-form-hiit-params.four-col .ex-form-hiit-input {
     font-size: 16px;
@@ -7897,7 +7898,7 @@
 
     <div class="ex-form-field">
       <label class="ex-form-label">種目名（20文字まで）</label>
-      <input type="text" class="ex-form-input" id="exFormName" placeholder="" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="checkMaxLen(this, 20, '種目名')">
+      <input type="text" class="ex-form-input" id="exFormName" placeholder="" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="checkMaxLen(this, 20, '種目名'); if(typeof refreshExFormImageButtons==='function') refreshExFormImageButtons();">
     </div>
 
     <!-- 筋トレ用フィールド -->
@@ -7996,9 +7997,9 @@
 
     <!-- HIIT用フィールド -->
     <div id="exFormHiitFields" style="display:none">
-      <!-- 本番：本数・ダッシュ・回復を上部に -->
+      <!-- 本番：本数・ダッシュ・回復・1本の時間を1行に -->
       <div class="ex-form-hiit-section hiit-main">
-        <div class="ex-form-hiit-params three-col">
+        <div class="ex-form-hiit-params four-col">
           <div class="ex-form-hiit-param">
             <div class="ex-form-hiit-label">本数</div>
             <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitRoundsInput" placeholder="8" onclick="openSetsFormPicker('hiitRounds')"><span class="ex-form-hiit-unit">本</span>
@@ -8011,8 +8012,6 @@
             <div class="ex-form-hiit-label">回復</div>
             <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitRecoverSpeedInput" placeholder="1.0" onclick="openHiitFormPicker('recoverSpeed')"><span class="ex-form-hiit-unit">km/h</span>
           </div>
-        </div>
-        <div class="ex-form-hiit-params one-col" style="margin-top:8px;">
           <div class="ex-form-hiit-param">
             <div class="ex-form-hiit-label">1本の時間</div>
             <input type="text" inputmode="none" readonly class="ex-form-hiit-input" id="exFormHiitRoundSecInput" placeholder="00:10" onclick="openHiitFormTimePicker('round')">
@@ -8150,6 +8149,16 @@
       <input type="url" class="ex-form-input" id="exFormUrl" placeholder="" inputmode="url">
     </div>
 
+    <!-- 種目画像（URLの下） -->
+    <div class="ex-form-field">
+      <label class="ex-form-label">種目画像</label>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="modal-btn" id="exFormImageRegisterBtn" onclick="exFormImageRegister()" style="flex:1;">画像を登録</button>
+        <button type="button" class="modal-btn" id="exFormImageViewBtn" onclick="exFormImageView()" style="flex:1; display:none;">画像を表示</button>
+      </div>
+      <div id="exFormImageHint" style="font-size:11px; color:var(--text-3); margin-top:6px;">※先に種目名を入力してください</div>
+    </div>
+
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeExerciseForm()">キャンセル</button>
       <button class="modal-btn primary" onclick="saveExerciseForm()">保存</button>
@@ -8161,9 +8170,9 @@
   <div class="modal">
     <h3 class="modal-title" id="exerciseActionTitle"></h3>
     <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px">
-      <button class="modal-btn" onclick="actionImageRegister()" style="width: 100%">画像を登録</button>
-      <button class="modal-btn" onclick="actionUrlSet()" style="width: 100%">参考URLを設定</button>
       <button class="modal-btn" onclick="actionRename()" style="width: 100%">名前を変更</button>
+      <button class="modal-btn" onclick="actionUrlSet()" style="width: 100%">参考URLを設定</button>
+      <button class="modal-btn" onclick="actionImageRegister()" style="width: 100%">画像を登録</button>
     </div>
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeExerciseAction()" style="width: 100%">キャンセル</button>
@@ -16452,6 +16461,57 @@
     document.getElementById('imageChoiceModal').classList.remove('show');
     pendingImageExerciseName = null;
   }
+
+  // ========== 設定画面の種目フォーム用：画像登録/表示 ==========
+  function getExFormCurrentName() {
+    const el = document.getElementById('exFormName');
+    return el ? (el.value || '').trim() : '';
+  }
+  // 種目名の変更を監視してボタン状態を更新
+  function refreshExFormImageButtons() {
+    const name = getExFormCurrentName();
+    const registerBtn = document.getElementById('exFormImageRegisterBtn');
+    const viewBtn = document.getElementById('exFormImageViewBtn');
+    const hint = document.getElementById('exFormImageHint');
+    if (!registerBtn || !viewBtn || !hint) return;
+    if (!name) {
+      // 種目名未入力：登録ボタンは無効、ヒント表示
+      registerBtn.disabled = true;
+      registerBtn.style.opacity = '0.5';
+      viewBtn.style.display = 'none';
+      hint.style.display = 'block';
+      hint.textContent = '※先に種目名を入力してください';
+      return;
+    }
+    registerBtn.disabled = false;
+    registerBtn.style.opacity = '';
+    hint.style.display = 'none';
+    // 登録済み画像があれば「画像を表示」ボタンも出す
+    const hasImage = !!getExerciseImage(name);
+    if (hasImage) {
+      viewBtn.style.display = '';
+      registerBtn.textContent = '画像を変更';
+    } else {
+      viewBtn.style.display = 'none';
+      registerBtn.textContent = '画像を登録';
+    }
+  }
+  function exFormImageRegister() {
+    const name = getExFormCurrentName();
+    if (!name) {
+      toast('先に種目名を入力してください');
+      return;
+    }
+    showImageUploadChoice(name);
+  }
+  function exFormImageView() {
+    const name = getExFormCurrentName();
+    if (!name) return;
+    const image = getExerciseImage(name);
+    if (image) {
+      showImageViewer(name, image, null);
+    }
+  }
   function chooseFromAlbum() {
     const name = pendingImageExerciseName;
     closeImageChoice();
@@ -16522,6 +16582,10 @@
     saveExerciseImages(images);
     closeImageViewer();
     renderExerciseList();
+    // 設定画面（種目フォーム）が開いていればボタン状態も更新
+    if (typeof refreshExFormImageButtons === 'function') {
+      try { refreshExFormImageButtons(); } catch (_) {}
+    }
     toast('画像を削除しました');
   }
 
@@ -16562,6 +16626,10 @@
         images[exerciseName] = dataUrl;
         if (saveExerciseImages(images)) {
           renderExerciseList();
+          // 設定画面（種目フォーム）が開いていればボタン状態も更新
+          if (typeof refreshExFormImageButtons === 'function') {
+            try { refreshExFormImageButtons(); } catch (_) {}
+          }
           toast('✓ 画像を登録しました');
         }
       };
@@ -18532,6 +18600,10 @@
     });
 
     setExFormType(type);
+    // 画像ボタンの状態を初期化（種目名がある場合は登録/変更ボタン表示）
+    if (typeof refreshExFormImageButtons === 'function') {
+      refreshExFormImageButtons();
+    }
   }
 
   function openExerciseForm(menuId, exIdx) {
