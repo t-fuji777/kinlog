@@ -7777,9 +7777,9 @@
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; padding: 8px 10px; background: var(--bg-1); border: 1px solid var(--border); border-radius: 8px;">
       <label style="font-size: 12px; color: var(--text-2); font-weight: 600; white-space: nowrap;">総タイム</label>
       <div style="display: flex; align-items: center; gap: 6px;">
-        <input type="text" inputmode="numeric" id="pastEntryTotalMin" maxlength="3" style="width: 50px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
+        <input type="text" inputmode="numeric" id="pastEntryTotalMin" maxlength="3" onblur="padPastEntryDurationField(this, 2)" style="width: 50px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
         <span style="font-size: 11px; color: var(--text-3);">分</span>
-        <input type="text" inputmode="numeric" id="pastEntryTotalSec" maxlength="2" style="width: 40px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
+        <input type="text" inputmode="numeric" id="pastEntryTotalSec" maxlength="2" onblur="padPastEntryDurationField(this, 2)" style="width: 50px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
         <span style="font-size: 11px; color: var(--text-3);">秒</span>
       </div>
     </div>
@@ -20628,19 +20628,26 @@
     if (isNormal) {
       head += `<button class="past-entry-action-btn" onclick="openPastEntrySwapModal(${idx})">代替</button>`;
     }
+    // 順番変更ボタン（↑/↓）：全種目共通
+    head += `<button class="past-entry-action-btn" onclick="movePastEntryEx(${idx}, -1)" title="上へ" style="padding: 4px 8px;">↑</button>`;
+    head += `<button class="past-entry-action-btn" onclick="movePastEntryEx(${idx}, 1)" title="下へ" style="padding: 4px 8px;">↓</button>`;
     head += `</div></div>`;
 
     // 経過時間入力欄（全種目共通、種目の最下部に配置・ラベル左/入力欄右）
     // duration が初期値として ex.duration にあれば使う、無ければ空
-    const durMin = ex.duration ? Math.floor(ex.duration / 60) : '';
-    const durSec = ex.duration ? (ex.duration % 60) : '';
+    const durMinRaw = ex.duration ? Math.floor(ex.duration / 60) : '';
+    const durSecRaw = ex.duration ? (ex.duration % 60) : '';
+    // 分は1〜9なら0埋め（05など）、3桁以上は0埋めしない
+    const durMin = (durMinRaw !== '' && durMinRaw >= 1 && durMinRaw <= 9) ? '0' + durMinRaw : durMinRaw;
+    // 秒は常に0埋め（00〜59）
+    const durSec = (durSecRaw !== '' && durSecRaw >= 0 && durSecRaw <= 9) ? '0' + durSecRaw : durSecRaw;
     const durationRow = `
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 8px 0 4px; padding: 4px 8px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px;">
         <span style="font-size: 10px; color: var(--text-3); font-weight: 600; white-space: nowrap;">経過時間</span>
         <div style="display: flex; align-items: center; gap: 6px;">
-          <input type="text" inputmode="numeric" class="past-entry-duration-min" data-ex-idx="${idx}" maxlength="3" value="${durMin}" style="width: 50px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
+          <input type="text" inputmode="numeric" class="past-entry-duration-min" data-ex-idx="${idx}" maxlength="3" value="${durMin}" onchange="syncPastEntryInputs(${idx})" onblur="padPastEntryDurationField(this, 2)" style="width: 50px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
           <span style="font-size: 10px; color: var(--text-3);">分</span>
-          <input type="text" inputmode="numeric" class="past-entry-duration-sec" data-ex-idx="${idx}" maxlength="2" value="${durSec}" style="width: 40px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
+          <input type="text" inputmode="numeric" class="past-entry-duration-sec" data-ex-idx="${idx}" maxlength="2" value="${durSec}" onchange="syncPastEntryInputs(${idx})" onblur="padPastEntryDurationField(this, 2)" style="width: 50px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
           <span style="font-size: 10px; color: var(--text-3);">秒</span>
         </div>
       </div>
@@ -21108,6 +21115,34 @@
     }
   }
 
+  // 経過時間入力欄：blur時に0埋めする（5 → 05 など、minlength分まで）
+  function padPastEntryDurationField(inp, minLen) {
+    if (!inp) return;
+    const v = inp.value.trim();
+    if (v === '' || isNaN(parseInt(v, 10))) return; // 空または不正値はそのまま
+    const n = parseInt(v, 10);
+    if (n < 0) return;
+    // 1〜9のときだけ0埋め（10以上は元の表記を保持、ただしmaxlength内で）
+    if (n >= 0 && n <= 9) {
+      inp.value = '0' + n;
+    } else {
+      inp.value = String(n);
+    }
+  }
+
+  // 過去日記録：種目の順番を入れ替える（dir=-1で上に、dir=1で下に）
+  function movePastEntryEx(idx, dir) {
+    if (!pastEntryContext || !Array.isArray(pastEntryContext.exercises)) return;
+    const exs = pastEntryContext.exercises;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= exs.length) return; // 範囲外
+    // 入力値を保存してから入れ替え（再描画で消えないように）
+    exs.forEach((_, i) => syncPastEntryInputs(i));
+    // swap
+    [exs[idx], exs[newIdx]] = [exs[newIdx], exs[idx]];
+    renderPastEntryForm();
+  }
+
   // 入力欄から ex.setData / ex.maxSetData へ値を吸い上げる
   // （セット数変更や代替・MAX切替で再描画する前に呼ぶ）
   // 注意：judgeフィールドは setData[i].judge にすでに保存されているのでそのまま保持
@@ -21117,6 +21152,19 @@
     if (!ex) return;
     const card = document.querySelector(`.past-entry-ex-card[data-ex-idx="${idx}"]`);
     if (!card) return;
+    // 経過時間（duration）を ex.duration に保存
+    const dMinEl = card.querySelector('.past-entry-duration-min');
+    const dSecEl = card.querySelector('.past-entry-duration-sec');
+    if (dMinEl || dSecEl) {
+      const dMin = dMinEl ? (parseInt(dMinEl.value, 10) || 0) : 0;
+      const dSec = dSecEl ? (parseInt(dSecEl.value, 10) || 0) : 0;
+      const totalDur = dMin * 60 + dSec;
+      if (totalDur > 0) {
+        ex.duration = totalDur;
+      } else {
+        delete ex.duration;
+      }
+    }
     // setData
     card.querySelectorAll('.past-entry-set-input[data-set-idx]').forEach(inp => {
       const sIdx = parseInt(inp.dataset.setIdx, 10);
