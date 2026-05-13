@@ -2333,6 +2333,14 @@
     margin-bottom: 4px;
     font-size: 9px;
   }
+  /* 「前回」ラベルの横の日付（2026年05月01日（金）形式） */
+  .ex-last .last-date {
+    color: var(--text-3);
+    font-weight: 500;
+    letter-spacing: 0;
+    font-size: 9px;
+    margin-left: 4px;
+  }
 
   /* 前回記録 + 位置 の2カラムレイアウト */
   .ex-last-row {
@@ -7765,6 +7773,16 @@
     <p style="font-size: 11px; color: var(--text-4); margin: 0 0 12px; line-height: 1.4">
       実施した種目のみチェックを入れて、数値を入力してください。
     </p>
+    <!-- 総タイム（経過時間）入力：ラベル左、入力欄右 -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; padding: 8px 10px; background: var(--bg-1); border: 1px solid var(--border); border-radius: 8px;">
+      <label style="font-size: 12px; color: var(--text-2); font-weight: 600; white-space: nowrap;">総タイム</label>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <input type="text" inputmode="numeric" id="pastEntryTotalMin" maxlength="3" style="width: 50px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
+        <span style="font-size: 11px; color: var(--text-3);">分</span>
+        <input type="text" inputmode="numeric" id="pastEntryTotalSec" maxlength="2" style="width: 40px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
+        <span style="font-size: 11px; color: var(--text-3);">秒</span>
+      </div>
+    </div>
     <div class="past-entry-form-body" id="pastEntryFormBody"></div>
     <div class="modal-actions" style="margin-top: 14px">
       <button class="modal-btn" onclick="closePastEntryFormModal()">キャンセル</button>
@@ -9359,6 +9377,15 @@
           dirty = true;
         }
       });
+      // 【重要】swappedFrom付きの代替種目がメニュー本体に紛れ込んでいたら除去
+      // 過去の不具合で「ワークアウト中の代替種目」がメニュー定義に保存されてしまった場合の救済
+      Object.keys(m).forEach(menuId => {
+        if (Array.isArray(m[menuId])) {
+          const before = m[menuId].length;
+          m[menuId] = m[menuId].filter(e => !e || !e.swappedFrom);
+          if (m[menuId].length !== before) dirty = true;
+        }
+      });
       if (dirty) {
         try { localStorage.setItem('wo_custom_menus', JSON.stringify(m)); } catch (_) {}
       }
@@ -9749,7 +9776,14 @@
 
   function setMenuExercises(menuId, exercises) {
     const custom = loadCustomMenus();
-    custom[menuId] = exercises;
+    // 【重要】swappedFrom付きの代替種目は、ワークアウト中の一時的な代替であり、
+    // メニュー定義（レギュラー）には含めてはいけない。
+    // この経路で代替種目が誤ってメニュー本体に保存されると、設定画面で
+    // 「07 代替種目」として残ってしまうため、ここで除外する。
+    const filtered = Array.isArray(exercises)
+      ? exercises.filter(e => !e || !e.swappedFrom)
+      : exercises;
+    custom[menuId] = filtered;
     saveCustomMenus(custom);
   }
 
@@ -11674,14 +11708,24 @@
     const now = new Date();
 
     // 仮セッションを生成するヘルパー
+    // dayIdx: 何日前か（0=今日、1=1日前、2=2日前...） → 大きいほど過去
+    // 過去ほど重量が低い → 成長カーブを模擬
     const buildSession = (sessionDate, menuId, dayIdx) => {
       const exercises = getMenuExercises(menuId).filter(ex => !ex.cardio && !ex.hiit);
       if (exercises.length === 0) return null;
       let exIdx = 0;
       const sessionExercises = exercises.map(ex => {
         const targetReps = ex.targetReps || 10;
-        const targetWeight = ex.targetWeight || 60;
+        const baseWeight = ex.targetWeight || 60;
         const targetSets = ex.targetSets || 3;
+        // 重量の変動：過去ほど低い（成長カーブ模擬）
+        // 30日前 → -10kg、15日前 → -5kg、今日 → 0kg
+        const dayDecrement = Math.floor(dayIdx / 3) * 1; // 3日ごとに1kgずつ低く
+        // 種目ごとに少しランダム性を加えて単調にならないようにする
+        const variation = ((dayIdx + exIdx) % 5 - 2) * 0.5; // ±1kg程度のばらつき
+        let targetWeight = Math.max(5, baseWeight - dayDecrement + variation);
+        // 0.5kg単位に丸める
+        targetWeight = Math.round(targetWeight * 2) / 2;
         const pattern = (dayIdx + exIdx) % 4;
         const setRecords = [];
         for (let i = 0; i < targetSets; i++) {
@@ -13070,8 +13114,9 @@
             const finalCompleteDisabled = ex.judge === 'ok' ? true : (ex.exStarted ? disableCompleteBtn2 : false);
             // スキップ：完了ボタンが無効 or タイマー稼働中 or 完了済 or 代替種目 or 種目開始済
             const skipDisabled = finalCompleteDisabled || anyTimerRunning || ex.judge === 'ok' || ex.swappedFrom || ex.exStarted;
-            // 代替：完了ボタンが無効 or タイマー稼働中 or 完了済 or 種目開始済
-            const swapDisabled = finalCompleteDisabled || anyTimerRunning || ex.judge === 'ok' || ex.exStarted;
+            // 代替：完了ボタンが無効 or タイマー稼働中 or 完了済 のみ無効化（種目開始済 ex.exStarted は除外）
+            // ※マスター指示：入れ替えボタンだけは一度タイマー発動した後も有効にしたい
+            const swapDisabled = finalCompleteDisabled || anyTimerRunning || ex.judge === 'ok';
             return `
               <button class="ex-skip-btn ${ex.judge === 'skip' ? 'active' : ''}" onclick="toggleSkip(${idx})" ${skipDisabled ? 'disabled' : ''} title="${ex.swappedFrom ? '代替種目はスキップできません' : (ex.judge === 'skip' ? 'スキップ解除' : 'この種目をスキップ')}">${ex.judge === 'skip' ? '◯' : '⊘'}</button>
               <button class="ex-swap-btn" onclick="openSwapModal(${idx})" ${swapDisabled ? 'disabled' : ''} title="代替種目">⇄</button>
@@ -13125,7 +13170,14 @@
         ` : `
         <div class="ex-last-row">
           <div class="ex-last">
-            <span class="label">前回</span>${lastText}
+            <span class="label">前回${last && last.date ? `<span class="last-date">：${(() => {
+              const d = new Date(last.date);
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              const dow = DOW[d.getDay()];
+              return `${y}年${m}月${day}日（${dow}）`;
+            })()}</span>` : ''}</span>${lastText}
           </div>
           <div class="ex-positions-col">
             <div class="ex-positions-header">
@@ -20515,6 +20567,11 @@
     const dateStr = `${year}年${month + 1}月${day}日（${DOW[new Date(year, month, day).getDay()]}）`;
     if (titleEl) titleEl.textContent = menu.name;
     if (dateEl) dateEl.textContent = dateStr;
+    // 総タイム入力欄をリセット（分・秒のみ）
+    const minEl = document.getElementById('pastEntryTotalMin');
+    const secEl = document.getElementById('pastEntryTotalSec');
+    if (minEl) minEl.value = '';
+    if (secEl) secEl.value = '';
 
     renderPastEntryForm();
     modal.classList.add('show');
@@ -20572,6 +20629,22 @@
       head += `<button class="past-entry-action-btn" onclick="openPastEntrySwapModal(${idx})">代替</button>`;
     }
     head += `</div></div>`;
+
+    // 経過時間入力欄（全種目共通、種目の最下部に配置・ラベル左/入力欄右）
+    // duration が初期値として ex.duration にあれば使う、無ければ空
+    const durMin = ex.duration ? Math.floor(ex.duration / 60) : '';
+    const durSec = ex.duration ? (ex.duration % 60) : '';
+    const durationRow = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 8px 0 4px; padding: 4px 8px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 6px;">
+        <span style="font-size: 10px; color: var(--text-3); font-weight: 600; white-space: nowrap;">経過時間</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <input type="text" inputmode="numeric" class="past-entry-duration-min" data-ex-idx="${idx}" maxlength="3" value="${durMin}" style="width: 50px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
+          <span style="font-size: 10px; color: var(--text-3);">分</span>
+          <input type="text" inputmode="numeric" class="past-entry-duration-sec" data-ex-idx="${idx}" maxlength="2" value="${durSec}" style="width: 40px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px; color: var(--text); font-family: var(--font-mono); font-size: 16px; text-align: center;">
+          <span style="font-size: 10px; color: var(--text-3);">秒</span>
+        </div>
+      </div>
+    `;
 
     let body = '';
 
@@ -20654,7 +20727,7 @@
       body += buildPastEntryNormalBody(ex, idx);
     }
 
-    card.innerHTML = head + body;
+    card.innerHTML = head + body + durationRow;
     return card;
   }
 
@@ -21252,6 +21325,19 @@
         positionMemo: null
       };
 
+      // 経過時間（分/秒）入力欄から duration を取得
+      // 全種目共通：入力されていれば exRecord.duration にセット
+      const exIdxInPast = pastEntryContext.exercises.indexOf(ex);
+      const durCard = document.querySelector(`.past-entry-ex-card[data-ex-idx="${exIdxInPast}"]`);
+      const durMinEl = durCard?.querySelector('.past-entry-duration-min');
+      const durSecEl = durCard?.querySelector('.past-entry-duration-sec');
+      const dMin = durMinEl ? (parseInt(durMinEl.value, 10) || 0) : 0;
+      const dSec = durSecEl ? (parseInt(durSecEl.value, 10) || 0) : 0;
+      const durationSec = dMin * 60 + dSec;
+      if (durationSec > 0) {
+        exRecord.duration = durationSec;
+      }
+
       // 種別ごとに組み立て
       if (isHiit) {
         // HIIT：dashSpeed・rounds・duration
@@ -21419,12 +21505,18 @@
     }
 
     // 履歴に保存
+    // 総タイム（分:秒）から秒数を算出
+    const minEl = document.getElementById('pastEntryTotalMin');
+    const secEl = document.getElementById('pastEntryTotalSec');
+    const mn = minEl ? parseInt(minEl.value, 10) || 0 : 0;
+    const sc = secEl ? parseInt(secEl.value, 10) || 0 : 0;
+    const totalSeconds = mn * 60 + sc;
     const dateObj = new Date(year, month, day, 12, 0, 0);
     const newSession = {
       menuId,
       date: dateObj.toISOString(),
       exercises,
-      totalSeconds: 0
+      totalSeconds: totalSeconds
     };
     const hist = loadHistory();
     hist.push(newSession);
@@ -21874,11 +21966,22 @@
     if (!canvas) return;
     const hist = loadHistory();
     // 全データポイント取得し、日付昇順（古い→新しい）にソート
+    // ※グラフは「通常セット（MAXセット除く）の最大重量」を採用
+    //   → MAXトレーニングはイレギュラーなので、メインセットの推移が見えるようにする
     let allPoints = [];
     hist.forEach(s => {
       s.exercises.forEach(e => {
         if (e.name === exerciseName && e.setRecords && e.setRecords.length) {
-          const maxW = Math.max(...e.setRecords.map(r => r.weight || 0));
+          // MAXセットを除外した通常セットのみを対象に
+          const normalSets = e.setRecords.filter(r => !r.isMax);
+          // 通常セットがあればそこから、無ければ全体（MAX含む）から
+          const candidates = normalSets.length > 0 ? normalSets : e.setRecords;
+          // weight が有効な数値のセットだけ抽出（NaN/undefined/null/負数を除外）
+          const validWeights = candidates
+            .map(r => r.weight)
+            .filter(w => typeof w === 'number' && !isNaN(w) && w > 0);
+          if (validWeights.length === 0) return; // 有効重量なし → この日はスキップ
+          const maxW = Math.max(...validWeights);
           allPoints.push({ date: new Date(s.date), weight: maxW });
         }
       });
@@ -21949,13 +22052,17 @@
     // Canvas内余白
     // 上: ① タイトル・タブの下に少し空けて 55kg ラインへ
     // 下: ① X軸ラベルをカード下端寄りに（カード padding-bottom 4 + Canvas padBottom で下総余白）
-    // 左右: padLeft+padding-left = 40px、padRight+padding-right = 20px
-    const padLeft = 34;
+    // 左右: padLeft はY軸ラベル（最大4文字「150kg」+ 小数点「150.5kg」）の幅を確保
+    const padLeft = 48;   // ※「150.5kg」等の6文字でも見切れないように十分な余白を確保
     const padRight = 12;
     const padTop = 16;       // タブ下から55kgラインまで余白
     const padBottom = 18;    // X軸ラベル領域 + わずかな下余白
-    const minW = Math.min(...points.map(p => p.weight)) - 5;
-    const maxW = Math.max(...points.map(p => p.weight)) + 5;
+    // Y軸の範囲計算：プロット用にはわずかな余白(+/-5kg)を取りつつ、
+    // ラベル表示用は実際の重量（最小・最大・中央）を表示する
+    const dataMin = Math.min(...points.map(p => p.weight));
+    const dataMax = Math.max(...points.map(p => p.weight));
+    const minW = dataMin - 5;
+    const maxW = dataMax + 5;
     const range = Math.max(maxW - minW, 1);
     const plotL = padLeft;
     const plotR = W - padRight;
@@ -21969,16 +22076,24 @@
       const y = plotT + (plotH * i / 3);
       ctx.beginPath(); ctx.moveTo(plotL, y); ctx.lineTo(plotR, y); ctx.stroke();
     }
-    // Y軸ラベル（左、kg）。プロット線から左に12pxのマージンを取り、kgラベルとオレンジ点の間隔を確保
+    // Y軸ラベル（左、kg）：実際の重量範囲（dataMax, 中央値, dataMin）を表示
+    // ※プロット範囲は余白付き(maxW, minW)で描画するが、ラベルは実データに合わせる
     ctx.fillStyle = '#7A7A85';
     ctx.font = '9px "JetBrains Mono", monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    const yLabelVals = [maxW, (maxW + minW) / 2, minW];
-    yLabelVals.forEach((v, i) => {
-      const y = plotT + (plotH * i / 2);
+    const dataMid = (dataMax + dataMin) / 2;
+    // 実データの値（dataMin, dataMid, dataMax）に対応するY座標を計算
+    const yForWeight = (w) => plotB - ((w - minW) / range) * plotH;
+    const yLabelPairs = [
+      { v: dataMax, y: yForWeight(dataMax) },
+      { v: dataMid, y: yForWeight(dataMid) },
+      { v: dataMin, y: yForWeight(dataMin) }
+    ];
+    yLabelPairs.forEach(({ v, y }) => {
       const txt = (Math.round(v * 10) / 10) + 'kg';
-      ctx.fillText(txt, plotL - 12, y);
+      // padLeft=48 から左に8pxマージン取ってラベルを描画（textAlign=right なので右端基準）
+      ctx.fillText(txt, plotL - 8, y);
     });
     // ③データ点が1つなら塗りつぶし・線をスキップ（点だけ表示）
     if (points.length >= 2) {
@@ -22526,10 +22641,11 @@
       const todayObj = new Date();
       todayObj.setHours(0, 0, 0, 0);
       selectedDateObj.setHours(0, 0, 0, 0);
-      const isPastDate = selectedDateObj.getTime() < todayObj.getTime();
+      // 過去日 + 当日に「+追加」ボタンを表示（未来日のみ無効）
+      const isPastOrToday = selectedDateObj.getTime() <= todayObj.getTime();
 
-      if (isPastDate) {
-        // 過去日付：「記録はありません」表示 ＋ 「＋追加」ボタンを同じラインの右端に
+      if (isPastOrToday) {
+        // 過去日・当日：「記録はありません」表示 ＋ 「＋追加」ボタンを同じラインの右端に
         // 1枚目（今日）と同じ構造を保ちつつ、detail-empty内にボタンを内包
         detail.innerHTML = `
           <div class="detail-date">${dateStr}</div>
@@ -22546,7 +22662,7 @@
           });
         }
       } else {
-        // 今日・未来日付：通常の空表示（タップ無反応）
+        // 未来日付：通常の空表示（タップ無反応）
         detail.innerHTML = `<div class="detail-date">${dateStr}</div><div class="detail-empty">記録はありません</div>`;
       }
       return;
