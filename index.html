@@ -8838,6 +8838,7 @@
         renderSchedulePreview();
       } catch (e) {}
       document.getElementById('setup-screen').style.display = 'flex';
+      setupDaysGridHandler();
       showStep(1);
       window.scrollTo(0, 0);
       return;
@@ -8928,6 +8929,7 @@
       // 表示済みフラグを立てる（同じ週で再度welcome→設定画面が出ないように）
       markTutorialShown();
       document.getElementById('setup-screen').style.display = 'flex';
+      setupDaysGridHandler();
       showStep(1);
     } else {
       // 起点日でない or その週は既に表示済み → ホームへ
@@ -9183,9 +9185,13 @@
   function prevStep() { if (setupStep > 0) showStep(setupStep - 1); }
 
   // 曜日チップクリックハンドラ（初期化時に設定）
+  let _daysGridHandlerAttached = false;
   function setupDaysGridHandler() {
     const grid = document.getElementById('days-grid');
     if (!grid) return;
+    // 既にハンドラ登録済みなら何もしない（重複登録防止）
+    if (_daysGridHandlerAttached) return;
+    _daysGridHandlerAttached = true;
     grid.addEventListener('click', e => {
       const chip = e.target.closest('.day-chip');
       if (!chip) return;
