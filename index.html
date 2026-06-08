@@ -8177,6 +8177,14 @@
       <div id="exFormImageHint" style="font-size:11px; color:var(--text-3); margin-top:6px;">※先に種目名を入力してください</div>
     </div>
 
+    <!-- 記録をリンク（他メニューの種目と前回記録・重量を共有） -->
+    <div class="ex-form-field">
+      <label class="ex-form-label">記録をリンク</label>
+      <button type="button" class="modal-btn" id="exFormLinkBtn" onclick="openExFormLinkModal()" style="width:100%;">他メニューの種目と記録を共有</button>
+      <div id="exFormLinkStatus" style="font-size:11px; color:var(--text-3); margin-top:6px;">リンクなし（このメニュー独自の記録）</div>
+      <input type="hidden" id="exFormLinkId" value="">
+    </div>
+
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeExerciseForm()">キャンセル</button>
       <button class="modal-btn primary" onclick="saveExerciseForm()">保存</button>
@@ -8403,6 +8411,21 @@
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeMenuPicker()">キャンセル</button>
       <button class="modal-btn warn" onclick="clearMenuForDay()">割当なし</button>
+    </div>
+  </div>
+</div>
+
+<!-- 記録リンク選択モーダル：他メニューの種目を選んで記録を共有 -->
+<div class="modal-backdrop" id="exLinkModal">
+  <div class="modal">
+    <h3 class="modal-title">記録を共有する種目を選択</h3>
+    <p style="font-size: 11px; color: var(--text-3); margin: 0 0 10px; line-height: 1.4;">
+      選んだ種目と前回記録・重量を共有します。同じ種目を別メニューでも使う場合に便利です。
+    </p>
+    <div class="menu-picker-list" id="exLinkList" style="max-height: 50vh; overflow-y: auto;"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeExFormLinkModal()">キャンセル</button>
+      <button class="modal-btn warn" onclick="clearExFormLink()">リンク解除</button>
     </div>
   </div>
 </div>
@@ -9368,6 +9391,18 @@
     localStorage.setItem('wo_lastweights', JSON.stringify(w));
   }
 
+  // 前回記録（wo_lastweights）のキーを生成する共通関数
+  // 種目に linkId（リンクグループID）があれば「link::linkId」を返し、
+  // 異なるメニュー間でも同じ前回記録・重量を共有できるようにする。
+  // linkId がなければ従来通り「menuId::種目名」を返す（メニュー独立管理）。
+  function getLastWeightKey(menuId, ex) {
+    if (ex && ex.linkId) {
+      return 'link::' + ex.linkId;
+    }
+    const name = (ex && ex.name) ? ex.name : '';
+    return menuId + '::' + name;
+  }
+
 
   // ========== CUSTOM MENU STORAGE ==========
   // Stores overrides per menu: { menuId: [{ name, weight, reps, sets, position, cardio, hiit, protocol }] }
@@ -9770,6 +9805,47 @@
     return [...defaults, ...Object.keys(userMenus)];
   }
 
+  // メニューの表示順（customPriority優先）を返す共通関数
+  // メニュー編集リスト・手動部位選択モーダル・その他メニュー一覧で統一的に使う
+  function getOrderedMenuIds() {
+    if (isAdminMode) {
+      const profile = getProfile() || {};
+      const allAdminIds = getAllMenuIds();
+      if (Array.isArray(profile.customPriority) && profile.customPriority.length > 0) {
+        const ordered = profile.customPriority.filter(id => allAdminIds.includes(id));
+        allAdminIds.forEach(id => { if (!ordered.includes(id)) ordered.push(id); });
+        return ordered;
+      }
+      return allAdminIds;
+    }
+    const userMenus = loadUserMenus();
+    const deletedDefaults = loadDeletedDefaults();
+    const profile = getProfile() || {};
+    let orderedIds;
+    if (Array.isArray(profile.customPriority) && profile.customPriority.length > 0) {
+      // customPriorityの順序をそのまま使う（削除済みデフォルトは除外）
+      orderedIds = profile.customPriority.filter(id => {
+        if (deletedDefaults[id]) return false;
+        return !!userMenus[id] || !!DEFAULT_MENUS[id];
+      });
+      // customPriority に載っていない新規メニューも末尾に追加
+      Object.keys(DEFAULT_MENUS).forEach(id => {
+        if (!deletedDefaults[id] && !orderedIds.includes(id)) orderedIds.push(id);
+      });
+      Object.keys(userMenus).forEach(id => {
+        if (!orderedIds.includes(id)) orderedIds.push(id);
+      });
+    } else {
+      // 従来：MENU_PRIORITY → ユーザー追加順
+      orderedIds = [];
+      (typeof MENU_PRIORITY !== 'undefined' ? MENU_PRIORITY : []).forEach(id => {
+        if (!deletedDefaults[id] && DEFAULT_MENUS[id]) orderedIds.push(id);
+      });
+      Object.keys(userMenus).forEach(id => orderedIds.push(id));
+    }
+    return orderedIds;
+  }
+
   function loadUserMenus() {
     if (isAdminMode) return {}; // テストモード時はユーザー定義メニューを隠す
     try { return JSON.parse(localStorage.getItem('wo_user_menus') || '{}'); }
@@ -9864,7 +9940,7 @@
     document.getElementById('menuPickerTitle').textContent = `${DOW[dow]}曜日の部位を選択`;
     const list = document.getElementById('menuPickerList');
     list.innerHTML = '';
-    getAllMenuIds().forEach(menuId => {
+    getOrderedMenuIds().forEach(menuId => {
       const menu = getMenu(menuId);
       if (!menu) return;
       const el = document.createElement('div');
@@ -9906,6 +9982,122 @@
   function closeMenuPicker() {
     document.getElementById('menuPickerModal').classList.remove('show');
     menuPickerDow = null;
+  }
+
+  // ========== 種目の記録リンク（他メニューの種目と前回記録を共有） ==========
+  // 種目フォームのリンクボタンから開く
+  function openExFormLinkModal() {
+    const name = (document.getElementById('exFormName')?.value || '').trim();
+    if (!name) {
+      toast('先に種目名を入力してください');
+      return;
+    }
+    const list = document.getElementById('exLinkList');
+    if (!list) return;
+    list.innerHTML = '';
+    // 編集中の種目自身のメニューIDを取得（自分自身は候補から除く）
+    const selfMenuId = exerciseFormContext ? exerciseFormContext.menuId : null;
+    // 全メニューを走査して、各種目を候補として列挙
+    let count = 0;
+    getOrderedMenuIds().forEach(menuId => {
+      const menu = getMenu(menuId);
+      if (!menu) return;
+      const exercises = getMenuExercises(menuId);
+      exercises.forEach(ex => {
+        if (!ex || !ex.name) return;
+        if (ex.cardio || ex.hiit) return; // 有酸素・HIITは記録リンク対象外
+        // 自分自身（同じメニューの同じ種目名）はスキップ
+        if (menuId === selfMenuId && ex.name === name) return;
+        count++;
+        const el = document.createElement('div');
+        el.className = 'menu-picker-item';
+        // 既にリンク済みの種目には印
+        const linkMark = ex.linkId ? ' 🔗' : '';
+        el.innerHTML = `<span class="menu-picker-name">${menu.name} / ${ex.name}${linkMark}</span>`;
+        el.onclick = () => selectExFormLink(menuId, ex);
+        list.appendChild(el);
+      });
+    });
+    if (count === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size: 13px; color: var(--text-4); padding: 12px 4px; text-align: center;';
+      empty.textContent = 'リンクできる種目がありません';
+      list.appendChild(empty);
+    }
+    document.getElementById('exLinkModal').classList.add('show');
+  }
+
+  // リンク先の種目を選択 → linkId を生成/継承して種目フォームに反映
+  function selectExFormLink(menuId, targetEx) {
+    // 既にlinkIdを持っている種目なら、そのlinkIdを引き継ぐ（同じグループに参加）
+    // 持っていなければ、新しいlinkIdを生成して「相手の種目にも付与」する必要がある
+    let linkId = targetEx.linkId;
+    if (!linkId) {
+      // 新規linkId生成
+      linkId = 'lnk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      // 相手の種目にもlinkIdを付与して保存
+      const exs = [...getMenuExercises(menuId)];
+      const idx = exs.findIndex(e => e.name === targetEx.name && !e.linkId);
+      if (idx >= 0) {
+        exs[idx] = { ...exs[idx], linkId };
+        setMenuExercises(menuId, exs);
+      }
+    }
+    // 種目フォームの hidden に linkId をセット
+    const linkInput = document.getElementById('exFormLinkId');
+    if (linkInput) linkInput.value = linkId;
+    // ステータス表示更新
+    const status = document.getElementById('exFormLinkStatus');
+    if (status) {
+      const menu = getMenu(menuId);
+      status.textContent = `「${menu ? menu.name : ''} / ${targetEx.name}」と記録を共有中`;
+      status.style.color = 'var(--accent)';
+    }
+    closeExFormLinkModal();
+    toast('✓ 記録をリンクしました');
+  }
+
+  // リンク解除
+  function clearExFormLink() {
+    const linkInput = document.getElementById('exFormLinkId');
+    if (linkInput) linkInput.value = '';
+    const status = document.getElementById('exFormLinkStatus');
+    if (status) {
+      status.textContent = 'リンクなし（このメニュー独自の記録）';
+      status.style.color = 'var(--text-3)';
+    }
+    closeExFormLinkModal();
+    toast('リンクを解除しました');
+  }
+
+  function closeExFormLinkModal() {
+    document.getElementById('exLinkModal').classList.remove('show');
+  }
+
+  // 種目フォームを開いた時にリンク状態を反映
+  function refreshExFormLinkStatus(ex) {
+    const linkInput = document.getElementById('exFormLinkId');
+    const status = document.getElementById('exFormLinkStatus');
+    if (!linkInput || !status) return;
+    if (ex && ex.linkId) {
+      linkInput.value = ex.linkId;
+      // リンク先の種目名を探す（他メニューで同じlinkIdを持つ種目）
+      let linkedName = '';
+      getAllMenuIds().forEach(mid => {
+        getMenuExercises(mid).forEach(e => {
+          if (e.linkId === ex.linkId && e.name !== (ex.name || '')) {
+            const menu = getMenu(mid);
+            linkedName = `${menu ? menu.name : ''} / ${e.name}`;
+          }
+        });
+      });
+      status.textContent = linkedName ? `「${linkedName}」と記録を共有中` : '記録リンク設定済み';
+      status.style.color = 'var(--accent)';
+    } else {
+      linkInput.value = '';
+      status.textContent = 'リンクなし（このメニュー独自の記録）';
+      status.style.color = 'var(--text-3)';
+    }
   }
 
   // ========== API HELPER ==========
@@ -11655,7 +11847,7 @@
         }
         const lastSet = setRecords[setRecords.length - 1];
         const allCleared = setRecords.every(r => r.reps >= targetReps);
-        const k = menuId + '::' + ex.name;
+        const k = getLastWeightKey(menuId, ex);
         lastW[k] = {
           weight: lastSet.weight,
           reps: lastSet.reps,
@@ -12933,7 +13125,7 @@
       if (ex.exStarted === undefined) ex.exStarted = false;
       // currentWorkout.id が未設定（ユーザー定義メニュー等）でも正しく動くようworkoutSession.menuIdをフォールバック
       const menuKey = (currentWorkout && currentWorkout.id) || workoutSession.menuId;
-      const key = menuKey + '::' + ex.name;
+      const key = getLastWeightKey(menuKey, ex);
       const last = lastW[key];
       const card = document.createElement('div');
       card.className = 'exercise' + (ex.judge ? ' ' + ex.judge : '') + (reorderMode && idx === reorderingIdx ? ' reordering' : '') + (ex.swappedFrom ? ' swapped' : '');
@@ -18685,6 +18877,10 @@
     if (typeof refreshExFormImageButtons === 'function') {
       refreshExFormImageButtons();
     }
+    // 記録リンク状態を反映
+    if (typeof refreshExFormLinkStatus === 'function') {
+      refreshExFormLinkStatus(ex);
+    }
   }
 
   function openExerciseForm(menuId, exIdx) {
@@ -19025,6 +19221,16 @@
     if (!exerciseFormContext) return;
     const exerciseData = collectExerciseFormData();
     if (!exerciseData) return;
+
+    // 記録リンクID（他メニューの種目と前回記録を共有）を付与
+    const linkInput = document.getElementById('exFormLinkId');
+    const linkId = linkInput ? (linkInput.value || '').trim() : '';
+    if (linkId) {
+      exerciseData.linkId = linkId;
+    } else {
+      // リンク解除された場合は linkId を消す（undefinedにして上書き）
+      exerciseData.linkId = undefined;
+    }
 
     if (exerciseFormContext.mode === 'menu-edit') {
       const { menuId, exIdx } = exerciseFormContext;
@@ -21758,7 +21964,8 @@
       const finalSets = allSetRecords.length || ex.currentSets;
 
       // lastWeights は「実施した種目名」で保存（代替なら代替名で）
-      const k = workoutSession.menuId + '::' + ex.name;
+      // linkId があれば link::linkId をキーにして別メニューと記録共有
+      const k = getLastWeightKey(workoutSession.menuId, ex);
       lastW[k] = {
         weight: lastSet.weight,
         reps: finalReps,
@@ -21968,7 +22175,7 @@
         if (!ex || !ex.name) return;
         // skipされた種目は無視（前回記録として残さない）
         if (ex.judge === 'skip') return;
-        const key = session.menuId + '::' + ex.name;
+        const key = getLastWeightKey(session.menuId, ex);
         // 各種目の最終セットの値を保存（既存の保存ロジックに合わせる）
         const lastSet = (Array.isArray(ex.setRecords) && ex.setRecords.length > 0)
           ? ex.setRecords[ex.setRecords.length - 1]
