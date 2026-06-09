@@ -17374,22 +17374,30 @@
   // メニューを複製する
   // 複製でできたメニューは、中の種目を全部「保管」に入れた状態でできる（メインは空）
   // 各種目には元メニューと同じ linkId を付けて記録を共有する
+  let _duplicating = false;
   function duplicateMenu(srcMenuId) {
+    // 二重実行ガード（ボタン連打・イベント二重発火で2つできるのを防ぐ）
+    if (_duplicating) return;
+    _duplicating = true;
+    setTimeout(() => { _duplicating = false; }, 800);
+
     const srcMenu = getMenu(srcMenuId);
-    if (!srcMenu) return;
+    if (!srcMenu) { _duplicating = false; return; }
     const srcExercises = getMenuExercises(srcMenuId);
     // 新しいメニューID
     const newId = 'u_dup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-    // 新しい名前：元の名前に ② を付ける（既に②があれば③…）
-    const baseName = srcMenu.name || 'メニュー';
-    let suffix = 2;
+    // 新しい名前：元の名前に ② を付ける（既に②③…があれば次の番号）
+    // 元の名前から既存の丸数字サフィックスを除いた「素の名前」を求める
     const circled = ['②','③','④','⑤','⑥','⑦','⑧','⑨'];
-    // 既存メニュー名と衝突しないように番号を上げる
+    let baseName = srcMenu.name || 'メニュー';
+    circled.forEach(c => { if (baseName.endsWith(c)) baseName = baseName.slice(0, -c.length); });
+    // 既存の全メニュー名を集める
     const existingNames = getAllMenuIds().map(id => { const m = getMenu(id); return m ? m.name : ''; });
+    // baseName+② から順に、空いている番号を探す
     let newName = baseName + circled[0];
-    while (existingNames.includes(newName) && suffix < 9) {
-      newName = baseName + circled[suffix - 1];
-      suffix++;
+    for (let k = 0; k < circled.length; k++) {
+      const candidate = baseName + circled[k];
+      if (!existingNames.includes(candidate)) { newName = candidate; break; }
     }
     // 各種目に linkId を付与（元種目にも付けて双方向で共有）
     const srcCopy = [...srcExercises];
