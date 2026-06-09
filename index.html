@@ -8226,13 +8226,9 @@
       <div id="exFormImageHint" style="font-size:11px; color:var(--text-3); margin-top:6px;">※先に種目名を入力してください</div>
     </div>
 
-    <!-- 記録をリンク（他メニューの種目と前回記録・重量を共有） -->
-    <div class="ex-form-field">
-      <label class="ex-form-label">記録をリンク</label>
-      <button type="button" class="modal-btn" id="exFormLinkBtn" onclick="openExFormLinkModal()" style="width:100%;">他メニューの種目と記録を共有</button>
-      <div id="exFormLinkStatus" style="font-size:11px; color:var(--text-3); margin-top:6px;">リンクなし（このメニュー独自の記録）</div>
-      <input type="hidden" id="exFormLinkId" value="">
-    </div>
+    <!-- 記録をリンクのセクションは廃止（記録共有は複製機能で行う）。
+         linkId 保持用の hidden のみ残す（複製・保存処理が参照するため） -->
+    <input type="hidden" id="exFormLinkId" value="">
 
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeExerciseForm()">キャンセル</button>
@@ -8465,20 +8461,6 @@
 </div>
 
 <!-- 記録リンク選択モーダル：他メニューの種目を選んで記録を共有 -->
-<div class="modal-backdrop" id="exLinkModal">
-  <div class="modal">
-    <h3 class="modal-title">記録を共有する種目を選択</h3>
-    <p style="font-size: 11px; color: var(--text-3); margin: 0 0 10px; line-height: 1.4;">
-      選んだ種目と前回記録・重量を共有します。同じ種目を別メニューでも使う場合に便利です。
-    </p>
-    <div class="menu-picker-list" id="exLinkList" style="max-height: 50vh; overflow-y: auto;"></div>
-    <div class="modal-actions">
-      <button class="modal-btn" onclick="closeExFormLinkModal()">キャンセル</button>
-      <button class="modal-btn warn" onclick="clearExFormLink()">リンク解除</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-backdrop" id="positionModal">
   <div class="modal">
     <h3 class="modal-title" id="positionEditorTitle">位置を追加</h3>
@@ -10133,29 +10115,12 @@
   }
 
   // 種目フォームを開いた時にリンク状態を反映
+  // 記録リンクのUIは廃止したが、複製で付いた linkId は hidden に保持する必要がある。
+  // この関数は種目フォームを開いたときに、編集対象の linkId を hidden に反映するだけ。
   function refreshExFormLinkStatus(ex) {
     const linkInput = document.getElementById('exFormLinkId');
-    const status = document.getElementById('exFormLinkStatus');
-    if (!linkInput || !status) return;
-    if (ex && ex.linkId) {
-      linkInput.value = ex.linkId;
-      // リンク先の種目名を探す（他メニューで同じlinkIdを持つ種目）
-      let linkedName = '';
-      getAllMenuIds().forEach(mid => {
-        getMenuExercises(mid).forEach(e => {
-          if (e.linkId === ex.linkId && e.name !== (ex.name || '')) {
-            const menu = getMenu(mid);
-            linkedName = `${menu ? menu.name : ''} / ${e.name}`;
-          }
-        });
-      });
-      status.textContent = linkedName ? `「${linkedName}」と記録を共有中` : '記録リンク設定済み';
-      status.style.color = 'var(--accent)';
-    } else {
-      linkInput.value = '';
-      status.textContent = 'リンクなし（このメニュー独自の記録）';
-      status.style.color = 'var(--text-3)';
-    }
+    if (!linkInput) return;
+    linkInput.value = (ex && ex.linkId) ? ex.linkId : '';
   }
 
   // ========== API HELPER ==========
