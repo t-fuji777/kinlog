@@ -7250,7 +7250,6 @@
     font-family: inherit;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
-    margin-left: auto;
   }
   .menu-edit-icon {
     width: 28px; height: 28px;
@@ -7280,14 +7279,17 @@
     font-size: 14px;
     font-weight: 700;
     color: var(--text);
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .menu-edit-meta {
     font-size: 11px;
     color: var(--text-3);
     font-family: var(--font-mono);
     flex-shrink: 0;
-    margin-left: auto;
     width: 52px;
     text-align: right;
   }
