@@ -7910,6 +7910,23 @@
   </div>
 </div>
 
+<!-- メニュー複製の確認 -->
+<div class="modal-backdrop" id="dupConfirmModal">
+  <div class="modal">
+    <h3 class="modal-title">メニューを複製しますか？</h3>
+    <p style="font-size: 14px; color: var(--text-2); margin: 0 0 8px; line-height: 1.5">
+      <span id="dupConfirmName" style="font-weight: 700; color: var(--text)"></span> を複製します。
+    </p>
+    <p style="font-size: 11px; color: var(--text-4); margin: 0 0 0; line-height: 1.5">
+      複製したメニューの種目は、最初は全て保管に入ります。記録は元のメニューと共有されます。
+    </p>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeDupConfirm()">キャンセル</button>
+      <button class="modal-btn primary" onclick="confirmDupExecute()">複製する</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="addMenuModal">
   <div class="modal">
     <h3 class="modal-title">新しいメニューを追加</h3>
@@ -17375,6 +17392,28 @@
   // 複製でできたメニューは、中の種目を全部「保管」に入れた状態でできる（メインは空）
   // 各種目には元メニューと同じ linkId を付けて記録を共有する
   let _duplicating = false;
+  let _dupPendingId = null;
+  // 複製確認モーダルを開く
+  function openDupConfirm(menuId) {
+    _dupPendingId = menuId;
+    const menu = getMenu(menuId);
+    const nameEl = document.getElementById('dupConfirmName');
+    if (nameEl) nameEl.textContent = menu ? menu.name : '';
+    document.getElementById('dupConfirmModal').classList.add('show');
+  }
+  function closeDupConfirm() {
+    document.getElementById('dupConfirmModal').classList.remove('show');
+    _dupPendingId = null;
+  }
+  // 確認モーダルの「複製する」を押したとき
+  function confirmDupExecute() {
+    const id = _dupPendingId;
+    // 先にモーダルを閉じて pending をクリア（連打されても2回目は id が null で無効）
+    document.getElementById('dupConfirmModal').classList.remove('show');
+    _dupPendingId = null;
+    if (!id) return;
+    duplicateMenu(id);
+  }
   function duplicateMenu(srcMenuId) {
     // 二重実行ガード（ボタン連打・イベント二重発火で2つできるのを防ぐ）
     if (_duplicating) return;
@@ -17558,13 +17597,13 @@
         });
         row.appendChild(deleteBtn);
       } else if (menuDupMode) {
-        // 複製モード：タップで複製
+        // 複製モード：タップで複製確認モーダルを開く（直接複製しない＝二重実行防止）
         const dupMark = document.createElement('span');
         dupMark.className = 'menu-edit-arrow';
         dupMark.textContent = '⧉';
         dupMark.style.color = '#3B82F6';
         row.appendChild(dupMark);
-        row.onclick = () => duplicateMenu(menuId);
+        row.onclick = () => openDupConfirm(menuId);
       } else {
         const arrow = document.createElement('span');
         arrow.className = 'menu-edit-arrow';
