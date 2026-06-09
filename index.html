@@ -7577,9 +7577,9 @@
     <div class="section-head">
       <div class="section-title">メニュー編集</div>
       <div class="menu-edit-actions">
+        <button class="menu-edit-action-btn dup" id="menuEditToggleDup" onclick="toggleMenuDupMode()" title="複製モード切替">⧉</button>
         <button class="menu-edit-action-btn" id="menuEditToggleRemove" onclick="toggleMenuRemoveMode()" title="削除モード切替">−</button>
         <button class="menu-edit-action-btn add" onclick="openAddMenuModal()" title="追加">＋</button>
-        <button class="menu-edit-action-btn dup" id="menuEditToggleDup" onclick="toggleMenuDupMode()" title="複製モード切替">⧉</button>
       </div>
     </div>
     <div class="menu-edit-list" id="menuEditList"></div>
@@ -17517,7 +17517,8 @@
         row.appendChild(nameSpan);
         const metaSpan = document.createElement('span');
         metaSpan.className = 'menu-edit-meta';
-        metaSpan.textContent = `${exercises.length}種目`;
+        const mainCount = exercises.filter(e => e && !e.stored).length;
+        metaSpan.textContent = `${mainCount}種目`;
         row.appendChild(metaSpan);
         const arrow = document.createElement('span');
         arrow.className = 'menu-edit-arrow';
@@ -17590,7 +17591,9 @@
 
       const metaSpan = document.createElement('span');
       metaSpan.className = 'menu-edit-meta';
-      metaSpan.textContent = `${exercises.length}種目`;
+      // 種目数は保管(stored)を除いたメイン種目数を表示
+      const mainCount = exercises.filter(e => e && !e.stored).length;
+      metaSpan.textContent = `${mainCount}種目`;
       row.appendChild(metaSpan);
 
       if (menuRemoveMode) {
