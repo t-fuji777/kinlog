@@ -18002,9 +18002,11 @@
         <button class="menu-editor-action primary" style="flex:1" onclick="openExerciseForm('${menuId}', null)">＋ 種目を追加</button>
       </div>
     `;
+    let mainSeq = 0; // メイン種目の表示番号（保管を除いて01から連番）
     exercises.forEach((ex, i) => {
       // 保管（stored=true）の種目はメイン欄に出さない（保管セクションに表示）
       if (ex.stored) return;
+      mainSeq++;
       let params;
       if (ex.hiit && ex.protocol) {
         // HIIT：ダッシュ・回復・1本秒数のみ
@@ -18068,7 +18070,7 @@
       const paramsHtml = params ? `<div class="exercise-edit-params">${params}</div>` : '';
       html += `
         <div class="exercise-edit-item draggable-item" data-ex-idx="${i}" data-drag-type="exercise">
-          <span class="exercise-edit-num">${String(i + 1).padStart(2, '0')}</span>
+          <span class="exercise-edit-num">${String(mainSeq).padStart(2, '0')}</span>
           <div class="exercise-edit-main ${params ? '' : 'no-params'}">
             <div class="exercise-edit-name">${ex.name}${urlMark}</div>
             ${paramsHtml}
