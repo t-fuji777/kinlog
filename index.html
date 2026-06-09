@@ -2927,6 +2927,16 @@
     border-color: var(--ok);
     color: #fff;
   }
+  .menu-edit-action-btn.dup {
+    background: #3B82F6;
+    border-color: #3B82F6;
+    color: #fff;
+    font-size: 14px;
+  }
+  .menu-edit-action-btn.dup.active {
+    background: #2563EB;
+    border-color: #93C5FD;
+  }
   .menu-edit-action-btn.done {
     width: auto;
     min-width: 64px;
@@ -7569,6 +7579,7 @@
       <div class="menu-edit-actions">
         <button class="menu-edit-action-btn" id="menuEditToggleRemove" onclick="toggleMenuRemoveMode()" title="削除モード切替">−</button>
         <button class="menu-edit-action-btn add" onclick="openAddMenuModal()" title="追加">＋</button>
+        <button class="menu-edit-action-btn dup" id="menuEditToggleDup" onclick="toggleMenuDupMode()" title="複製モード切替">⧉</button>
       </div>
     </div>
     <div class="menu-edit-list" id="menuEditList"></div>
@@ -7878,6 +7889,23 @@
     <div class="modal-actions">
       <button class="modal-btn" onclick="cancelSwapDelete()">キャンセル</button>
       <button class="modal-btn danger" onclick="executeSwapDelete()">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 種目の移動先選択（メイン／保管） -->
+<div class="modal-backdrop" id="exMoveModal">
+  <div class="modal">
+    <h3 class="modal-title" id="exMoveTitle">種目を移動</h3>
+    <p style="font-size: 11px; color: var(--text-3); margin: 0 0 12px; line-height: 1.4">
+      この種目をどこに置くか選んでください。
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <button class="modal-btn primary" id="exMoveMain" onclick="moveExerciseTo('main')">メインに置く</button>
+      <button class="modal-btn" id="exMoveStorage" onclick="moveExerciseTo('storage')">保管に置く</button>
+    </div>
+    <div class="modal-actions" style="margin-top: 12px;">
+      <button class="modal-btn" onclick="closeExMoveModal()">キャンセル</button>
     </div>
   </div>
 </div>
@@ -8571,13 +8599,20 @@
       // 単純なキャッシュ戦略：ネットワーク優先、失敗時はキャッシュから返す
       if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
         const swCode = `
-          const CACHE = 'kinlog-v1';
+          const CACHE = 'kinlog-v2';
           self.addEventListener('install', e => { self.skipWaiting(); });
-          self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
+          self.addEventListener('activate', e => {
+            e.waitUntil((async () => {
+              const keys = await caches.keys();
+              await Promise.all(keys.map(k => (k !== CACHE && k.indexOf('kinlog-') === 0) ? caches.delete(k) : null));
+              await self.clients.claim();
+            })());
+          });
           self.addEventListener('fetch', e => {
             if (e.request.method !== 'GET') return;
+            const isHTML = e.request.mode === 'navigate' || (e.request.headers.get('accept') || '').indexOf('text/html') !== -1;
             e.respondWith(
-              fetch(e.request).then(res => {
+              fetch(e.request, isHTML ? { cache: 'no-store' } : {}).then(res => {
                 const copy = res.clone();
                 caches.open(CACHE).then(c => c.put(e.request, copy)).catch(()=>{});
                 return res;
@@ -17285,6 +17320,8 @@
 
   function toggleMenuRemoveMode() {
     menuRemoveMode = !menuRemoveMode;
+    // 複製モードが入っていたら解除（同時にオンにしない）
+    if (menuRemoveMode && menuDupMode) { menuDupMode = false; updateDupBtnUI(); }
     const toggleBtn = document.getElementById('menuEditToggleRemove');
     if (toggleBtn) {
       toggleBtn.classList.toggle('active', menuRemoveMode);
@@ -17295,8 +17332,107 @@
     // 「＋追加」ボタンは削除モード中は非表示（混乱防止）
     const addBtn = document.querySelector('.menu-edit-action-btn.add');
     if (addBtn) addBtn.style.display = menuRemoveMode ? 'none' : '';
+    const dupBtn = document.getElementById('menuEditToggleDup');
+    if (dupBtn) dupBtn.style.display = menuRemoveMode ? 'none' : '';
     renderMenuEditList();
     if (navigator.vibrate) navigator.vibrate(5);
+  }
+
+  // ===== メニュー複製モード =====
+  let menuDupMode = false;
+  function updateDupBtnUI() {
+    const dupBtn = document.getElementById('menuEditToggleDup');
+    if (dupBtn) {
+      dupBtn.classList.toggle('active', menuDupMode);
+      dupBtn.classList.toggle('done', menuDupMode);
+      dupBtn.textContent = menuDupMode ? '完了' : '⧉';
+      dupBtn.title = menuDupMode ? '複製を終了' : '複製モード切替';
+    }
+  }
+  function toggleMenuDupMode() {
+    menuDupMode = !menuDupMode;
+    // 削除モードが入っていたら解除
+    if (menuDupMode && menuRemoveMode) {
+      menuRemoveMode = false;
+      const rmBtn = document.getElementById('menuEditToggleRemove');
+      if (rmBtn) {
+        rmBtn.classList.remove('active', 'done');
+        rmBtn.textContent = '−';
+        rmBtn.title = '削除モード切替';
+      }
+    }
+    updateDupBtnUI();
+    // 複製モード中は「−」「＋」を隠す
+    const addBtn = document.querySelector('.menu-edit-action-btn.add');
+    if (addBtn) addBtn.style.display = menuDupMode ? 'none' : '';
+    const rmBtn2 = document.getElementById('menuEditToggleRemove');
+    if (rmBtn2) rmBtn2.style.display = menuDupMode ? 'none' : '';
+    renderMenuEditList();
+    if (navigator.vibrate) navigator.vibrate(5);
+  }
+
+  // メニューを複製する
+  // 複製でできたメニューは、中の種目を全部「保管」に入れた状態でできる（メインは空）
+  // 各種目には元メニューと同じ linkId を付けて記録を共有する
+  function duplicateMenu(srcMenuId) {
+    const srcMenu = getMenu(srcMenuId);
+    if (!srcMenu) return;
+    const srcExercises = getMenuExercises(srcMenuId);
+    // 新しいメニューID
+    const newId = 'u_dup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    // 新しい名前：元の名前に ② を付ける（既に②があれば③…）
+    const baseName = srcMenu.name || 'メニュー';
+    let suffix = 2;
+    const circled = ['②','③','④','⑤','⑥','⑦','⑧','⑨'];
+    // 既存メニュー名と衝突しないように番号を上げる
+    const existingNames = getAllMenuIds().map(id => { const m = getMenu(id); return m ? m.name : ''; });
+    let newName = baseName + circled[0];
+    while (existingNames.includes(newName) && suffix < 9) {
+      newName = baseName + circled[suffix - 1];
+      suffix++;
+    }
+    // 各種目に linkId を付与（元種目にも付けて双方向で共有）
+    const srcCopy = [...srcExercises];
+    const storedExercises = srcExercises.map((ex, i) => {
+      let linkId = ex.linkId;
+      if (!linkId) {
+        linkId = 'lnk_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 6);
+        // 元メニューの種目にも linkId を付ける
+        srcCopy[i] = { ...srcCopy[i], linkId };
+      }
+      // 複製先の種目（保管に入れる）
+      return { ...ex, linkId, stored: true };
+    });
+    // 元メニューを linkId 付きで保存し直す
+    setMenuExercises(srcMenuId, srcCopy);
+    // 新メニューを登録
+    const userMenus = loadUserMenus();
+    userMenus[newId] = {
+      name: newName,
+      fullName: newName,
+      shortName: (srcMenu.shortName || '') + '2',
+      en: (srcMenu.en || '') + ' 2',
+      icon: srcMenu.icon || '',
+      dupFrom: srcMenuId  // どのメニューから複製したかを記録（保管エリア表示の判定に使う）
+    };
+    saveUserMenus(userMenus);
+    // 新メニューの種目（全部 stored=true で保管入り）を保存
+    setMenuExercises(newId, storedExercises);
+    // customPriority の末尾に追加
+    const profile = getProfile() || {};
+    if (Array.isArray(profile.customPriority)) {
+      profile.customPriority.push(newId);
+      saveProfile(profile);
+    }
+    // 複製モードを抜けて再描画
+    menuDupMode = false;
+    updateDupBtnUI();
+    const addBtn = document.querySelector('.menu-edit-action-btn.add');
+    if (addBtn) addBtn.style.display = '';
+    const rmBtn = document.getElementById('menuEditToggleRemove');
+    if (rmBtn) rmBtn.style.display = '';
+    renderMenuEditList();
+    toast('✓ 「' + newName + '」を複製しました');
   }
 
   function renderMenuEditList() {
@@ -17413,6 +17549,14 @@
           confirmDeleteMenu(menuId, isUserMenu ? 'user' : 'default');
         });
         row.appendChild(deleteBtn);
+      } else if (menuDupMode) {
+        // 複製モード：タップで複製
+        const dupMark = document.createElement('span');
+        dupMark.className = 'menu-edit-arrow';
+        dupMark.textContent = '⧉';
+        dupMark.style.color = '#3B82F6';
+        row.appendChild(dupMark);
+        row.onclick = () => duplicateMenu(menuId);
       } else {
         const arrow = document.createElement('span');
         arrow.className = 'menu-edit-arrow';
@@ -17423,8 +17567,8 @@
       list.appendChild(row);
     });
 
-    // 長押し→ドラッグで並び替え可能に（削除モード中は無効）
-    if (!menuRemoveMode) {
+    // 長押し→ドラッグで並び替え可能に（削除・複製モード中は無効）
+    if (!menuRemoveMode && !menuDupMode) {
       enableMenuDragSort();
     }
   }
@@ -17832,6 +17976,8 @@
       </div>
     `;
     exercises.forEach((ex, i) => {
+      // 保管（stored=true）の種目はメイン欄に出さない（保管セクションに表示）
+      if (ex.stored) return;
       let params;
       if (ex.hiit && ex.protocol) {
         // HIIT：ダッシュ・回復・1本秒数のみ
@@ -17900,14 +18046,18 @@
             <div class="exercise-edit-name">${ex.name}${urlMark}</div>
             ${paramsHtml}
           </div>
+          <button class="exercise-edit-btn" data-action="move" title="移動">⇅</button>
           <button class="exercise-edit-btn" data-action="edit" title="編集">✎</button>
           <button class="exercise-edit-btn delete" data-action="delete" title="削除">×</button>
         </div>
       `;
     });
 
-    // 代替種目一覧セクション（このメニューの代替のみ）
+    // 代替種目セクション（このメニューの代替のみ）
     html += renderMenuEditorSwapSection(menuId);
+
+    // 保管種目セクション（複製で関わったメニューのみ表示）
+    html += renderMenuEditorStorageSection(menuId);
 
     body.innerHTML = html;
 
@@ -17923,6 +18073,25 @@
             deleteExerciseFromMenu(menuId, exIdx);
           } else if (action === 'edit') {
             openExerciseForm(menuId, exIdx);
+          } else if (action === 'move') {
+            openExMoveModal(menuId, exIdx);
+          }
+        });
+      });
+    });
+
+    // 保管種目の移動・削除ボタン
+    body.querySelectorAll('[data-stored-idx]').forEach(item => {
+      item.querySelectorAll('[data-stored-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const storedI = parseInt(btn.dataset.storedI);
+          const action = btn.dataset.storedAction;
+          if (action === 'move') {
+            openExMoveModal(menuId, storedI);
+          } else if (action === 'delete') {
+            deleteExerciseFromMenu(menuId, storedI);
           }
         });
       });
@@ -18260,6 +18429,122 @@
     if (navigator.vibrate) navigator.vibrate(10);
   }
 
+  // このメニューが複製に関わっているか（保管エリアを出すか）の判定
+  // 1) このメニュー自体が複製で作られた（dupFrom がある）
+  // 2) このメニューを元に複製されたメニューが存在する
+  // 3) このメニューに保管種目（stored）が既にある
+  function menuHasStorageArea(menuId) {
+    const userMenus = loadUserMenus();
+    const self = userMenus[menuId];
+    if (self && self.dupFrom) return true;
+    // 自分を元に複製されたメニューがあるか
+    const someoneDupedFromMe = Object.keys(userMenus).some(id => userMenus[id] && userMenus[id].dupFrom === menuId);
+    if (someoneDupedFromMe) return true;
+    // 既に保管種目を持っているか
+    const exs = getMenuExercises(menuId);
+    if (exs.some(e => e && e.stored)) return true;
+    return false;
+  }
+
+  // メニュー編集画面の保管種目セクションHTML生成
+  function renderMenuEditorStorageSection(menuId) {
+    if (!menuHasStorageArea(menuId)) return '';
+    const exercises = getMenuExercises(menuId);
+    // stored=true の種目を、元配列インデックス付きで抽出
+    const stored = [];
+    exercises.forEach((ex, i) => { if (ex && ex.stored) stored.push({ ex, i }); });
+
+    let listHtml;
+    if (stored.length === 0) {
+      listHtml = '<div class="menu-editor-swap-empty">保管中の種目はありません</div>';
+    } else {
+      listHtml = stored.map(({ ex, i }) => {
+        // パラメータ表記（筋トレ前提、簡易）
+        let params = '';
+        if (!ex.cardio && !ex.hiit && !ex.core && !ex.other) {
+          const w = (ex.targetWeight !== undefined) ? ex.targetWeight : ex.weight;
+          const r = (ex.targetReps !== undefined) ? ex.targetReps : ex.reps;
+          const s = (ex.targetSets !== undefined) ? ex.targetSets : ex.sets;
+          const wStr = (w == null || isNaN(w)) ? '0.0' : Number(w).toFixed(1);
+          params = `${wStr}kg × ${r}回 × ${s}セット`;
+        }
+        const paramsHtml = params ? `<div class="exercise-edit-params">${params}</div>` : '';
+        return `
+        <div class="exercise-edit-item" data-stored-idx="${i}">
+          <span class="exercise-edit-num">▫</span>
+          <div class="exercise-edit-main ${params ? '' : 'no-params'}">
+            <div class="exercise-edit-name">${ex.name}</div>
+            ${paramsHtml}
+          </div>
+          <button class="exercise-edit-btn" data-stored-action="move" data-stored-i="${i}" title="移動">⇅</button>
+          <button class="exercise-edit-btn delete" data-stored-action="delete" data-stored-i="${i}" title="削除">×</button>
+        </div>
+      `;
+      }).join('');
+    }
+
+    return `
+      <div class="menu-editor-swap-section">
+        <div class="menu-editor-swap-header">
+          <h4 class="menu-editor-swap-title">保管種目</h4>
+        </div>
+        ${listHtml}
+      </div>
+    `;
+  }
+
+  // 種目の移動先を選ぶモーダルを開く（メイン／代替／保管）
+  let exMoveContext = null;
+  function openExMoveModal(menuId, exIdx) {
+    const exercises = getMenuExercises(menuId);
+    const ex = exercises[exIdx];
+    if (!ex) return;
+    exMoveContext = { menuId, exIdx };
+    // 現在の状態を判定
+    let current = 'main';
+    if (ex.stored) current = 'storage';
+    else if (ex.swappedFrom) current = 'swap';
+    const title = document.getElementById('exMoveTitle');
+    if (title) title.textContent = `「${ex.name}」を移動`;
+    // ボタンの有効/無効（現在地は選べないように薄く）
+    const setBtn = (id, state) => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      if (state === current) {
+        b.style.opacity = '0.4';
+        b.style.pointerEvents = 'none';
+      } else {
+        b.style.opacity = '';
+        b.style.pointerEvents = '';
+      }
+    };
+    setBtn('exMoveMain', 'main');
+    setBtn('exMoveStorage', 'storage');
+    document.getElementById('exMoveModal').classList.add('show');
+  }
+  function closeExMoveModal() {
+    document.getElementById('exMoveModal').classList.remove('show');
+    exMoveContext = null;
+  }
+  // 移動実行：dest は 'main' or 'storage'
+  function moveExerciseTo(dest) {
+    if (!exMoveContext) return;
+    const { menuId, exIdx } = exMoveContext;
+    pushUndoSnapshot();
+    const exercises = [...getMenuExercises(menuId)];
+    const ex = { ...exercises[exIdx] };
+    if (dest === 'main') {
+      delete ex.stored;
+    } else if (dest === 'storage') {
+      ex.stored = true;
+    }
+    exercises[exIdx] = ex;
+    setMenuExercises(menuId, exercises);
+    closeExMoveModal();
+    renderMenuEditor();
+    toast(dest === 'storage' ? '✓ 保管に移しました' : '✓ メインに戻しました');
+  }
+
   // メニュー編集画面の代替種目セクションHTML生成（指定メニューの代替のみ表示、元種目と同じカード形式）
   function renderMenuEditorSwapSection(menuId) {
     const candidates = getSwapCandidatesByMenu(menuId);
@@ -18287,7 +18572,7 @@
     return `
       <div class="menu-editor-swap-section">
         <div class="menu-editor-swap-header">
-          <h4 class="menu-editor-swap-title">代替種目一覧</h4>
+          <h4 class="menu-editor-swap-title">代替種目</h4>
           <button class="menu-editor-swap-add-btn" onclick="openMenuSwapAddForm()">＋ 追加</button>
         </div>
         ${listHtml}
@@ -19236,16 +19521,44 @@
       const { menuId, exIdx } = exerciseFormContext;
       pushUndoSnapshot();
       const exercises = [...getMenuExercises(menuId)];
-      if (exIdx !== null && exIdx !== undefined) {
+      const isNewAdd = (exIdx === null || exIdx === undefined);
+      if (!isNewAdd) {
         // 編集時：既存種目の種別を上書き（種別変更も反映）
         exercises[exIdx] = { ...exercises[exIdx], ...exerciseData };
       } else {
         exercises.push(exerciseData);
       }
       setMenuExercises(menuId, exercises);
+
+      // 複製メニュー（dupFrom あり）で新規に種目を作った場合、
+      // 元メニューの保管にも同じ種目（同じ linkId・stored）を追加して記録共有する
+      if (isNewAdd && !exerciseData.cardio && !exerciseData.hiit) {
+        const userMenus = loadUserMenus();
+        const selfMenu = userMenus[menuId];
+        if (selfMenu && selfMenu.dupFrom) {
+          const srcId = selfMenu.dupFrom;
+          // 新規種目に linkId が無ければ付与（元と共有するため）
+          let linkId = exerciseData.linkId;
+          if (!linkId) {
+            linkId = 'lnk_' + Date.now() + '_n_' + Math.random().toString(36).slice(2, 6);
+            // 複製メニュー側の今追加した種目にも linkId を付け直す
+            const exs2 = [...getMenuExercises(menuId)];
+            const lastIdx = exs2.length - 1;
+            if (lastIdx >= 0) { exs2[lastIdx] = { ...exs2[lastIdx], linkId }; setMenuExercises(menuId, exs2); }
+          }
+          // 元メニューに同名種目が無ければ、保管として追加
+          const srcExs = [...getMenuExercises(srcId)];
+          const exists = srcExs.some(e => e && e.name === exerciseData.name);
+          if (!exists) {
+            srcExs.push({ ...exerciseData, linkId, stored: true });
+            setMenuExercises(srcId, srcExs);
+          }
+        }
+      }
+
       closeExerciseForm();
       renderMenuEditor();
-      toast(exIdx !== null && exIdx !== undefined ? '種目を更新' : '種目を追加');
+      toast(!isNewAdd ? '種目を更新' : '種目を追加');
     } else if (exerciseFormContext.mode === 'session-add') {
       addExerciseToSession(exerciseData);
       closeExerciseForm();
