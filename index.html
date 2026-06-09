@@ -9895,6 +9895,8 @@
       });
       Object.keys(userMenus).forEach(id => orderedIds.push(id));
     }
+    // 重複ID除去（同じメニューが複数回出るのを防ぐ）
+    orderedIds = orderedIds.filter((id, i) => orderedIds.indexOf(id) === i);
     return orderedIds;
   }
 
@@ -17465,11 +17467,13 @@
     saveUserMenus(userMenus);
     // 新メニューの種目（全部 stored=true で保管入り）を保存
     setMenuExercises(newId, storedExercises);
-    // customPriority の末尾に追加
+    // customPriority の末尾に追加（既に無ければ）
     const profile = getProfile() || {};
     if (Array.isArray(profile.customPriority)) {
-      profile.customPriority.push(newId);
-      saveProfile(profile);
+      if (!profile.customPriority.includes(newId)) {
+        profile.customPriority.push(newId);
+        saveProfile(profile);
+      }
     }
     // 複製モードを抜けて再描画
     menuDupMode = false;
@@ -17556,6 +17560,10 @@
       });
       Object.keys(userMenus).forEach(id => orderedIds.push(id));
     }
+
+    // 【重要】重複ID除去：同じメニューが2回表示されるのを防ぐ
+    // （複製時に customPriority と末尾追加の両方に入る等の経路で重複しても、ここで必ず1つにする）
+    orderedIds = orderedIds.filter((id, i) => orderedIds.indexOf(id) === i);
 
     // 統一順で描画
     if (orderedIds.length === 0) {
