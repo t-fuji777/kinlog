@@ -18398,38 +18398,46 @@
   }
 
   // 種目を名前で特定して移動（インデックスが信用できない場合のため）
+  // ※ toIdx は「メイン種目（保管を除く）だけで数えた位置」なので、
+  //   メイン種目だけを並び替え、保管種目はそのまま末尾に温存して結合する。
   function reorderExercisesInMenuByName(menuId, name, hintIdx, toIdx) {
     const original = getMenuExercises(menuId);
     if (!Array.isArray(original) || original.length === 0) return;
-    const exercises = original.map(e => e);
 
-    let fromIdx = -1;
-    if (hintIdx >= 0 && hintIdx < exercises.length && exercises[hintIdx] && exercises[hintIdx].name === name) {
-      fromIdx = hintIdx;
-    } else {
-      fromIdx = exercises.findIndex(e => e && e.name === name);
-    }
+    // メインと保管に分離（順序は保持）
+    const mainItems = [];
+    const storedItems = [];
+    original.forEach(e => {
+      if (e && e.stored) storedItems.push(e);
+      else mainItems.push(e);
+    });
+
+    // 移動対象（メイン種目の中から名前で特定）
+    let fromIdx = mainItems.findIndex(e => e && e.name === name && !e.stored);
     if (fromIdx < 0) return;
-    const afterRemoveLength = exercises.length - 1;
+
+    const afterRemoveLength = mainItems.length - 1;
     let target = toIdx;
     if (target < 0) target = 0;
     if (target > afterRemoveLength) target = afterRemoveLength;
     if (target === fromIdx) return;
 
     pushUndoSnapshot();
-    const moved = exercises.splice(fromIdx, 1)[0];
+    const moved = mainItems.splice(fromIdx, 1)[0];
     if (!moved || moved.name !== name) {
       undoMenuEditorChange();
       return;
     }
-    exercises.splice(target, 0, moved);
+    mainItems.splice(target, 0, moved);
 
-    if (exercises.length !== original.length) {
+    // メイン（新順）＋保管（元のまま）で結合して保存
+    const result = mainItems.concat(storedItems);
+    if (result.length !== original.length) {
       undoMenuEditorChange();
       return;
     }
 
-    setMenuExercises(menuId, exercises);
+    setMenuExercises(menuId, result);
     renderMenuEditor();
     if (navigator.vibrate) navigator.vibrate(10);
   }
