@@ -10808,13 +10808,16 @@
       const cm = chipDate.getMonth();
       const cd = chipDate.getDate();
       // 今日のチップは getTodayRecommendation() の結果を信頼（メインカードの「実施済」と一致させる）
-      // それ以外の日は履歴とスケジュールの完全一致で判定
+      // それ以外の日は「その日付にトレーニング履歴があるか」で判定する。
+      // ※スケジュール割り当て(menuKey)に依存すると、週ごとに割り当てが変わったり
+      //   過去週のメニューが今と違う場合に、実際にやった記録があっても緑が消えてしまう。
+      //   そのため、過去日は menuKey に関係なく「その日に履歴があれば実施済(緑)」とする。
       let isDone;
       if (isToday && todayRec) {
         isDone = (todayRec.type === 'completed');
       } else {
-        isDone = !!menuKey && history.some(s => {
-          if (!s.date || s.menuId !== menuKey) return false;
+        isDone = history.some(s => {
+          if (!s.date) return false;
           const d = new Date(s.date);
           return d.getFullYear() === cy && d.getMonth() === cm && d.getDate() === cd;
         });
@@ -10935,7 +10938,7 @@
       btn.innerHTML = `
         <div class="menu-name">${menu.name}</div>
         <div class="menu-info">
-          <span class="menu-desc">${menu.exercises.length} 種目</span>
+          <span class="menu-desc">${(menu.exercises || []).filter(e => e && !e.stored).length} 種目</span>
           <span class="menu-info-sep">·</span>
           <span class="menu-since${recentClass}">前回：${lastStr}</span>
         </div>
@@ -12715,7 +12718,7 @@
     currentWorkout = getMenu(menuId);
     workoutSession = {
       menuId, date: new Date().toISOString(),
-      exercises: currentWorkout.exercises.map(e => ({
+      exercises: currentWorkout.exercises.filter(e => !e || !e.stored).map(e => ({
         name: e.name,
         originalName: e.name, // 代替元の追跡用
         originalIndex: null,  // 代替された場合に、元の種目のインデックス（使わないが将来用）
@@ -21031,7 +21034,7 @@
       if (!menu) return;
       const btn = document.createElement('button');
       btn.className = 'past-entry-menu-item';
-      btn.textContent = menu.name + ` (${menu.exercises.length} 種目)`;
+      btn.textContent = menu.name + ` (${(menu.exercises || []).filter(e => e && !e.stored).length} 種目)`;
       btn.onclick = () => {
         closePastEntryMenuModal();
         openPastEntryFormModal(menuId, year, month, day);
@@ -21072,7 +21075,8 @@
       return;
     }
     // exercises は menu のものを deep copy して、代替や maxTraining 設定変更を扱えるようにする
-    const exercises = menu.exercises.map(e => {
+    // 保管(stored)種目は除外する
+    const exercises = menu.exercises.filter(e => !e || !e.stored).map(e => {
       // メニュー定義の targetSets は bilateral種目だと「左右ペア合計」で保存されているため、
       // 過去日フォーム内では「実質セット数」（左右ペア=1セット換算）に変換する。
       // 例：bilateral種目で 8 → 4 セット
