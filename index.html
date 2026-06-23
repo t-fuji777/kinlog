@@ -16997,6 +16997,8 @@
         const arr = pool[menuId];
         const existingIdx = arr.findIndex(c => c.name === ex.name);
         if (existingIdx >= 0) {
+          // 手動編集された代替種目（manualEdit）は履歴で上書きしない
+          if (arr[existingIdx] && arr[existingIdx].manualEdit) return;
           arr[existingIdx] = updated;
         } else {
           arr.push(updated);
@@ -17019,12 +17021,22 @@
     if (!menuId) return;
     const pool = loadSwapPool();
     if (!pool[menuId]) pool[menuId] = [];
-    const arr = pool[menuId];
-    const existingIdx = arr.findIndex(c => c.name === candidate.name);
+    // 同名の既存候補を削除してから新しいオブジェクトを追加する。
+    // 参照の使い回しで古い値が残るのを防ぐため、必ず新規オブジェクトとして入れ直す。
+    // manualEdit フラグを立てて、ユーザーが手動編集したものは
+    // syncSwapPoolFromHistory による履歴上書きから保護する。
+    const existingIdx = pool[menuId].findIndex(c => c.name === candidate.name);
+    const newEntry = {
+      name: candidate.name,
+      weight: candidate.weight,
+      reps: candidate.reps,
+      sets: candidate.sets,
+      manualEdit: true
+    };
     if (existingIdx >= 0) {
-      arr[existingIdx] = candidate;
+      pool[menuId].splice(existingIdx, 1, newEntry);
     } else {
-      arr.push(candidate);
+      pool[menuId].push(newEntry);
     }
     saveSwapPool(pool);
   }
@@ -18141,6 +18153,8 @@
             deleteSwapFromMenu(menuId, swapIdx);
           } else if (action === 'edit') {
             openSwapEditForm(menuId, swapIdx);
+          } else if (action === 'tomain') {
+            moveSwapToMain(menuId, swapIdx);
           }
         });
       });
@@ -18602,6 +18616,7 @@
             <div class="exercise-edit-name">${escapeAttr(c.name)}</div>
             <div class="exercise-edit-params">${wStr}kg × ${c.reps}回 × ${c.sets}セット</div>
           </div>
+          <button class="exercise-edit-btn" data-swap-action="tomain" title="メインに移動">⇅</button>
           <button class="exercise-edit-btn" data-swap-action="edit" title="編集">✎</button>
           <button class="exercise-edit-btn delete" data-swap-action="delete" title="削除">×</button>
         </div>
@@ -18641,6 +18656,33 @@
     formModal.classList.add('show');
     const inner = formModal.querySelector('.modal');
     if (inner) inner.scrollTop = 0;
+  }
+
+  // 代替種目をメインに移動する
+  // swapPool から取り出して、メニュー本体にメイン種目（stored無し）として追加する
+  function moveSwapToMain(menuId, swapIdx) {
+    if (!menuId) return;
+    const list = getSwapCandidatesByMenu(menuId);
+    const target = list[swapIdx];
+    if (!target) return;
+    pushUndoSnapshot();
+    // メイン種目として追加（保管フラグなし）
+    const exercises = [...getMenuExercises(menuId)];
+    // 同名のメイン種目が既にあれば追加しない（重複防止）
+    if (!exercises.some(e => e && e.name === target.name && !e.stored)) {
+      exercises.push({
+        name: target.name,
+        weight: target.weight,
+        reps: target.reps,
+        sets: target.sets
+      });
+      setMenuExercises(menuId, exercises);
+    }
+    // 代替種目プールからは削除
+    removeSwapCandidate(menuId, target.name);
+    renderMenuEditor();
+    toast('✓ メインに移しました');
+    if (navigator.vibrate) navigator.vibrate(10);
   }
 
   // 代替種目の編集フォームを開く
