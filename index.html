@@ -7897,7 +7897,7 @@
   </div>
 </div>
 
-<!-- 種目の移動先選択（メイン／保管） -->
+<!-- 種目の移動先選択（メイン／代替／保管） -->
 <div class="modal-backdrop" id="exMoveModal">
   <div class="modal">
     <h3 class="modal-title" id="exMoveTitle">種目を移動</h3>
@@ -7906,9 +7906,8 @@
     </p>
     <div style="display: flex; flex-direction: column; gap: 8px;">
       <button class="modal-btn primary" id="exMoveMain" onclick="moveExerciseTo('main')">メインに置く</button>
+      <button class="modal-btn" id="exMoveSwap" onclick="moveExerciseTo('swap')">代替に置く</button>
       <button class="modal-btn" id="exMoveStorage" onclick="moveExerciseTo('storage')">保管に置く</button>
-    </div>
-    <div class="modal-actions" style="margin-top: 12px;">
       <button class="modal-btn" onclick="closeExMoveModal()">キャンセル</button>
     </div>
   </div>
@@ -18154,7 +18153,8 @@
           } else if (action === 'edit') {
             openSwapEditForm(menuId, swapIdx);
           } else if (action === 'tomain') {
-            moveSwapToMain(menuId, swapIdx);
+            // 代替種目の移動：メイン／代替／保管の選択モーダルを開く
+            openExMoveModal(menuId, swapIdx, 'swap');
           }
         });
       });
@@ -18548,16 +18548,26 @@
   }
 
   // 種目の移動先を選ぶモーダルを開く（メイン／代替／保管）
+  // from: 'main'（メニュー本体配列の種目）または 'swap'（swapPoolの代替種目）
   let exMoveContext = null;
-  function openExMoveModal(menuId, exIdx) {
-    const exercises = getMenuExercises(menuId);
-    const ex = exercises[exIdx];
-    if (!ex) return;
-    exMoveContext = { menuId, exIdx };
-    // 現在の状態を判定
+  function openExMoveModal(menuId, exIdx, from) {
+    from = from || 'main';
+    let ex = null;
     let current = 'main';
-    if (ex.stored) current = 'storage';
-    else if (ex.swappedFrom) current = 'swap';
+    if (from === 'swap') {
+      const list = getSwapCandidatesByMenu(menuId);
+      ex = list[exIdx];
+      if (!ex) return;
+      current = 'swap';
+    } else {
+      const exercises = getMenuExercises(menuId);
+      ex = exercises[exIdx];
+      if (!ex) return;
+      if (ex.stored) current = 'storage';
+      else if (ex.swappedFrom) current = 'swap';
+      else current = 'main';
+    }
+    exMoveContext = { menuId, exIdx, from, originalName: ex.name };
     const title = document.getElementById('exMoveTitle');
     if (title) title.textContent = `「${ex.name}」を移動`;
     // ボタンの有効/無効（現在地は選べないように薄く）
@@ -18573,6 +18583,7 @@
       }
     };
     setBtn('exMoveMain', 'main');
+    setBtn('exMoveSwap', 'swap');
     setBtn('exMoveStorage', 'storage');
     document.getElementById('exMoveModal').classList.add('show');
   }
@@ -18580,23 +18591,65 @@
     document.getElementById('exMoveModal').classList.remove('show');
     exMoveContext = null;
   }
-  // 移動実行：dest は 'main' or 'storage'
+  // 移動実行：dest は 'main' | 'swap' | 'storage'
   function moveExerciseTo(dest) {
     if (!exMoveContext) return;
-    const { menuId, exIdx } = exMoveContext;
+    const { menuId, exIdx, from, originalName } = exMoveContext;
     pushUndoSnapshot();
-    const exercises = [...getMenuExercises(menuId)];
-    const ex = { ...exercises[exIdx] };
-    if (dest === 'main') {
-      delete ex.stored;
-    } else if (dest === 'storage') {
-      ex.stored = true;
+
+    if (from === 'swap') {
+      // 代替種目からの移動
+      const swapList = getSwapCandidatesByMenu(menuId);
+      const target = swapList[exIdx];
+      if (!target) { closeExMoveModal(); return; }
+      if (dest === 'swap') { closeExMoveModal(); return; } // 同じ場所
+      // メインまたは保管に追加
+      const exercises = [...getMenuExercises(menuId)];
+      const newEx = {
+        name: target.name,
+        weight: target.weight,
+        reps: target.reps,
+        sets: target.sets
+      };
+      if (dest === 'storage') newEx.stored = true;
+      // 同名のメイン/保管種目が既にあれば追加しない（重複防止）
+      if (!exercises.some(e => e && e.name === target.name)) {
+        exercises.push(newEx);
+        setMenuExercises(menuId, exercises);
+      }
+      // 代替プールから削除
+      removeSwapCandidate(menuId, target.name);
+    } else {
+      // メイン本体（main/stored/swappedFrom）からの移動
+      const exercises = [...getMenuExercises(menuId)];
+      const ex = { ...exercises[exIdx] };
+      if (dest === 'main') {
+        delete ex.stored;
+        exercises[exIdx] = ex;
+        setMenuExercises(menuId, exercises);
+      } else if (dest === 'storage') {
+        ex.stored = true;
+        exercises[exIdx] = ex;
+        setMenuExercises(menuId, exercises);
+      } else if (dest === 'swap') {
+        // メイン本体から代替プールに移動：本体から削除し、swapPoolに追加
+        exercises.splice(exIdx, 1);
+        setMenuExercises(menuId, exercises);
+        addSwapCandidate(menuId, {
+          name: ex.name,
+          weight: ex.weight,
+          reps: ex.reps,
+          sets: ex.sets
+        });
+      }
     }
-    exercises[exIdx] = ex;
-    setMenuExercises(menuId, exercises);
+
     closeExMoveModal();
     renderMenuEditor();
-    toast(dest === 'storage' ? '✓ 保管に移しました' : '✓ メインに戻しました');
+    const msg = (dest === 'storage') ? '✓ 保管に移しました'
+              : (dest === 'swap') ? '✓ 代替に移しました'
+              : '✓ メインに戻しました';
+    toast(msg);
   }
 
   // メニュー編集画面の代替種目セクションHTML生成（指定メニューの代替のみ表示、元種目と同じカード形式）
@@ -18616,7 +18669,7 @@
             <div class="exercise-edit-name">${escapeAttr(c.name)}</div>
             <div class="exercise-edit-params">${wStr}kg × ${c.reps}回 × ${c.sets}セット</div>
           </div>
-          <button class="exercise-edit-btn" data-swap-action="tomain" title="メインに移動">⇅</button>
+          <button class="exercise-edit-btn" data-swap-action="tomain" title="移動">⇅</button>
           <button class="exercise-edit-btn" data-swap-action="edit" title="編集">✎</button>
           <button class="exercise-edit-btn delete" data-swap-action="delete" title="削除">×</button>
         </div>
@@ -22192,18 +22245,23 @@
       const normalSets = ex.setRecords.filter(r => !r.isMax);
       const lastNormal = normalSets.length > 0 ? normalSets[normalSets.length - 1] : ex.setRecords[ex.setRecords.length - 1];
       // 代替プール更新（代替を使った場合のみ）
+      // 手動編集された(manualEdit)代替種目は登録時の値を尊重し、上書きしない
       if (ex.swappedFrom) {
         if (!swapPool[ex.swappedFrom]) swapPool[ex.swappedFrom] = [];
         const cands = swapPool[ex.swappedFrom];
         const existIdx = cands.findIndex(c => c.name === ex.name);
-        const updated = {
-          name: ex.name,
-          weight: lastNormal.weight,
-          reps: lastNormal.reps,
-          sets: ex.currentSets
-        };
-        if (existIdx >= 0) cands[existIdx] = updated;
-        else cands.push(updated);
+        if (existIdx >= 0 && cands[existIdx] && cands[existIdx].manualEdit) {
+          // 手動編集済みは上書きしない
+        } else {
+          const updated = {
+            name: ex.name,
+            weight: lastNormal.weight,
+            reps: lastNormal.reps,
+            sets: ex.currentSets
+          };
+          if (existIdx >= 0) cands[existIdx] = updated;
+          else cands.push(updated);
+        }
       }
     });
     saveSwapPool(swapPool);
@@ -22371,20 +22429,25 @@
       };
 
       // 代替種目だった場合は候補プールに追加/更新
+      // ただし、手動編集された(manualEdit)代替種目は登録時の値を尊重し、ワークアウト結果で上書きしない
       if (ex.swappedFrom) {
         if (!swapPool[ex.swappedFrom]) swapPool[ex.swappedFrom] = [];
         const candidates = swapPool[ex.swappedFrom];
         const existingIdx = candidates.findIndex(c => c.name === ex.name);
-        const updated = {
-          name: ex.name,
-          weight: lastSet.weight,
-          reps: finalReps,
-          sets: finalSets
-        };
-        if (existingIdx >= 0) {
-          candidates[existingIdx] = updated;
+        if (existingIdx >= 0 && candidates[existingIdx] && candidates[existingIdx].manualEdit) {
+          // 手動編集済みは上書きしない（登録した値を保持）
         } else {
-          candidates.push(updated);
+          const updated = {
+            name: ex.name,
+            weight: lastSet.weight,
+            reps: finalReps,
+            sets: finalSets
+          };
+          if (existingIdx >= 0) {
+            candidates[existingIdx] = updated;
+          } else {
+            candidates.push(updated);
+          }
         }
       }
     });
