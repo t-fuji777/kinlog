@@ -16964,6 +16964,42 @@
     localStorage.setItem('wo_swap_pool_ver', SWAP_POOL_SCHEMA_VERSION);
   }
 
+  // 代替種目を「明示的に外した」記録（tombstone）。メニューID別に外した種目名を保持する。
+  // 履歴に swappedFrom 付きで残っている種目を syncSwapPoolFromHistory が
+  // 勝手に復活させて二重化するのを防ぐ。再度追加されたら記録から消す。
+  function loadSwapRemoved() {
+    if (isAdminMode) return {};
+    try {
+      const raw = JSON.parse(localStorage.getItem('wo_swap_removed') || '{}');
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+      return {};
+    } catch { return {}; }
+  }
+  function saveSwapRemoved(map) {
+    if (isAdminMode) return;
+    localStorage.setItem('wo_swap_removed', JSON.stringify(map));
+  }
+  function markSwapRemoved(menuId, name) {
+    if (!menuId || !name || isAdminMode) return;
+    const map = loadSwapRemoved();
+    if (!map[menuId]) map[menuId] = [];
+    if (!map[menuId].includes(name)) map[menuId].push(name);
+    saveSwapRemoved(map);
+  }
+  function unmarkSwapRemoved(menuId, name) {
+    if (!menuId || !name || isAdminMode) return;
+    const map = loadSwapRemoved();
+    if (!map[menuId]) return;
+    map[menuId] = map[menuId].filter(n => n !== name);
+    if (map[menuId].length === 0) delete map[menuId];
+    saveSwapRemoved(map);
+  }
+  function isSwapRemoved(menuId, name) {
+    if (!menuId || !name) return false;
+    const map = loadSwapRemoved();
+    return !!(map[menuId] && map[menuId].includes(name));
+  }
+
   // 過去のワークアウト履歴から代替種目を抽出してメニュー別プールに反映
   function syncSwapPoolFromHistory() {
     const hist = loadHistory();
@@ -16979,6 +17015,8 @@
       session.exercises.forEach(ex => {
         if (ex.cardio) return;
         if (!ex.swappedFrom) return;
+        // ユーザーが代替から外した（移動・削除した）種目は履歴から復活させない
+        if (isSwapRemoved(menuId, ex.name)) return;
         // 記録が何もないものは除外
         if (!ex.judge && (!ex.setRecords || ex.setRecords.length === 0)) return;
         const lastSet = (ex.setRecords && ex.setRecords.length > 0)
@@ -17004,6 +17042,14 @@
           addedCount++;
         }
       });
+    });
+    // 整合性：メイン／保管に同名の種目がある代替候補は二重なので除外する。
+    // （代替→メイン/保管へ移動した種目が履歴経由で代替に復活して二重化するのを解消。
+    //   既に二重化している既存データもここで掃除される）
+    Object.keys(pool).forEach(mId => {
+      const exNames = new Set(getMenuExercises(mId).map(e => e && e.name).filter(Boolean));
+      pool[mId] = pool[mId].filter(c => c && !exNames.has(c.name));
+      if (pool[mId].length === 0) delete pool[mId];
     });
     saveSwapPool(pool);
     return addedCount;
@@ -17038,16 +17084,21 @@
       pool[menuId].push(newEntry);
     }
     saveSwapPool(pool);
+    // 再度追加されたので「外した」記録から消す（履歴同期で扱えるように戻す）
+    unmarkSwapRemoved(menuId, candidate.name);
   }
 
   // 指定メニューから代替種目を削除
   function removeSwapCandidate(menuId, candidateName) {
     if (!menuId) return;
     const pool = loadSwapPool();
-    if (!pool[menuId]) return;
-    pool[menuId] = pool[menuId].filter(c => c.name !== candidateName);
-    if (pool[menuId].length === 0) delete pool[menuId];
-    saveSwapPool(pool);
+    if (pool[menuId]) {
+      pool[menuId] = pool[menuId].filter(c => c.name !== candidateName);
+      if (pool[menuId].length === 0) delete pool[menuId];
+      saveSwapPool(pool);
+    }
+    // 履歴からの復活を防ぐため、外した名前を記録する
+    markSwapRemoved(menuId, candidateName);
   }
 
   function openSwapModal(exIdx) {
