@@ -20274,6 +20274,9 @@
   let declinedDefaultWeights = {};
 
   function openDefaultUpdateConfirm(exIdx, info) {
+    // 代替種目（swappedFrom）はメニュー本体に反映しない。確認ダイアログ自体を出さない。
+    const _ex = (workoutSession && Array.isArray(workoutSession.exercises)) ? workoutSession.exercises[exIdx] : null;
+    if (_ex && _ex.swappedFrom) return;
     // 既にモーダルが開いている場合はキューに積んでおく
     if (pendingDefaultUpdate) {
       defaultUpdateQueue.push({ exIdx, info });
@@ -20335,6 +20338,16 @@
     // 優先順位: wo_custom_menus > wo_user_menus > DEFAULT_MENUS
     // wo_custom_menus に既存データがあればそれを更新、なければ user_menus または DEFAULT_MENUS から作成。
     const updateMenuExercise = (mutator) => {
+      // 代替種目（swappedFrom）はメニュー本体に書き込まない。
+      // 代替の値は代替プールで別管理しているため、ここでメイン側に新規エントリを作ると
+      // 「undefined回 × undefinedセット」の幽霊種目がメニュー編集に残ってしまう。
+      // セッション中の判定整合のため currentWorkout 側だけ更新して終わる。
+      if (ex && ex.swappedFrom) {
+        if (currentWorkout && Array.isArray(currentWorkout.exercises) && currentWorkout.exercises[exIdx]) {
+          mutator(currentWorkout.exercises[exIdx]);
+        }
+        return;
+      }
       const custom = loadCustomMenus();
       const userMenus = loadUserMenus();
 
@@ -22685,6 +22698,11 @@
         if (!ex || !ex.name) return;
         // skipされた種目は無視（前回記録として残さない）
         if (ex.judge === 'skip') return;
+        // 実施していない種目（記録なし）は前回記録を上書きしない。
+        // これが無いと、後のセッションで未実施だった種目が空データで前回記録を上書きし、
+        // それ以前の本当の記録が消えてしまう（月・年をまたいで特に顕在化）。
+        // finishWorkout 側の保存除外条件と揃える。
+        if (!ex.judge && (!Array.isArray(ex.setRecords) || ex.setRecords.length === 0)) return;
         const key = getLastWeightKey(session.menuId, ex);
         // 各種目の最終セットの値を保存（既存の保存ロジックに合わせる）
         const lastSet = (Array.isArray(ex.setRecords) && ex.setRecords.length > 0)
