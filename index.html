@@ -13916,11 +13916,11 @@
     }, { passive: true });
   }
 
-  // 種類別の重量ステップ：プレートロード=2.5kg、ウェイトスタック=0.5kg、ダンベル=1or2kg(動的)
+  // 種類別の重量ステップ：プレートロード=2.5kg、ウェイトスタック=0.1kg、ダンベル=1or2kg(動的)
   function getWeightStep(ex) {
     if (!ex) return 0.5;
     if (ex.machineKind === 'dumbbell') return 1; // ダンベルはデフォルト1kg（実際の刻みはgetNextDumbbellWeightで計算）
-    return ex.machineKind === 'stack' ? 0.5 : 2.5;
+    return ex.machineKind === 'stack' ? 0.1 : 2.5;
   }
 
   // ダンベル専用：現在重量から次の値を計算（1〜10kg=1kg刻み、10kg超=2kg刻み、最大50kg）
@@ -16253,7 +16253,7 @@
     let customValues = null;
     if (field === 'weight') {
       current = ex.currentWeight;
-      // 種類別ステップ：プレートロード=2.5kg、ウェイトスタック=0.5kg、ダンベル=特殊
+      // 種類別ステップ：プレートロード=2.5kg、ウェイトスタック=0.1kg、ダンベル=特殊
       step = getWeightStep(ex);
       if (ex.machineKind === 'dumbbell') {
         // ダンベル：1〜10kg=1kg刻み、10kg超=2kg刻み、最大50kg
