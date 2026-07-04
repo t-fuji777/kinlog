@@ -327,14 +327,56 @@
   #screen-home.active {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    /* .app は flex column なので、flex:1 で残り高さを全部使う＝画面全体の中央配置になる */
+    /* .app は flex column なので、flex:1 で残り高さを全部使う。
+       中央寄せは #homeMain 側で行い、下部に単発ランチャーを固定配置する。 */
     flex: 1;
     min-height: 0;
     /* メインカードを縦中央からやや下にシフト */
     padding-top: 50px;
     padding-bottom: calc(20px + var(--safe-bottom));
   }
+  /* ホーム: メインカード領域（縦中央寄せ）。下部の単発ランチャーとは分離 */
+  #homeMain {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+  }
+  /* ホーム下部: 単発ランチャー（常時最下部に表示） */
+  #homeQuickLaunch {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 460px;
+    margin: 12px auto 0;
+  }
+  .home-quick-label {
+    font-size: 11px;
+    color: var(--text-3);
+    text-align: center;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .home-quick-row {
+    display: flex;
+    gap: 8px;
+  }
+  .home-quick-btn {
+    flex: 1;
+    padding: 13px 6px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .home-quick-btn:active { transform: scale(0.97); }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
@@ -7483,7 +7525,18 @@
   </header>
 
   <section class="screen active" id="screen-home">
-    <div id="recommendZone"></div>
+    <div id="homeMain">
+      <div id="recommendZone"></div>
+    </div>
+    <!-- 単発ランチャー：HIIT / 有酸素 / その他 をその場限りで起動（履歴に残さない） -->
+    <div id="homeQuickLaunch">
+      <div class="home-quick-label">単発で行う（記録は残りません）</div>
+      <div class="home-quick-row">
+        <button type="button" class="home-quick-btn" onclick="startOneOffWorkout('hiit')">HIIT</button>
+        <button type="button" class="home-quick-btn" onclick="startOneOffWorkout('cardio')">有酸素</button>
+        <button type="button" class="home-quick-btn" onclick="startOneOffWorkout('other')">その他</button>
+      </div>
+    </div>
   </section>
 
   <section class="screen" id="screen-workout">
@@ -7952,19 +8005,13 @@
   <div class="modal">
     <h3 class="modal-title" id="exerciseFormTitle">種目を追加</h3>
 
-    <div class="ex-form-field">
-      <label class="ex-form-label">種別</label>
-      <div class="ex-form-type-toggle">
-        <button type="button" class="ex-form-type-btn" data-type="strength" onclick="setExFormType('strength')">筋トレ</button>
-        <button type="button" class="ex-form-type-btn" data-type="hiit" onclick="setExFormType('hiit')">HIIT</button>
-        <button type="button" class="ex-form-type-btn" data-type="cardio" onclick="setExFormType('cardio')">有酸素</button>
-        <button type="button" class="ex-form-type-btn" data-type="core" onclick="setExFormType('core')">その他</button>
-      </div>
-    </div>
+    <!-- 種別セレクタは廃止（メニューの種目は筋トレのみ）。新規は常に strength。
+         旧データの非筋トレ種目を編集する場合のみ、populateExerciseForm 側の
+         種別判定で該当フィールドが表示される。 -->
 
     <div class="ex-form-field">
       <label class="ex-form-label">種目名（20文字まで）</label>
-      <input type="text" class="ex-form-input" id="exFormName" placeholder="" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="checkMaxLen(this, 20, '種目名'); if(typeof refreshExFormImageButtons==='function') refreshExFormImageButtons();">
+      <input type="text" class="ex-form-input" id="exFormName" placeholder="" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="checkMaxLen(this, 20, '種目名');">
     </div>
 
     <!-- 筋トレ用フィールド -->
@@ -8215,15 +8262,8 @@
       <input type="url" class="ex-form-input" id="exFormUrl" placeholder="" inputmode="url">
     </div>
 
-    <!-- 種目画像（URLの下） -->
-    <div class="ex-form-field">
-      <label class="ex-form-label">種目画像</label>
-      <div style="display:flex; gap:8px;">
-        <button type="button" class="modal-btn" id="exFormImageRegisterBtn" onclick="exFormImageRegister()" style="flex:1;">画像を登録</button>
-        <button type="button" class="modal-btn" id="exFormImageViewBtn" onclick="exFormImageView()" style="flex:1; display:none;">画像を表示</button>
-      </div>
-      <div id="exFormImageHint" style="font-size:11px; color:var(--text-3); margin-top:6px;">※先に種目名を入力してください</div>
-    </div>
+    <!-- 種目画像セクションは廃止（不要のため）。画像表示コード(getExerciseImage)は
+         既存データ用に残置。フォームからの新規登録は不可。 -->
 
     <!-- 記録をリンクのセクションは廃止（記録共有は複製機能で行う）。
          linkId 保持用の hidden のみ残す（複製・保存処理が参照するため） -->
@@ -8601,7 +8641,7 @@
       // 単純なキャッシュ戦略：ネットワーク優先、失敗時はキャッシュから返す
       if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
         const swCode = `
-          const CACHE = 'kinlog-v2';
+          const CACHE = 'kinlog-v3';
           self.addEventListener('install', e => { self.skipWaiting(); });
           self.addEventListener('activate', e => {
             e.waitUntil((async () => {
@@ -12772,6 +12812,83 @@
     renderProgress();
     showScreen('workout');
     // タイマー表示状態を反映（前回の状態を維持しつつDOMに適用）
+    applyTimerDisplay();
+  }
+
+  // ========== 単発ワークアウト（その場限り・履歴に残さない） ==========
+  // ホーム下部の HIIT / 有酸素 / その他 ボタンから起動。メニューに紐付かない単一種目。
+  // 各種目の設定はワークアウト画面上でそのまま変更できる（既存の画面内ピッカー/±を利用）。
+  // type: 'hiit' | 'cardio' | 'other'
+  function startOneOffWorkout(type) {
+    // 種別ごとの既定値。ワークアウト画面で調整できるので初期値はテスト用ビルダーに準拠。
+    let base;
+    if (type === 'hiit') {
+      base = {
+        name: 'HIIT',
+        cardio: true, hiit: true,
+        protocol: {
+          prepSec: 30, prepMin: 0.5, prepSpeed: 1.0,
+          dashSpeed: 5.0, recoverSpeed: 1.0,
+          rounds: 8, roundSec: 40,
+          cooldownSec: 30, cooldownMin: 0.5, coolSpeed: 1.0
+        }
+      };
+    } else if (type === 'cardio') {
+      base = {
+        name: '有酸素',
+        cardio: true, cardioMachine: true, machineType: 'treadmill',
+        // machineProtocol は非nullにする（画面のピッカーが値を参照するため）
+        machineProtocol: { incline: 3.0, speed: 6.0, minutes: 20 }
+      };
+    } else {
+      base = {
+        name: 'その他',
+        other: true, otherSec: 60  // タイマー既定60秒（画面で±変更可）
+      };
+    }
+    // startWorkout と同じセッション種目形状で単一種目を構築
+    const ex = {
+      name: base.name,
+      originalName: base.name,
+      originalIndex: null,
+      swappedFrom: null,
+      position: null, positions: null, positionList: null, positionMemo: null,
+      cardio: base.cardio || false,
+      hiit: base.hiit || false,
+      protocol: base.protocol ? { ...base.protocol } : null,
+      cardioMachine: base.cardioMachine || false,
+      machineType: base.machineType || null,
+      machineProtocol: base.machineProtocol ? { ...base.machineProtocol } : null,
+      core: false,
+      coreSec: null,
+      coreCurrentSet: 1,
+      coreCurrentSide: null,
+      other: base.other || false,
+      otherSec: base.otherSec || null,
+      bilateral: false,
+      startSide: 'R',
+      machineKind: 'plate',
+      currentSide: null,
+      maxTraining: null,
+      url: null,
+      targetWeight: 0, targetReps: 0, targetSets: 1,
+      currentSets: 1, currentWeight: 0, currentReps: 0,
+      setRecords: [], judge: null, keepReps: null
+    };
+    currentWorkout = null;            // メニュー非紐付け
+    workoutSession = {
+      menuId: null,
+      oneOff: true,                   // finishWorkout はこのフラグで保存をスキップ
+      oneOffType: type,
+      date: new Date().toISOString(),
+      exercises: [ex]
+    };
+    document.getElementById('workoutProgress') && (document.getElementById('workoutProgress').textContent = '');
+    stopElapsedTimer();
+    stopInterval();
+    renderExerciseList();
+    renderProgress();
+    showScreen('workout');
     applyTimerDisplay();
   }
 
@@ -19344,10 +19461,6 @@
     });
 
     setExFormType(type);
-    // 画像ボタンの状態を初期化（種目名がある場合は登録/変更ボタン表示）
-    if (typeof refreshExFormImageButtons === 'function') {
-      refreshExFormImageButtons();
-    }
     // 記録リンク状態を反映
     if (typeof refreshExFormLinkStatus === 'function') {
       refreshExFormLinkStatus(ex);
@@ -22408,6 +22521,16 @@
 
   function finishWorkout() {
     if (!workoutSession || !Array.isArray(workoutSession.exercises)) return;
+    // 単発ワークアウト（その場限り）は履歴・前回記録・代替プールに一切保存せず終了
+    if (workoutSession.oneOff) {
+      if (typeof clearWorkoutDraft === 'function') clearWorkoutDraft();
+      workoutSession = {};
+      stopElapsedTimer();
+      stopInterval();
+      showScreen('home');
+      toast('お疲れさま！');
+      return;
+    }
     const done = workoutSession.exercises.filter(e => e.judge || (e.setRecords && e.setRecords.length > 0)).length;
     if (done === 0 && !confirm('何も記録されていません。終了しますか？')) return;
     const hist = loadHistory();
