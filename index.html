@@ -7566,7 +7566,7 @@
     </div>
     <div id="exerciseList"></div>
     <div class="add-exercise-section">
-      <button class="add-exercise-btn" onclick="openManualAddExercise()">＋ 種目を追加</button>
+      <button class="add-exercise-btn" onclick="openManualAddExercise()">＋ 種目追加</button>
     </div>
     <div style="height: 16px"></div>
     <button id="finishWorkoutBtn" class="btn primary" style="width: 100%;" onclick="finishWorkout()">セッション完了 ✓</button>
@@ -8003,7 +8003,7 @@
 
 <div class="modal-backdrop" id="exerciseFormModal">
   <div class="modal">
-    <h3 class="modal-title" id="exerciseFormTitle">種目を追加</h3>
+    <h3 class="modal-title" id="exerciseFormTitle">種目追加</h3>
 
     <!-- 種別セレクタは廃止（メニューの種目は筋トレのみ）。新規は常に strength。
          旧データの非筋トレ種目を編集する場合のみ、populateExerciseForm 側の
@@ -8016,27 +8016,28 @@
 
     <!-- 筋トレ用フィールド -->
     <div id="exFormStrengthFields">
-      <div class="ex-form-row">
-        <div class="ex-form-field">
-          <label class="ex-form-label">重量 (kg)</label>
-          <input type="number" class="ex-form-input" id="exFormWeight" inputmode="decimal" placeholder="0">
-        </div>
-        <div class="ex-form-field">
-          <label class="ex-form-label">回数</label>
-          <input type="number" class="ex-form-input" id="exFormReps" inputmode="numeric" placeholder="10">
-        </div>
-        <div class="ex-form-field">
-          <label class="ex-form-label" id="exFormSetsLabel">セット</label>
-          <input type="text" inputmode="none" readonly class="ex-form-input" id="exFormSets" placeholder="3" onclick="openSetsFormPicker('sets')">
-        </div>
-      </div>
-
+      <!-- 種類を先に選ぶ（重量ピッカーの刻み・候補が種類で変わるため）。重量/回数/セットの上に配置 -->
       <div class="ex-form-field">
         <label class="ex-form-label">種類</label>
         <div class="ex-form-side-toggle ex-form-machine-toggle">
           <button type="button" class="ex-form-machine-btn selected" data-machine="plate" onclick="setExFormMachine('plate')">プレートロード</button>
           <button type="button" class="ex-form-machine-btn" data-machine="stack" onclick="setExFormMachine('stack')">ウェイトスタック</button>
           <button type="button" class="ex-form-machine-btn" data-machine="dumbbell" onclick="setExFormMachine('dumbbell')">ダンベル</button>
+        </div>
+      </div>
+
+      <div class="ex-form-row">
+        <div class="ex-form-field">
+          <label class="ex-form-label">重量 (kg)</label>
+          <input type="text" inputmode="none" readonly class="ex-form-input" id="exFormWeight" placeholder="0" onclick="openWeightFormPicker('exFormWeight')">
+        </div>
+        <div class="ex-form-field">
+          <label class="ex-form-label">回数</label>
+          <input type="text" inputmode="none" readonly class="ex-form-input" id="exFormReps" placeholder="10" onclick="openRepsFormPicker('exFormReps')">
+        </div>
+        <div class="ex-form-field">
+          <label class="ex-form-label" id="exFormSetsLabel">セット</label>
+          <input type="text" inputmode="none" readonly class="ex-form-input" id="exFormSets" placeholder="3" onclick="openSetsFormPicker('sets')">
         </div>
       </div>
 
@@ -8079,11 +8080,11 @@
         <div class="ex-form-row">
           <div class="ex-form-field">
             <label class="ex-form-label">重量 (kg)</label>
-            <input type="number" class="ex-form-input" id="exFormMaxWeight" inputmode="decimal" placeholder="">
+            <input type="text" inputmode="none" readonly class="ex-form-input" id="exFormMaxWeight" placeholder="" onclick="openWeightFormPicker('exFormMaxWeight')">
           </div>
           <div class="ex-form-field">
             <label class="ex-form-label">回数</label>
-            <input type="number" class="ex-form-input" id="exFormMaxReps" inputmode="numeric" placeholder="">
+            <input type="text" inputmode="none" readonly class="ex-form-input" id="exFormMaxReps" placeholder="" onclick="openRepsFormPicker('exFormMaxReps')">
           </div>
           <div class="ex-form-field">
             <label class="ex-form-label" id="exFormMaxSetsLabel">セット</label>
@@ -8279,10 +8280,9 @@
 <div class="modal-backdrop" id="exerciseActionModal">
   <div class="modal" style="padding-bottom: calc(24px + var(--safe-bottom));">
     <h3 class="modal-title" id="exerciseActionTitle"></h3>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px">
-      <button class="modal-btn" onclick="actionRename()">名前を変更</button>
-      <button class="modal-btn" onclick="actionUrlSet()">参考URLを設定</button>
-      <button class="modal-btn" onclick="actionImageRegister()">画像を登録</button>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px">
+      <button class="modal-btn" onclick="actionRename()">名前変更</button>
+      <button class="modal-btn" onclick="actionUrlSet()">URL添付</button>
       <button class="modal-btn warn" onclick="closeExerciseAction()">キャンセル</button>
     </div>
   </div>
@@ -16153,6 +16153,49 @@
     showPicker(current, step, min, max);
   }
 
+  // 種目フォーム用：重量ピッカー（種類=machineKind でステップ・候補が変わる）
+  // プレートロード=2.5刻み / ウェイトスタック=0.1刻み / ダンベル=1〜10は1,10超は2(最大50)
+  function openWeightFormPicker(inputId) {
+    inputId = inputId || 'exFormWeight';
+    const inputEl = document.getElementById(inputId);
+    if (!inputEl) return;
+    const machine = (document.getElementById('exFormMachine') || {}).value || 'plate';
+    let step, min, max, customValues = null;
+    if (machine === 'dumbbell') {
+      customValues = [];
+      for (let v = 0; v <= 10; v++) customValues.push(v);
+      for (let v = 12; v <= 50; v += 2) customValues.push(v);
+      step = 1; min = 0; max = 50;
+    } else if (machine === 'stack') {
+      step = 0.1; min = 0; max = 300;
+    } else {
+      step = 2.5; min = 0; max = 300;
+    }
+    let current = parseFloat(inputEl.value);
+    if (isNaN(current)) current = 0;
+    // 重量は常に小数1桁で書き戻す（表示統一）
+    pickerContext = { type: 'hiitForm', field: 'weight', inputId, step, min, max, decimals: 1, customValues };
+    document.getElementById('pickerTitle').textContent = '重量';
+    document.getElementById('pickerUnit').textContent = 'kg';
+    showPicker(current, step, min, max, undefined, customValues);
+  }
+
+  // 種目フォーム用：回数ピッカー
+  function openRepsFormPicker(inputId) {
+    inputId = inputId || 'exFormReps';
+    const inputEl = document.getElementById(inputId);
+    if (!inputEl) return;
+    let current = parseInt(inputEl.value, 10);
+    if (isNaN(current)) current = 10;
+    const step = 1, min = 1, max = 100;
+    if (current < min) current = min;
+    if (current > max) current = max;
+    pickerContext = { type: 'hiitForm', field: 'reps', inputId, step, min, max };
+    document.getElementById('pickerTitle').textContent = '回数';
+    document.getElementById('pickerUnit').textContent = '回';
+    showPicker(current, step, min, max);
+  }
+
   // 設定画面の有酸素編集フォーム用ピッカー（傾斜/速度/時間）
   function openCardioFormPicker(field) {
     const inputId = {
@@ -16545,7 +16588,10 @@
       // 設定画面のHIIT編集フォームへ書き戻す
       const inputEl = document.getElementById(pickerContext.inputId);
       if (inputEl) {
-        const decimals = (pickerContext.step.toString().split('.')[1] || '').length;
+        // decimals が明示されていればそれを使う（重量は常に1桁）。無ければ step から算出
+        const decimals = (pickerContext.decimals != null)
+          ? pickerContext.decimals
+          : (pickerContext.step.toString().split('.')[1] || '').length;
         inputEl.value = decimals > 0 ? Number(val).toFixed(decimals) : val.toString();
         // 入力イベントを発火（変更検知用）
         inputEl.dispatchEvent(new Event('input', { bubbles: true }));
@@ -18181,7 +18227,7 @@
       </div>
       <div class="menu-editor-actions" style="display:flex; gap:8px;">
         <button class="menu-editor-action secondary" id="menuEditorUndoBtn" onclick="undoMenuEditorChange()" style="flex-shrink:0; ${undoStack.length === 0 ? 'opacity:0.35; pointer-events:none' : ''}" title="直前の操作を元に戻す">元に戻す</button>
-        <button class="menu-editor-action primary" style="flex:1" onclick="openExerciseForm('${menuId}', null)">＋ 種目を追加</button>
+        <button class="menu-editor-action primary" style="flex:1" onclick="openExerciseForm('${menuId}', null)">＋ 種目追加</button>
       </div>
     `;
     let mainSeq = 0; // メイン種目の表示番号（保管を除いて01から連番）
@@ -19470,7 +19516,7 @@
   function openExerciseForm(menuId, exIdx) {
     exerciseFormContext = { mode: 'menu-edit', menuId, exIdx };
     const isEdit = exIdx !== null && exIdx !== undefined;
-    document.getElementById('exerciseFormTitle').textContent = isEdit ? '種目を編集' : '種目を追加';
+    document.getElementById('exerciseFormTitle').textContent = isEdit ? '種目編集' : '種目追加';
     const ex = isEdit ? getMenuExercises(menuId)[exIdx] : null;
     populateExerciseForm(ex);
     const formModal = document.getElementById('exerciseFormModal');
@@ -19517,7 +19563,7 @@
 
   function openManualAddExercise() {
     exerciseFormContext = { mode: 'session-add' };
-    document.getElementById('exerciseFormTitle').textContent = '種目を追加（セッション）';
+    document.getElementById('exerciseFormTitle').textContent = '種目追加（セッション）';
     populateExerciseForm(null);
     const formModal = document.getElementById('exerciseFormModal');
     formModal.classList.add('add-mode');
