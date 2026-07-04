@@ -4624,9 +4624,9 @@
     /* gridではなくflexで space-between：本数=左端、回復=右端、ダッシュ=中央 */
     display: flex !important;
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
-    gap: 6px;
+    gap: 12px;
   }
   .hiit-phase-head {
     display: flex; align-items: baseline; gap: 8px;
@@ -8033,7 +8033,7 @@
         </div>
         <div class="ex-form-field">
           <label class="ex-form-label">回数</label>
-          <input type="text" inputmode="none" readonly class="ex-form-input" id="exFormReps" placeholder="10" onclick="openRepsFormPicker('exFormReps')">
+          <input type="text" inputmode="none" readonly class="ex-form-input" id="exFormReps" placeholder="1" onclick="openRepsFormPicker('exFormReps')">
         </div>
         <div class="ex-form-field">
           <label class="ex-form-label" id="exFormSetsLabel">セット</label>
@@ -12827,10 +12827,8 @@
         name: 'HIIT',
         cardio: true, hiit: true,
         protocol: {
-          prepSec: 30, prepMin: 0.5, prepSpeed: 1.0,
-          dashSpeed: 5.0, recoverSpeed: 1.0,
-          rounds: 8, roundSec: 40,
-          cooldownSec: 30, cooldownMin: 0.5, coolSpeed: 1.0
+          dashSpeed: 5.0, incline: 3.0,
+          rounds: 8, roundSec: 40
         }
       };
     } else if (type === 'cardio') {
@@ -14163,8 +14161,8 @@
                 <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitPicker(${idx}, 'dashSpeed')">${p.dashSpeed.toFixed(1)}</span><span class="hiit-sub-unit">km/h</span></div>
               </div>
               <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
-                <div class="hiit-sub-num"><span class="hiit-sub-num-text">回復</span><span class="hiit-sub-num-unit-spacer">km/h</span></div>
-                <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitPicker(${idx}, 'recoverSpeed')">${p.recoverSpeed.toFixed(1)}</span><span class="hiit-sub-unit">km/h</span></div>
+                <div class="hiit-sub-num"><span class="hiit-sub-num-text">傾斜</span><span class="hiit-sub-num-unit-spacer">％</span></div>
+                <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitPicker(${idx}, 'incline')">${(p.incline != null ? p.incline : 0).toFixed(1)}</span><span class="hiit-sub-unit">％</span></div>
               </div>
             </div>
           </div>
@@ -14184,20 +14182,6 @@
               </div>
               <button class="hiit-simple-reset" onclick="resetHiitRoundTimer(${idx})" ${(timerState.running || isAllDone) ? 'disabled' : ''} title="リセット">⟲</button>
             </div>
-          </div>
-        </div>
-
-        <!-- 準備・クールダウンの速度を横表記でコンパクト表示 -->
-        <div class="hiit-prep-cool-row">
-          <div class="hiit-prep-cool-item hiit-prep-cool-item-horizontal">
-            <span class="hiit-prep-cool-label">準備</span>
-            <span class="hiit-phase-speed" onclick="openHiitSimpleSpeedPicker(${idx}, 'prep')">${(p.prepSpeed || 1.0).toFixed(1)}</span>
-            <span class="hiit-prep-cool-unit">km/h</span>
-          </div>
-          <div class="hiit-prep-cool-item hiit-prep-cool-item-horizontal">
-            <span class="hiit-prep-cool-label">クールダウン</span>
-            <span class="hiit-phase-speed" onclick="openHiitSimpleSpeedPicker(${idx}, 'cool')">${(p.coolSpeed || p.recoverSpeed || 1.0).toFixed(1)}</span>
-            <span class="hiit-prep-cool-unit">km/h</span>
           </div>
         </div>
       </div>
@@ -16186,7 +16170,7 @@
     const inputEl = document.getElementById(inputId);
     if (!inputEl) return;
     let current = parseInt(inputEl.value, 10);
-    if (isNaN(current)) current = 10;
+    if (isNaN(current)) current = 1;
     const step = 1, min = 1, max = 100;
     if (current < min) current = min;
     if (current > max) current = max;
@@ -16323,6 +16307,10 @@
     if (field === 'coolSpeed' && (ex.protocol[field] == null || isNaN(ex.protocol[field]))) {
       ex.protocol.coolSpeed = ex.protocol.recoverSpeed || 1.0;
     }
+    // 傾斜（incline）未設定なら0を初期値に
+    if (field === 'incline' && (ex.protocol.incline == null || isNaN(ex.protocol.incline))) {
+      ex.protocol.incline = 0;
+    }
     const current = ex.protocol[field];
     let step, min, max, title, unit;
     if (field === 'prepMin' || field === 'cooldownMin') {
@@ -16339,6 +16327,9 @@
     } else if (field === 'rounds') {
       step = 1; min = 1; max = 20;
       title = '本数'; unit = '本';
+    } else if (field === 'incline') {
+      step = 0.5; min = 0; max = 15;
+      title = '傾斜'; unit = '%';
     }
     pickerContext = { type: 'hiit', exIdx, field, step, min, max };
     document.getElementById('pickerTitle').textContent = title;
@@ -20400,20 +20391,20 @@
 
     const HIIT_LABELS = {
       prepMin: '準備時間', prepSpeed: '準備速度',
-      dashSpeed: 'ダッシュ速度', recoverSpeed: '回復速度',
+      dashSpeed: 'ダッシュ速度', recoverSpeed: '回復速度', incline: '傾斜',
       rounds: 'ラウンド数', roundSec: 'ラウンド時間',
       cooldownMin: 'クールダウン時間', coolSpeed: 'クールダウン速度'
     };
     const HIIT_UNITS = {
       prepMin: '分', prepSpeed: 'km/h',
-      dashSpeed: 'km/h', recoverSpeed: 'km/h',
+      dashSpeed: 'km/h', recoverSpeed: 'km/h', incline: '%',
       rounds: '回', roundSec: '秒',
       cooldownMin: '分', coolSpeed: 'km/h'
     };
     const label = HIIT_LABELS[field] || field;
     const unit = HIIT_UNITS[field] || '';
     const isFloat = (typeof defaultVal === 'number' && !Number.isInteger(defaultVal)) ||
-                    field.endsWith('Speed');
+                    field.endsWith('Speed') || field === 'incline';
     const fmt = (v) => isFloat ? `${v.toFixed(1)}${unit}` : `${v}${unit}`;
 
     openDefaultUpdateConfirm(exIdx, {
