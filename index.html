@@ -4876,8 +4876,11 @@
   .oneoff-timer-slot .timer-box { width: 100%; box-sizing: border-box; }
   /* ①②押下時と同じ拡大サイズでタイマー値を表示 */
   #oneoffIntervalSlot .timer-value, #oneoffTimerSlot .timer-value { font-size: 48px; }
-  /* 単発時はカードの下余白も詰めて、カードとタイマーを近づける */
-  body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; }
+  /* 単発時はカードの下外余白は詰める。開始ボタン下の黒い余白（カード内下padding）は少し広めに */
+  body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; padding-bottom: 18px; }
+  /* 単発のカウントダウンタイマー：縦幅とフォントを大きく */
+  body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 72px; }
+  body.oneoff-workout #exerciseList .hiit-simple-time-value { font-size: 38px; }
   /* 単発: 内容全体（インターバル＋カード＋タイマー）を上/真ん中/下に配置 */
   body.oneoff-workout #screen-workout.active {
     display: flex;
