@@ -1274,7 +1274,7 @@
     position: relative;
   }
   .today-meta {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
     gap: 12px; margin-bottom: 18px;
     padding: 18px 0;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -5965,6 +5965,11 @@
     color: var(--text);
     font-family: var(--font-mono);
   }
+  /* 月の登録回数：行の右端に表示 */
+  .cal-legend-count {
+    margin-left: auto;
+    color: var(--text-2);
+  }
   .cal-day-detail {
     margin-top: 12px;
     padding: 8px 12px 12px;
@@ -7654,7 +7659,6 @@
     <div class="tabs">
       <button class="tab active" onclick="switchTab(event, 'tab-calendar')">カレンダー</button>
       <button class="tab" onclick="switchTab(event, 'tab-log')">記録一覧</button>
-      <button class="tab" onclick="switchTab(event, 'tab-chart')">グラフ推移</button>
     </div>
     <div id="tab-log" class="tab-content" style="display:none"><div id="historyList"></div></div>
     <div id="tab-calendar" class="tab-content">
@@ -7683,13 +7687,6 @@
         <div id="calDayDetail" class="cal-day-detail"></div>
         <div class="cal-legend" id="calLegend"></div>
       </div>
-    </div>
-    <div id="tab-chart" class="tab-content" style="display:none">
-      <div class="chart-menu-picker">
-        <label class="chart-menu-picker-label">メニュー</label>
-        <select id="chartMenuSelect" class="chart-menu-select" onchange="renderChartTab()"></select>
-      </div>
-      <div id="chartContainer"></div>
     </div>
   </section>
 
@@ -10367,7 +10364,11 @@
               <div class="today-meta-value">-</div>
             </div>
             <div class="today-meta-item">
-              <div class="today-meta-label">筋トレ時間</div>
+              <div class="today-meta-label">総回数</div>
+              <div class="today-meta-value">-</div>
+            </div>
+            <div class="today-meta-item">
+              <div class="today-meta-label">総セット数</div>
               <div class="today-meta-value">-</div>
             </div>
           </div>
@@ -10425,7 +10426,11 @@
                 <div class="today-meta-value">-</div>
               </div>
               <div class="today-meta-item">
-                <div class="today-meta-label">筋トレ時間</div>
+                <div class="today-meta-label">総回数</div>
+                <div class="today-meta-value">-</div>
+              </div>
+              <div class="today-meta-item">
+                <div class="today-meta-label">総セット数</div>
                 <div class="today-meta-value">-</div>
               </div>
             </div>
@@ -10470,11 +10475,12 @@
       lastSession = history.find(h => h.menuId === displayMenuId);
     }
 
-    let exerciseCount = 0, totalWeight = 0, totalReps = 0;
+    let exerciseCount = 0, totalWeight = 0, totalReps = 0, totalSets = 0;
     if (lastSession && Array.isArray(lastSession.exercises)) {
       lastSession.exercises.forEach(ex => {
         if (!ex.setRecords || ex.setRecords.length === 0) return;
         exerciseCount++;
+        totalSets += ex.setRecords.length;
         ex.setRecords.forEach(s => {
           const w = parseFloat(s.weight) || 0;
           const r = parseInt(s.reps) || 0;
@@ -10487,8 +10493,6 @@
     const totalDuration = (lastSession && Array.isArray(lastSession.exercises))
       ? lastSession.exercises.reduce((sum, ex) => sum + (Number(ex.duration) || 0), 0)
       : 0;
-    // 筋トレ時間：筋トレ種目（cardio/hiit/core/other以外）のみのduration合計
-    const strengthDuration = calcStrengthSeconds(lastSession);
     // 総時間：履歴の totalSeconds と同じ
     const totalSeconds = (lastSession && typeof lastSession.totalSeconds === 'number') ? lastSession.totalSeconds : 0;
     const hasPrev = !!lastSession;
@@ -10510,7 +10514,8 @@
       : '前回の記録：-';
     const exDisp = hasPrev ? exerciseCount : '-';
     const wDisp = hasPrev ? totalWeightDisplay : '-';
-    const strengthDisp = (hasPrev && strengthDuration > 0) ? formatDuration(strengthDuration) : '-';
+    const repsDisp = hasPrev ? totalReps : '-';
+    const setsDisp = hasPrev ? totalSets : '-';
     const totalDisp = (hasPrev && totalSeconds > 0) ? formatDuration(totalSeconds) : '-';
     const elapsedDisp = (hasPrev && totalDuration > 0) ? formatDuration(totalDuration) : '-';
 
@@ -10532,8 +10537,12 @@
             <div class="today-meta-value">${wDisp}</div>
           </div>
           <div class="today-meta-item">
-            <div class="today-meta-label">筋トレ時間</div>
-            <div class="today-meta-value">${strengthDisp}</div>
+            <div class="today-meta-label">総回数</div>
+            <div class="today-meta-value">${repsDisp}</div>
+          </div>
+          <div class="today-meta-item">
+            <div class="today-meta-label">総セット数</div>
+            <div class="today-meta-value">${setsDisp}</div>
           </div>
         </div>
         <div class="today-meta-sub">
@@ -10622,7 +10631,11 @@
                 <div class="today-meta-value">-</div>
               </div>
               <div class="today-meta-item">
-                <div class="today-meta-label">筋トレ時間</div>
+                <div class="today-meta-label">総回数</div>
+                <div class="today-meta-value">-</div>
+              </div>
+              <div class="today-meta-item">
+                <div class="today-meta-label">総セット数</div>
                 <div class="today-meta-value">-</div>
               </div>
             </div>
@@ -10680,7 +10693,11 @@
               <div class="today-meta-value">-</div>
             </div>
             <div class="today-meta-item">
-              <div class="today-meta-label">筋トレ時間</div>
+              <div class="today-meta-label">総回数</div>
+              <div class="today-meta-value">-</div>
+            </div>
+            <div class="today-meta-item">
+              <div class="today-meta-label">総セット数</div>
               <div class="today-meta-value">-</div>
             </div>
           </div>
@@ -10737,11 +10754,12 @@
     }
 
     // 集計
-    let exerciseCount = 0, totalWeight = 0, totalReps = 0;
+    let exerciseCount = 0, totalWeight = 0, totalReps = 0, totalSets = 0;
     if (displaySession && Array.isArray(displaySession.exercises)) {
       displaySession.exercises.forEach(ex => {
         if (!ex.setRecords || ex.setRecords.length === 0) return;
         exerciseCount++;
+        totalSets += ex.setRecords.length;
         ex.setRecords.forEach(s => {
           const w = parseFloat(s.weight) || 0;
           const r = parseInt(s.reps) || 0;
@@ -10754,8 +10772,6 @@
     const totalDuration = (displaySession && Array.isArray(displaySession.exercises))
       ? displaySession.exercises.reduce((sum, ex) => sum + (Number(ex.duration) || 0), 0)
       : 0;
-    // 筋トレ時間：筋トレ種目のみのduration合計
-    const strengthDuration = calcStrengthSeconds(displaySession);
     // 総時間：履歴の totalSeconds と同じ
     const totalSeconds = (displaySession && typeof displaySession.totalSeconds === 'number') ? displaySession.totalSeconds : 0;
     const totalWeightDisplay = totalWeight >= 1000
@@ -10783,7 +10799,8 @@
     }
     const exDisp = displaySession ? exerciseCount : '-';
     const wDisp = displaySession ? totalWeightDisplay : '-';
-    const strengthDisp = (displaySession && strengthDuration > 0) ? formatDuration(strengthDuration) : '-';
+    const repsDisp = displaySession ? totalReps : '-';
+    const setsDisp = displaySession ? totalSets : '-';
     const totalDisp = (displaySession && totalSeconds > 0) ? formatDuration(totalSeconds) : '-';
     const elapsedDisp = (displaySession && totalDuration > 0) ? formatDuration(totalDuration) : '-';
 
@@ -10806,8 +10823,12 @@
             <div class="today-meta-value">${wDisp}</div>
           </div>
           <div class="today-meta-item">
-            <div class="today-meta-label">筋トレ時間</div>
-            <div class="today-meta-value">${strengthDisp}</div>
+            <div class="today-meta-label">総回数</div>
+            <div class="today-meta-value">${repsDisp}</div>
+          </div>
+          <div class="today-meta-item">
+            <div class="today-meta-label">総セット数</div>
+            <div class="today-meta-value">${setsDisp}</div>
           </div>
         </div>
         <div class="today-meta-sub">
@@ -23835,12 +23856,23 @@
         ids = ordered;
       }
     } catch (e) {}
+    // 表示中の月の登録回数をメニューごとに集計
+    const history = loadHistory();
+    const monthCounts = {};
+    history.forEach(h => {
+      if (!h.date || !h.menuId) return;
+      const d = new Date(h.date);
+      if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+        monthCounts[h.menuId] = (monthCounts[h.menuId] || 0) + 1;
+      }
+    });
     const html = ids.map(mid => {
       const menu = (typeof getMenu === 'function') ? getMenu(mid) : null;
       // 登録名称（フルネーム）を優先表示。fallbackで shortName / mid
       const name = (menu && (menu.name || menu.fullName || menu.shortName)) || mid;
       const color = getMenuColor(mid);
-      return `<span class="cal-legend-item"><span class="cal-dot" style="background:${color}"></span>${name}</span>`;
+      const count = monthCounts[mid] || 0;
+      return `<span class="cal-legend-item"><span class="cal-dot" style="background:${color}"></span>${name}<span class="cal-legend-count">${count}回</span></span>`;
     }).join('');
     el.innerHTML = html;
   }
