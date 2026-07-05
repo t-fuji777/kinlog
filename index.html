@@ -4607,8 +4607,9 @@
   }
   /* 本番ヘッダー内の本数・ダッシュ・回復：下のカウンタ枠と同じ見た目に統一 */
   /* 背景は準備・クールダウンと同じ bg-1（黒）に揃える */
-  /* 単発の有酸素（傾斜/速度/時間）も同じ枠デザインを共有 */
+  /* 単発の有酸素（傾斜/速度/時間）・その他のセット枠も同じ枠デザインを共有 */
   body.oneoff-workout .machine-params-top .hiit-prep-cool-item,
+  body.oneoff-workout .hiit-main-row .hiit-prep-cool-item,
   .hiit-main-head .hiit-prep-cool-item {
     background: var(--bg-1);
     border: 1px solid var(--border);
@@ -4888,8 +4889,22 @@
   #oneoffIntervalSlot .timer-value, #oneoffTimerSlot .timer-value { font-size: 60px; }
   /* 単発時はカードの下外余白は詰める。開始ボタン下の黒い余白（カード内下padding）は少し広めに */
   body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; padding-top: 10px; padding-bottom: 10px; }
-  /* その他: セットカウンター(0/1)の ※タップ だけフォントを小さく */
-  body.oneoff-workout [id^="coreSetCounter"] .hiit-round-num-hint { font-size: 7px; }
+  /* 単発: カウントダウンタイマー枠内に小さいリセットボタン（HIIT/その他）。行はタイマーを全幅に */
+  body.oneoff-workout .hiit-time-with-steps { grid-template-columns: auto 1fr auto auto; }
+  body.oneoff-workout .hiit-reset-in {
+    min-height: 0;
+    height: 34px;
+    width: 34px;
+    padding: 0;
+    font-size: 18px;
+    border-radius: 6px;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+  body.oneoff-workout #exerciseList .hiit-main-row { grid-template-columns: auto 1fr; }
+  body.oneoff-workout #exerciseList .hiit-main-row.hiit-main-row-nocounter { grid-template-columns: 1fr; }
+  /* その他: セット枠（タイマーと同じ高さに伸びる）の中身は上下中央 */
+  body.oneoff-workout .hiit-main-row > .hiit-prep-cool-item { justify-content: center; }
   /* HIIT: セット枠は傾斜と同一クラス構造を使用（デザインは自動で一致）。ラベルは1行固定 */
   body.oneoff-workout .hiit-round-num-tappable .hiit-sub-num-text { white-space: nowrap; }
   /* セット枠全体は余白分だけ横に伸ばす（行はflexなのでgrowで広げる） */
@@ -14474,8 +14489,9 @@
                   <span class="hiit-simple-time-hint">※タップ</span>
                 </div>
                 <button class="hiit-time-step plus" onclick="event.stopPropagation(); adjustHiitTargetSec(${idx}, 10)" ${(timerState.running || isAllDone) ? 'disabled' : ''} title="+10秒">+</button>
+                ${workoutSession.oneOff ? `<button class="hiit-simple-reset hiit-reset-in" onclick="event.stopPropagation(); resetHiitRoundTimer(${idx})" ${(timerState.running || isAllDone) ? 'disabled' : ''} title="リセット">⟲</button>` : ''}
               </div>
-              <button class="hiit-simple-reset" onclick="resetHiitRoundTimer(${idx})" ${(timerState.running || isAllDone) ? 'disabled' : ''} title="リセット">⟲</button>
+              ${workoutSession.oneOff ? '' : `<button class="hiit-simple-reset" onclick="resetHiitRoundTimer(${idx})" ${(timerState.running || isAllDone) ? 'disabled' : ''} title="リセット">⟲</button>`}
             </div>
           </div>
         </div>
@@ -14738,22 +14754,35 @@
     const coreState = coreTimers[idx];
     const isCoreInProgress = !!(coreState && (coreState.running || coreState.completed || coreState.waiting));
     let currentSetNum;
-    if (ex.judge === 'ok') {
+    if (workoutSession.oneOff) {
+      // 単発：数字は常に「完了セット数」（HIITと同仕様。アラートを止めた時点で+1）
+      currentSetNum = Math.min(ex.setRecords.length, totalSets);
+    } else if (ex.judge === 'ok') {
       currentSetNum = Math.min(ex.setRecords.length, totalSets);
     } else if (isCoreInProgress) {
       currentSetNum = Math.min(ex.setRecords.length + 1, totalSets);
     } else {
       currentSetNum = ex.setRecords.length;
     }
+    // 単発：アラート停止直後（記録済み+タイマーがリセット位置）だけ現在数をオレンジ（HIITと同仕様）
+    const coreIdle = !coreState || (!coreState.running && !coreState.completed && !coreState.waiting && !(coreState.elapsed > 0));
+    const coreSetJustDone = !!(workoutSession.oneOff && coreIdle && ex.setRecords.length > 0);
     // 全セット記録済みならタイマー枠を緑（completed状態）
     const allSetsRecorded = ex.setRecords.length >= totalSets;
+    // 単発：セット枠はHIITと同一構造（傾斜と同デザイン）。通常は従来のまま
+    const coreCounterHtml = workoutSession.oneOff
+      ? `<div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item hiit-round-num-tappable ${allSetsRecorded ? 'done-final' : ''}" id="coreSetCounter-${idx}" onclick="confirmCoreStepBack(${idx})" title="タップで取り消し">
+            <div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div>
+            <div class="hiit-phase-speed-row"><span class="hiit-set-current${coreSetJustDone ? ' is-latest' : ''}">${currentSetNum}</span><span class="hiit-set-sep">/</span><span class="hiit-phase-speed">${totalSets}</span></div>
+          </div>`
+      : `<div class="hiit-round-num hiit-round-num-tappable ${allSetsRecorded ? 'done-final' : ''}" id="coreSetCounter-${idx}" onclick="confirmCoreStepBack(${idx})" title="タップで前のセットに戻る">
+            <div class="hiit-round-num-text">${currentSetNum}<span class="hiit-round-total">/${totalSets}</span></div>
+            <div class="hiit-round-num-hint">※タップ</div>
+          </div>`;
     const countdownTimerHtml = `
       <div class="hiit-rounds-wrap" style="margin-top: 0; margin-bottom: 10px;">
         <div class="hiit-main-row">
-          <div class="hiit-round-num hiit-round-num-tappable ${allSetsRecorded ? 'done-final' : ''}" id="coreSetCounter-${idx}" onclick="confirmCoreStepBack(${idx})" title="タップで前のセットに戻る">
-            <div class="hiit-round-num-text">${currentSetNum}<span class="hiit-round-total">/${totalSets}</span></div>
-            <div class="hiit-round-num-hint">※タップ</div>
-          </div>
+          ${coreCounterHtml}
           <div class="hiit-simple-time hiit-time-with-steps ${(isTimerRunning || allSetsRecorded) ? 'running' : ''} ${isTimerPaused ? 'paused' : ''}" id="coreTime-${idx}" data-target="${targetSec}" onclick="toggleCoreCountdown(${idx})">
             <button class="hiit-time-step minus" onclick="event.stopPropagation(); adjustCoreTargetSec(${idx}, -10)" ${(isTimerRunning || allSetsRecorded) ? 'disabled' : ''} title="−10秒">−</button>
             <div class="hiit-time-center">
@@ -14761,8 +14790,9 @@
               <span class="hiit-simple-time-hint">※タップ</span>
             </div>
             <button class="hiit-time-step plus" onclick="event.stopPropagation(); adjustCoreTargetSec(${idx}, 10)" ${(isTimerRunning || allSetsRecorded) ? 'disabled' : ''} title="+10秒">+</button>
+            ${workoutSession.oneOff ? `<button class="hiit-simple-reset hiit-reset-in" onclick="event.stopPropagation(); resetCoreCountdown(${idx})" ${(isTimerRunning || allSetsRecorded) ? 'disabled' : ''} title="リセット">⟲</button>` : ''}
           </div>
-          <button class="hiit-simple-reset" onclick="resetCoreCountdown(${idx})" ${(isTimerRunning || allSetsRecorded) ? 'disabled' : ''} title="リセット">⟲</button>
+          ${workoutSession.oneOff ? '' : `<button class="hiit-simple-reset" onclick="resetCoreCountdown(${idx})" ${(isTimerRunning || allSetsRecorded) ? 'disabled' : ''} title="リセット">⟲</button>`}
         </div>
       </div>
     `;
