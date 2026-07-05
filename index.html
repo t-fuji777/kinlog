@@ -331,8 +331,8 @@
        中央寄せは #homeMain 側で行い、下部に単発ランチャーを固定配置する。 */
     flex: 1;
     min-height: 0;
-    /* 上詰めレイアウトなので上余白は小さめに（内容を上へ） */
-    padding-top: 14px;
+    /* 上詰めレイアウトなので上余白は最小限に（内容を上へ） */
+    padding-top: 6px;
     padding-bottom: calc(20px + var(--safe-bottom));
   }
   /* ホーム: メインカード領域（縦中央寄せ）。下部の単発ランチャーとは分離 */
@@ -344,7 +344,7 @@
     justify-content: flex-start;
     overflow-y: auto;
     /* 中央寄せをやめて上詰めにし、カードとボタンをまとめて上へ。余白は下に出す。 */
-    margin-top: 2vh;
+    margin-top: 0;
   }
   /* ホーム下部: 単発ランチャー（常時最下部に表示） */
   #homeQuickLaunch {
@@ -4880,6 +4880,30 @@
   }
   /* 単発時はカードの下余白も詰めて、カードとタイマーを近づける */
   body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; }
+  /* 単発: 内容全体（インターバル＋カード＋タイマー）を上/真ん中/下に配置 */
+  body.oneoff-workout #screen-workout.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  body.oneoff-workout.oneoff-pos-top #screen-workout.active { justify-content: flex-start; }
+  body.oneoff-workout.oneoff-pos-middle #screen-workout.active { justify-content: center; }
+  body.oneoff-workout.oneoff-pos-bottom #screen-workout.active { justify-content: flex-end; }
+  /* 配置変更ボタン（代替ボタンがあった位置） */
+  .ex-pos-btn {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    border-radius: 50%;
+    width: 34px; height: 34px;
+    font-size: 17px; line-height: 1;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .ex-pos-btn:active { background: var(--bg-3); }
   /* タイマー内に+/-を配置するレイアウト */
   .hiit-time-with-steps {
     display: grid !important;
@@ -11509,6 +11533,23 @@
     });
   }
 
+  // 単発: 表示位置（上/真ん中/下）を巡回。内容全体（インターバル＋カード＋タイマー）を移動
+  function cycleOneOffPosition() {
+    const order = ['top', 'middle', 'bottom'];
+    let cur = 'top';
+    try { cur = localStorage.getItem('wo_oneoff_pos') || 'top'; } catch (e) {}
+    const next = order[(order.indexOf(cur) + 1) % order.length];
+    try { localStorage.setItem('wo_oneoff_pos', next); } catch (e) {}
+    applyOneOffPosition();
+  }
+  function applyOneOffPosition() {
+    let pos = 'top';
+    try { pos = localStorage.getItem('wo_oneoff_pos') || 'top'; } catch (e) {}
+    if (['top', 'middle', 'bottom'].indexOf(pos) === -1) pos = 'top';
+    document.body.classList.remove('oneoff-pos-top', 'oneoff-pos-middle', 'oneoff-pos-bottom');
+    document.body.classList.add('oneoff-pos-' + pos);
+  }
+
   // 単発ワークアウト用にワークアウト画面のクロームを切り替える。
   // ・インターバルを黒枠(カード)の上、タイマーを黒枠の下へ移動
   // ・上部タイマーバー／モード切替／セッション完了／種目追加を隠す
@@ -11516,6 +11557,8 @@
   function applyWorkoutChrome() {
     const oneOff = !!(workoutSession && workoutSession.oneOff);
     document.body.classList.toggle('oneoff-workout', oneOff);
+    if (oneOff) { applyOneOffPosition(); }
+    else { document.body.classList.remove('oneoff-pos-top', 'oneoff-pos-middle', 'oneoff-pos-bottom'); }
     const sticky = document.querySelector('.workout-sticky-top');
     const bar = document.getElementById('workoutTimerBar');
     const elapsed = document.getElementById('elapsedTimerBox');
@@ -13534,6 +13577,7 @@
             <span class="ex-name${getExerciseImage(ex.name) ? ' has-image' : ''}${(() => { const c = getExerciseNameShrinkClass(ex); return c ? ' ' + c : ''; })()}" onclick="openExerciseImage('${ex.name.replace(/'/g, "\\'")}', ${idx})">${ex.name}</span>
           </div>
           ${ex.url ? `<button class="ex-url-btn" onclick="event.stopPropagation(); openExerciseUrl('${ex.url.replace(/'/g, "\\'")}')" title="参考リンクを開く">URL</button>` : ''}
+          ${workoutSession.oneOff ? `<button class="ex-pos-btn" onclick="event.stopPropagation(); cycleOneOffPosition()" title="表示位置を変更（上/真ん中/下）">⇅</button>` : ''}
           ${(ex.cardio || ex.other) ? '' : (() => {
             // 完了ボタンの disabled 条件を再計算してスキップ・代替ボタンに反映
             // （完了ボタンが押せない時はスキップ・代替も押せないようにする）
