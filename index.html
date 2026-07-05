@@ -22967,7 +22967,19 @@
   }
 
   function renderHistory() {
-    const hist = loadHistory();
+    let hist = loadHistory();
+    // 「不明」（メニューが解決できない）記録を除去する。
+    // 実在するメニューの記録は残す。全件が不明の場合は安全のため削除しない（表示のみ）。
+    try {
+      if (!isAdminMode) {
+        const valid = hist.filter(s => !!getMenu(s.menuId));
+        if (valid.length > 0 && valid.length !== hist.length) {
+          saveHistory(valid);
+          rebuildLastWeightsFromHistory(valid);
+          hist = valid;
+        }
+      }
+    } catch (e) { /* noop */ }
     const list = document.getElementById('historyList');
     if (hist.length === 0) {
       list.innerHTML = '<div class="empty">まだ記録がありません<br>ホームから始めましょう</div>';
@@ -22992,7 +23004,7 @@
         <div class="history-head">
           <div class="history-head-left">
             <div class="history-date">${dateStr}</div>
-            <div class="history-menu">${menu.name}</div>
+            <div class="history-menu">${(menu && menu.name) || s.menuName || '不明'}</div>
           </div>
           <div class="history-actions">
             <button class="history-edit-btn" title="編集">✎</button>
