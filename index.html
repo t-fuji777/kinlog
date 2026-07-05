@@ -11492,6 +11492,23 @@
     requestAnimationFrame(step);
   }
 
+  // 種目内タイマー（core / HIIT round / HIIT simple）を全停止＋state破棄
+  function stopAllExerciseTimers() {
+    const tables = [
+      (typeof coreTimers === 'object' ? coreTimers : null),
+      (typeof hiitRoundTimers === 'object' ? hiitRoundTimers : null),
+      (typeof hiitSimpleTimers === 'object' ? hiitSimpleTimers : null)
+    ];
+    tables.forEach(tbl => {
+      if (!tbl) return;
+      Object.keys(tbl).forEach(k => {
+        const s = tbl[k];
+        if (s && s.handle) { try { clearInterval(s.handle); } catch (e) {} }
+        delete tbl[k];
+      });
+    });
+  }
+
   // 単発ワークアウト用にワークアウト画面のクロームを切り替える。
   // ・インターバルを黒枠(カード)の上、タイマーを黒枠の下へ移動
   // ・上部タイマーバー／モード切替／セッション完了／種目追加を隠す
@@ -11566,6 +11583,8 @@
         workoutSession = {};
         stopElapsedTimer();
         stopInterval();
+        // HIIT/その他 の起動中タイマーを止めて初期化（ホームに戻ったら残さない）
+        if (typeof stopAllExerciseTimers === 'function') stopAllExerciseTimers();
         try { applyWorkoutChrome(); } catch (e) {}
       } else {
         // セッション完了されていない状態で進捗（記録/開始済種目）があれば破棄確認モーダルを表示
@@ -13982,6 +14001,18 @@
     return;
   }
 
+  // 0/8 カウンターのタップ：未開始なら本数(rounds)を編集、開始後は前のラウンドへ戻る
+  function hiitRoundCounterTap(idx) {
+    const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[idx];
+    if (!ex) return;
+    const notStarted = !ex.exStarted && (!Array.isArray(ex.setRecords) || ex.setRecords.length === 0);
+    if (notStarted) {
+      if (typeof openHiitPicker === 'function') openHiitPicker(idx, 'rounds');
+    } else {
+      if (typeof confirmEraseLastHiitRound === 'function') confirmEraseLastHiitRound(idx);
+    }
+  }
+
   // HIITタイム +/- ボタン：長押しで連続増減
   function attachHiitTimeStepLongPress(btn) {
     let pressTimer = null;
@@ -14233,13 +14264,9 @@
         <div class="hiit-phase hiit-phase-main-noframe">
           <div class="hiit-main-head hiit-main-head-no-label">
             <div class="hiit-sub-labels-wrap">
-              <div class="hiit-round-num hiit-round-num-tappable hiit-round-num-inrow ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="confirmEraseLastHiitRound(${idx})"`} title="タップで前のラウンドに戻る">
+              <div class="hiit-round-num hiit-round-num-tappable hiit-round-num-inrow ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="hiitRoundCounterTap(${idx})"`} title="タップで本数を変更">
                 <div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div>
                 <div class="hiit-round-num-hint">※タップ</div>
-              </div>
-              <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
-                <div class="hiit-sub-num"><span class="hiit-sub-num-text">本数</span><span class="hiit-sub-num-unit-spacer">本</span></div>
-                <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitPicker(${idx}, 'rounds')">${p.rounds}</span><span class="hiit-sub-unit">本</span></div>
               </div>
               <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
                 <div class="hiit-sub-num"><span class="hiit-sub-num-text">傾斜</span><span class="hiit-sub-num-unit-spacer">％</span></div>
