@@ -4885,9 +4885,27 @@
   body.oneoff-workout [id^="coreSetCounter"] .hiit-round-num-hint { font-size: 7px; }
   /* HIIT: セット枠は傾斜と同一クラス構造を使用（デザインは自動で一致）。ラベルは1行固定 */
   body.oneoff-workout .hiit-round-num-tappable .hiit-sub-num-text { white-space: nowrap; }
-  /* 全セット完了時（緑）: 新構造（数字ボックス+単位）に完了色を適用 */
+  /* セット枠全体は余白分だけ横に伸ばす（行はflexなのでgrowで広げる） */
+  body.oneoff-workout .hiit-round-num-tappable.hiit-prep-cool-item { flex: 1 1 auto; min-width: 0; }
+  /* 現在セット数：従来どおりオレンジ（枠なし）。枠(ボックス)は合計数の側 */
+  body.oneoff-workout .hiit-set-current {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 1px;
+  }
+  body.oneoff-workout .hiit-set-sep {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-3);
+    margin: 0 2px;
+  }
+  /* 全セット完了時（緑）: 外枠も含めて完了色に */
+  body.oneoff-workout .hiit-round-num-tappable.done-final { border-color: var(--ok); background: var(--ok-dim); }
+  body.oneoff-workout .hiit-round-num-tappable.done-final .hiit-set-current { color: var(--ok); }
   body.oneoff-workout .hiit-round-num-tappable.done-final .hiit-phase-speed { color: var(--ok); border-color: var(--ok); }
-  body.oneoff-workout .hiit-round-num-tappable.done-final .hiit-sub-unit { color: var(--ok); opacity: 0.7; }
   /* 単発の有酸素：共通の外枠を外し、傾斜/速度/時間をHIITの傾斜と同一構造の独立枠に
      （中身はHIITと同じクラスをそのまま使用。枠デザインは .hiit-prep-cool-item の共通ルールを共有） */
   body.oneoff-workout .machine-params-top { border: none; background: none; padding: 0; gap: 6px; align-items: flex-start; }
@@ -14418,7 +14436,7 @@
             <div class="hiit-sub-labels-wrap">
               <div class="${workoutSession.oneOff ? 'hiit-phase-label hiit-sub-label hiit-prep-cool-item' : 'hiit-round-num hiit-round-num-inrow'} hiit-round-num-tappable ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="hiitRoundCounterTap(${idx})"`} title="タップで本数を変更">
                 ${workoutSession.oneOff
-                  ? `<div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span><span class="hiit-sub-num-unit-spacer">/${totalRounds}</span></div><div class="hiit-phase-speed-row"><span class="hiit-phase-speed">${currentRound}</span><span class="hiit-sub-unit">/${totalRounds}</span></div>`
+                  ? `<div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div><div class="hiit-phase-speed-row"><span class="hiit-set-current">${currentRound}</span><span class="hiit-set-sep">/</span><span class="hiit-phase-speed">${totalRounds}</span></div>`
                   : `<div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div><div class="hiit-round-num-hint">※タップ</div>`}
               </div>
               <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
