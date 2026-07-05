@@ -4874,8 +4874,9 @@
   #oneoffIntervalSlot { margin: 12px 0 4px; }
   #oneoffTimerSlot { margin: 4px 0 0; }
   .oneoff-timer-slot .timer-box { width: 100%; box-sizing: border-box; }
-  /* ①②押下時と同じ拡大サイズでタイマー値を表示 */
-  #oneoffIntervalSlot .timer-value, #oneoffTimerSlot .timer-value { font-size: 48px; }
+  /* 単発: インターバル/タイマーの ※タップ を削除し、その分 数値を大きく */
+  .oneoff-timer-slot .interval-tap-hint { display: none; }
+  #oneoffIntervalSlot .timer-value, #oneoffTimerSlot .timer-value { font-size: 60px; }
   /* 単発時はカードの下外余白は詰める。開始ボタン下の黒い余白（カード内下padding）は少し広めに */
   body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; padding-top: 10px; padding-bottom: 10px; }
   /* その他: セットカウンター(0/1)の ※タップ だけフォントを小さく */
