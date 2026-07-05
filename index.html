@@ -4887,21 +4887,21 @@
   }
   body.oneoff-workout.oneoff-pos-top #screen-workout.active { justify-content: flex-start; }
   body.oneoff-workout.oneoff-pos-middle #screen-workout.active { justify-content: center; }
-  body.oneoff-workout.oneoff-pos-bottom #screen-workout.active { justify-content: flex-end; }
+  /* 一番下：下余白を安全領域だけにして限界まで詰める */
+  body.oneoff-workout.oneoff-pos-bottom #screen-workout.active { justify-content: flex-end; padding-bottom: var(--safe-bottom); }
   /* 配置変更ボタン（代替ボタンがあった位置） */
+  /* 配置変更(⇅)ボタン：HIIT等のヘッダー文字と同じサイズで小さく */
   .ex-pos-btn {
-    background: var(--bg-2);
-    border: 1px solid var(--border);
+    background: none;
+    border: none;
     color: var(--text-2);
-    border-radius: 50%;
-    width: 34px; height: 34px;
-    font-size: 17px; line-height: 1;
+    font-size: 15px; line-height: 1;
+    padding: 2px 6px;
     cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
     flex-shrink: 0;
-    transition: background 0.15s;
   }
-  .ex-pos-btn:active { background: var(--bg-3); }
+  .ex-pos-btn:active { color: var(--text); }
   /* タイマー内に+/-を配置するレイアウト */
   .hiit-time-with-steps {
     display: grid !important;
