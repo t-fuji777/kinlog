@@ -1274,16 +1274,16 @@
     position: relative;
   }
   .today-meta {
-    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
     gap: 12px; margin-bottom: 18px;
     padding: 18px 0;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     position: relative;
   }
-  /* 下段2列：総時間 / アクティブ時間（メインカードの上段4列の直下、薄い区切りで連続表示） */
+  /* 下段3列：総重量 / 総回数 / 総セット数（メインカードの上段3列の直下、薄い区切りで連続表示） */
   .today-meta-sub {
-    display: grid; grid-template-columns: 1fr 1fr;
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
     gap: 12px;
     padding: 18px 0;
     margin-top: -18px; /* 上段との二重ボーダーを防ぐため寄せる */
@@ -1346,6 +1346,13 @@
     font-weight: 800;
     line-height: 1;
     letter-spacing: -0.3px;
+  }
+  /* 値の単位（kg/回/セット）：数値より小さく */
+  .today-meta-unit {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    margin-left: 1px;
   }
   .today-start {
     background: var(--accent); color: var(--accent-text);
@@ -10379,6 +10386,16 @@
               <div class="today-meta-value">-</div>
             </div>
             <div class="today-meta-item">
+              <div class="today-meta-label">総時間</div>
+              <div class="today-meta-value">-</div>
+            </div>
+            <div class="today-meta-item">
+              <div class="today-meta-label">アクティブ時間</div>
+              <div class="today-meta-value">-</div>
+            </div>
+          </div>
+          <div class="today-meta-sub">
+            <div class="today-meta-item">
               <div class="today-meta-label">総重量</div>
               <div class="today-meta-value">-</div>
             </div>
@@ -10388,16 +10405,6 @@
             </div>
             <div class="today-meta-item">
               <div class="today-meta-label">総セット数</div>
-              <div class="today-meta-value">-</div>
-            </div>
-          </div>
-          <div class="today-meta-sub">
-            <div class="today-meta-item">
-              <div class="today-meta-label">総時間</div>
-              <div class="today-meta-value">-</div>
-            </div>
-            <div class="today-meta-item">
-              <div class="today-meta-label">アクティブ時間</div>
               <div class="today-meta-value">-</div>
             </div>
           </div>
@@ -10441,6 +10448,16 @@
                 <div class="today-meta-value">-</div>
               </div>
               <div class="today-meta-item">
+                <div class="today-meta-label">総時間</div>
+                <div class="today-meta-value">-</div>
+              </div>
+              <div class="today-meta-item">
+                <div class="today-meta-label">アクティブ時間</div>
+                <div class="today-meta-value">-</div>
+              </div>
+            </div>
+            <div class="today-meta-sub">
+              <div class="today-meta-item">
                 <div class="today-meta-label">総重量</div>
                 <div class="today-meta-value">-</div>
               </div>
@@ -10450,16 +10467,6 @@
               </div>
               <div class="today-meta-item">
                 <div class="today-meta-label">総セット数</div>
-                <div class="today-meta-value">-</div>
-              </div>
-            </div>
-            <div class="today-meta-sub">
-              <div class="today-meta-item">
-                <div class="today-meta-label">総時間</div>
-                <div class="today-meta-value">-</div>
-              </div>
-              <div class="today-meta-item">
-                <div class="today-meta-label">アクティブ時間</div>
                 <div class="today-meta-value">-</div>
               </div>
             </div>
@@ -10523,9 +10530,7 @@
       const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       return ymd === todayYmd;
     });
-    const totalWeightDisplay = totalWeight >= 1000
-      ? (totalWeight / 1000).toFixed(1) + 't'
-      : totalWeight.toFixed(0) + 'kg';
+    const totalWeightDisplay = `${Math.round(totalWeight).toLocaleString('en-US')}<span class="today-meta-unit">kg</span>`;
 
     // 「前回」の表示ラベル：完了時は「本日の」、それ以外は「前回の記録：日付（曜日）」
     const metaTitle = hasPrev
@@ -10533,8 +10538,8 @@
       : '前回の記録：-';
     const exDisp = hasPrev ? exerciseCount : '-';
     const wDisp = hasPrev ? totalWeightDisplay : '-';
-    const repsDisp = hasPrev ? totalReps : '-';
-    const setsDisp = hasPrev ? totalSets : '-';
+    const repsDisp = hasPrev ? `${totalReps}<span class="today-meta-unit">回</span>` : '-';
+    const setsDisp = hasPrev ? `${totalSets}<span class="today-meta-unit">セット</span>` : '-';
     const totalDisp = (hasPrev && totalSeconds > 0) ? formatDuration(totalSeconds) : '-';
     const elapsedDisp = (hasPrev && totalDuration > 0) ? formatDuration(totalDuration) : '-';
 
@@ -10552,6 +10557,16 @@
             <div class="today-meta-value">${exDisp}</div>
           </div>
           <div class="today-meta-item">
+            <div class="today-meta-label">総時間</div>
+            <div class="today-meta-value">${totalDisp}</div>
+          </div>
+          <div class="today-meta-item">
+            <div class="today-meta-label">アクティブ時間</div>
+            <div class="today-meta-value">${elapsedDisp}</div>
+          </div>
+        </div>
+        <div class="today-meta-sub">
+          <div class="today-meta-item">
             <div class="today-meta-label">総重量</div>
             <div class="today-meta-value">${wDisp}</div>
           </div>
@@ -10562,16 +10577,6 @@
           <div class="today-meta-item">
             <div class="today-meta-label">総セット数</div>
             <div class="today-meta-value">${setsDisp}</div>
-          </div>
-        </div>
-        <div class="today-meta-sub">
-          <div class="today-meta-item">
-            <div class="today-meta-label">総時間</div>
-            <div class="today-meta-value">${totalDisp}</div>
-          </div>
-          <div class="today-meta-item">
-            <div class="today-meta-label">アクティブ時間</div>
-            <div class="today-meta-value">${elapsedDisp}</div>
           </div>
         </div>
         ${rec.type === 'completed'
@@ -10646,6 +10651,16 @@
                 <div class="today-meta-value">-</div>
               </div>
               <div class="today-meta-item">
+                <div class="today-meta-label">総時間</div>
+                <div class="today-meta-value">-</div>
+              </div>
+              <div class="today-meta-item">
+                <div class="today-meta-label">アクティブ時間</div>
+                <div class="today-meta-value">-</div>
+              </div>
+            </div>
+            <div class="today-meta-sub">
+              <div class="today-meta-item">
                 <div class="today-meta-label">総重量</div>
                 <div class="today-meta-value">-</div>
               </div>
@@ -10655,16 +10670,6 @@
               </div>
               <div class="today-meta-item">
                 <div class="today-meta-label">総セット数</div>
-                <div class="today-meta-value">-</div>
-              </div>
-            </div>
-            <div class="today-meta-sub">
-              <div class="today-meta-item">
-                <div class="today-meta-label">総時間</div>
-                <div class="today-meta-value">-</div>
-              </div>
-              <div class="today-meta-item">
-                <div class="today-meta-label">アクティブ時間</div>
                 <div class="today-meta-value">-</div>
               </div>
             </div>
@@ -10708,6 +10713,16 @@
               <div class="today-meta-value">-</div>
             </div>
             <div class="today-meta-item">
+              <div class="today-meta-label">総時間</div>
+              <div class="today-meta-value">-</div>
+            </div>
+            <div class="today-meta-item">
+              <div class="today-meta-label">アクティブ時間</div>
+              <div class="today-meta-value">-</div>
+            </div>
+          </div>
+          <div class="today-meta-sub">
+            <div class="today-meta-item">
               <div class="today-meta-label">総重量</div>
               <div class="today-meta-value">-</div>
             </div>
@@ -10717,16 +10732,6 @@
             </div>
             <div class="today-meta-item">
               <div class="today-meta-label">総セット数</div>
-              <div class="today-meta-value">-</div>
-            </div>
-          </div>
-          <div class="today-meta-sub">
-            <div class="today-meta-item">
-              <div class="today-meta-label">総時間</div>
-              <div class="today-meta-value">-</div>
-            </div>
-            <div class="today-meta-item">
-              <div class="today-meta-label">アクティブ時間</div>
               <div class="today-meta-value">-</div>
             </div>
           </div>
@@ -10793,9 +10798,7 @@
       : 0;
     // 総時間：履歴の totalSeconds と同じ
     const totalSeconds = (displaySession && typeof displaySession.totalSeconds === 'number') ? displaySession.totalSeconds : 0;
-    const totalWeightDisplay = totalWeight >= 1000
-      ? (totalWeight / 1000).toFixed(1) + 't'
-      : totalWeight.toFixed(0) + 'kg';
+    const totalWeightDisplay = `${Math.round(totalWeight).toLocaleString('en-US')}<span class="today-meta-unit">kg</span>`;
 
     // 状態テキスト：未来=「予定」、過去 + 実施記録あり=「実施済」、それ以外=「未実施」
     let reasonText;
@@ -10818,8 +10821,8 @@
     }
     const exDisp = displaySession ? exerciseCount : '-';
     const wDisp = displaySession ? totalWeightDisplay : '-';
-    const repsDisp = displaySession ? totalReps : '-';
-    const setsDisp = displaySession ? totalSets : '-';
+    const repsDisp = displaySession ? `${totalReps}<span class="today-meta-unit">回</span>` : '-';
+    const setsDisp = displaySession ? `${totalSets}<span class="today-meta-unit">セット</span>` : '-';
     const totalDisp = (displaySession && totalSeconds > 0) ? formatDuration(totalSeconds) : '-';
     const elapsedDisp = (displaySession && totalDuration > 0) ? formatDuration(totalDuration) : '-';
 
@@ -10838,6 +10841,16 @@
             <div class="today-meta-value">${exDisp}</div>
           </div>
           <div class="today-meta-item">
+            <div class="today-meta-label">総時間</div>
+            <div class="today-meta-value">${totalDisp}</div>
+          </div>
+          <div class="today-meta-item">
+            <div class="today-meta-label">アクティブ時間</div>
+            <div class="today-meta-value">${elapsedDisp}</div>
+          </div>
+        </div>
+        <div class="today-meta-sub">
+          <div class="today-meta-item">
             <div class="today-meta-label">総重量</div>
             <div class="today-meta-value">${wDisp}</div>
           </div>
@@ -10848,16 +10861,6 @@
           <div class="today-meta-item">
             <div class="today-meta-label">総セット数</div>
             <div class="today-meta-value">${setsDisp}</div>
-          </div>
-        </div>
-        <div class="today-meta-sub">
-          <div class="today-meta-item">
-            <div class="today-meta-label">総時間</div>
-            <div class="today-meta-value">${totalDisp}</div>
-          </div>
-          <div class="today-meta-item">
-            <div class="today-meta-label">アクティブ時間</div>
-            <div class="today-meta-value">${elapsedDisp}</div>
           </div>
         </div>
         <button class="today-start disabled${reasonText === '実施済' ? ' done' : ''}" disabled>${reasonText}</button>
@@ -14176,6 +14179,11 @@
     if (_counterLongFired) { _counterLongFired = false; return; }
     const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[idx];
     if (!ex) return;
+    // 単発：タップは常に取り消しの案内（セット数の変更は長押し）
+    if (workoutSession && workoutSession.oneOff) {
+      if (typeof confirmEraseLastHiitRound === 'function') confirmEraseLastHiitRound(idx);
+      return;
+    }
     const notStarted = !ex.exStarted && (!Array.isArray(ex.setRecords) || ex.setRecords.length === 0);
     if (notStarted) {
       if (typeof openHiitPicker === 'function') openHiitPicker(idx, 'rounds');
@@ -14442,7 +14450,7 @@
         <div class="hiit-phase hiit-phase-main-noframe">
           <div class="hiit-main-head hiit-main-head-no-label">
             <div class="hiit-sub-labels-wrap">
-              <div class="${workoutSession.oneOff ? 'hiit-phase-label hiit-sub-label hiit-prep-cool-item' : 'hiit-round-num hiit-round-num-inrow'} hiit-round-num-tappable ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="hiitRoundCounterTap(${idx})"`} title="タップで本数を変更">
+              <div class="${workoutSession.oneOff ? 'hiit-phase-label hiit-sub-label hiit-prep-cool-item' : 'hiit-round-num hiit-round-num-inrow'} hiit-round-num-tappable ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="hiitRoundCounterTap(${idx})"`} title="${workoutSession.oneOff ? 'タップで取り消し' : 'タップで本数を変更'}">
                 ${workoutSession.oneOff
                   ? `<div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div><div class="hiit-phase-speed-row"><span class="hiit-set-current${setJustDone ? ' is-latest' : ''}">${currentRound}</span><span class="hiit-set-sep">/</span><span class="hiit-phase-speed">${totalRounds}</span></div>`
                   : `<div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div><div class="hiit-round-num-hint">※タップ</div>`}
@@ -15992,7 +16000,9 @@
     modal.dataset.idx = String(idx);
     delete modal.dataset.coreType; // HIIT用なのでcoreTypeフラグはクリア
     const msg = modal.querySelector('.modal-msg');
-    if (msg) msg.textContent = `${lastNum}本目を取り消して ${afterDisplay}/${totalRounds} に戻しますか？`;
+    // 単発はカウンターの表記に合わせて「セット」、通常は従来どおり「本」
+    const unit = (workoutSession && workoutSession.oneOff) ? 'セット' : '本';
+    if (msg) msg.textContent = `${lastNum}${unit}目を取り消して ${afterDisplay}/${totalRounds} に戻しますか？`;
     modal.classList.add('show');
   }
 
