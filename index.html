@@ -4877,10 +4877,10 @@
   /* ①②押下時と同じ拡大サイズでタイマー値を表示 */
   #oneoffIntervalSlot .timer-value, #oneoffTimerSlot .timer-value { font-size: 48px; }
   /* 単発時はカードの下外余白は詰める。開始ボタン下の黒い余白（カード内下padding）は少し広めに */
-  body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; padding-bottom: 18px; }
+  body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; padding-bottom: 10px; }
   /* 単発のカウントダウンタイマー：縦幅とフォントを大きく */
-  body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 72px; }
-  body.oneoff-workout #exerciseList .hiit-simple-time-value { font-size: 38px; }
+  body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 75px; }
+  body.oneoff-workout #exerciseList .hiit-simple-time-value { font-size: 40px; }
   /* 単発: 内容全体（インターバル＋カード＋タイマー）を上/真ん中/下に配置 */
   body.oneoff-workout #screen-workout.active {
     display: flex;
@@ -14713,10 +14713,9 @@
     })();
     if (workoutSession.oneOff) {
       // 単発：経過時間・戻る・順番変更を省き、開始/完了を全幅で表示。
-      // セット数の変更(+/-)とセットチップは表示する。
+      // その他はセット(①②)システムを出さず、タイマーのみのシンプル構成にする。
       return `
       ${countdownTimerHtml}
-      ${setsHtml}
       <div class="judge-row hiit-judge-row full-width">
         ${coreGoBtnHtml}
       </div>
