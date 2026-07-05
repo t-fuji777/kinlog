@@ -4886,6 +4886,9 @@
   /* HIIT: セット枠を横幅広めに。数字ボックスは傾斜/速度と同デザイン */
   body.oneoff-workout .hiit-round-num-inrow { min-width: 64px; }
   body.oneoff-workout .hiit-set-value { font-size: 18px; }
+  /* 単発の有酸素：共通の外枠を外し、各パラメータ(傾斜/速度/時間)を独立した枠に */
+  body.oneoff-workout .machine-params-top { border: none; background: none; padding: 0; }
+  body.oneoff-workout .machine-param-value { border-color: var(--border); }
   /* 単発のカウントダウンタイマー：縦幅とフォントを大きく */
   body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 75px; }
   body.oneoff-workout #exerciseList .hiit-simple-time-value { font-size: 40px; }
