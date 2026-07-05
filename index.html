@@ -4873,8 +4873,10 @@
   /* 上部にタイマー(左)+インターバル(右)を横並び。ヘッダーとの間に少し余白、カードとは詰める */
   #oneoffIntervalSlot { display: flex; gap: 8px; margin: 12px 0 4px; }
   #oneoffIntervalSlot .timer-box {
-    flex: 1;
+    flex: 1 1 0;
     width: auto;
+    /* 狭い画面・大きい文字設定でも横並びを崩さないよう、内容幅より縮められるように */
+    min-width: 0;
     box-sizing: border-box;
   }
   /* 単発時はカードの下余白も詰めて、カードとタイマーを近づける */
