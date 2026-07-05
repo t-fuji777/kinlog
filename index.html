@@ -4882,6 +4882,9 @@
   body.oneoff-workout [id^="coreSetCounter"] .hiit-round-num-hint { font-size: 7px; }
   /* HIIT: セットカウンターの「セット」ラベルは狭い枠でも1行で収める */
   body.oneoff-workout .hiit-round-num-inrow .hiit-sub-num-text { white-space: nowrap; font-size: 9px; margin: 0; }
+  /* HIIT: セット枠を横幅広めに。数字ボックスは傾斜/速度と同デザイン */
+  body.oneoff-workout .hiit-round-num-inrow { min-width: 64px; }
+  body.oneoff-workout .hiit-set-value { font-size: 15px; }
   /* 単発のカウントダウンタイマー：縦幅とフォントを大きく */
   body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 75px; }
   body.oneoff-workout #exerciseList .hiit-simple-time-value { font-size: 40px; }
@@ -14387,9 +14390,9 @@
           <div class="hiit-main-head hiit-main-head-no-label">
             <div class="hiit-sub-labels-wrap">
               <div class="hiit-round-num hiit-round-num-tappable hiit-round-num-inrow ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="hiitRoundCounterTap(${idx})"`} title="タップで本数を変更">
-                ${workoutSession.oneOff ? '<div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div>' : ''}
-                <div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div>
-                ${workoutSession.oneOff ? '' : '<div class="hiit-round-num-hint">※タップ</div>'}
+                ${workoutSession.oneOff
+                  ? `<div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div><div class="hiit-phase-speed-row"><span class="hiit-phase-speed hiit-set-value">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></span></div>`
+                  : `<div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div><div class="hiit-round-num-hint">※タップ</div>`}
               </div>
               <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
                 <div class="hiit-sub-num"><span class="hiit-sub-num-text">傾斜</span><span class="hiit-sub-num-unit-spacer">％</span></div>
