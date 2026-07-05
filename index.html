@@ -24193,6 +24193,34 @@
     try { if (typeof saveWorkoutDraft === 'function') saveWorkoutDraft(); } catch (_) {}
   });
 
+  // ===== 自動更新（キャッシュ対策）=====
+  // バックグラウンドから復帰した時、サーバー側(index.html)が更新されていれば自動で最新版を読み直す。
+  // ・localStorage（メニュー/履歴/設定）は保持されるのでデータは消えない
+  // ・ワークアウト中／進捗ありのときは更新しない（作業を邪魔しない）
+  // ・短時間のアプリ切替では更新しない
+  (function setupAutoRefresh() {
+    let baselineTag = null;
+    let hiddenAt = 0;
+    async function fetchTag() {
+      try {
+        const res = await fetch(location.pathname + '?_=' + Date.now(), { method: 'HEAD', cache: 'no-store' });
+        return res.headers.get('etag') || res.headers.get('last-modified') || null;
+      } catch (e) { return null; }
+    }
+    fetchTag().then(t => { baselineTag = t; });
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+      if (!hiddenAt || (Date.now() - hiddenAt) < 3000) return;
+      const onWorkout = !!document.querySelector('#screen-workout.active');
+      const hasProgress = (typeof hasWorkoutProgress === 'function') && hasWorkoutProgress();
+      if (onWorkout || hasProgress) return;
+      const t = await fetchTag();
+      if (t && baselineTag && t !== baselineTag) {
+        try { location.reload(); } catch (e) {}
+      }
+    });
+  })();
+
   boot();
 </script>
 
