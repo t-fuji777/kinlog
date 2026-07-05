@@ -4870,13 +4870,16 @@
   }
   /* 単発ワークアウト：カード上下に配置するタイマー/インターバルのスロット */
   .oneoff-timer-slot { width: 100%; }
-  #oneoffIntervalSlot { margin: 0 0 10px; }
-  #oneoffTimerSlot { margin: 10px 0 0; }
+  /* インターバルはヘッダーとの間に少し余白。カードとの上下は詰める */
+  #oneoffIntervalSlot { margin: 12px 0 4px; }
+  #oneoffTimerSlot { margin: 4px 0 0; }
   .oneoff-timer-slot .timer-box {
     width: 100%;
     box-sizing: border-box;
     flex: none;
   }
+  /* 単発時はカードの下余白も詰めて、カードとタイマーを近づける */
+  body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; }
   /* タイマー内に+/-を配置するレイアウト */
   .hiit-time-with-steps {
     display: grid !important;
@@ -11495,6 +11498,7 @@
   // 通常ワークアウトでは元の配置に戻す（要素は移動のみでID/ハンドラは維持）。
   function applyWorkoutChrome() {
     const oneOff = !!(workoutSession && workoutSession.oneOff);
+    document.body.classList.toggle('oneoff-workout', oneOff);
     const sticky = document.querySelector('.workout-sticky-top');
     const bar = document.getElementById('workoutTimerBar');
     const elapsed = document.getElementById('elapsedTimerBox');
@@ -11596,7 +11600,9 @@
     // ヘッダーの×/ALLトグルボタンはワークアウト画面のみ表示
     const headerToggleBtn = document.getElementById('headerToggleTimerBtn');
     if (headerToggleBtn) {
-      headerToggleBtn.style.display = (name === 'workout') ? '' : 'none';
+      // 単発ワークアウトは上部バー自体を隠しているので「非表示」トグルも出さない
+      const isOneOffWk = !!(workoutSession && workoutSession.oneOff);
+      headerToggleBtn.style.display = (name === 'workout' && !isOneOffWk) ? '' : 'none';
     }
     // ホーム以外に移動した場合は、メニュー空時に設定したスクロール無効化を解除
     if (name !== 'home') {
