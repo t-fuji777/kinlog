@@ -4870,15 +4870,12 @@
   }
   /* 単発ワークアウト：カード上下に配置するタイマー/インターバルのスロット */
   .oneoff-timer-slot { width: 100%; }
-  /* 上部にタイマー(左)+インターバル(右)を横並び。ヘッダーとの間に少し余白、カードとは詰める */
-  #oneoffIntervalSlot { display: flex; gap: 8px; margin: 12px 0 4px; }
-  #oneoffIntervalSlot .timer-box {
-    flex: 1 1 0;
-    width: auto;
-    /* 狭い画面・大きい文字設定でも横並びを崩さないよう、内容幅より縮められるように */
-    min-width: 0;
-    box-sizing: border-box;
-  }
+  /* インターバルは黒枠(カード)の上、タイマーは下。ヘッダーとの間に少し余白、カードとは詰める */
+  #oneoffIntervalSlot { margin: 12px 0 4px; }
+  #oneoffTimerSlot { margin: 4px 0 0; }
+  .oneoff-timer-slot .timer-box { width: 100%; box-sizing: border-box; }
+  /* ①②押下時と同じ拡大サイズでタイマー値を表示 */
+  #oneoffIntervalSlot .timer-value, #oneoffTimerSlot .timer-value { font-size: 48px; }
   /* 単発時はカードの下余白も詰めて、カードとタイマーを近づける */
   body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; }
   /* 単発: 内容全体（インターバル＋カード＋タイマー）を上/真ん中/下に配置 */
@@ -11595,13 +11592,11 @@
     const finishHint = document.getElementById('finishWorkoutHint');
     const addSection = document.querySelector('.add-exercise-section');
     if (oneOff) {
-      // タイマー(左) + インターバル(右) を上部スロットに横並び配置
-      if (intervalSlot) {
-        if (elapsed) intervalSlot.appendChild(elapsed);
-        if (interval) intervalSlot.appendChild(interval);
-        intervalSlot.style.display = '';
-      }
-      if (timerSlot) timerSlot.style.display = 'none';
+      // インターバルはカードの上、タイマーはカードの下に配置（上下）
+      if (intervalSlot && interval) intervalSlot.appendChild(interval);
+      if (timerSlot && elapsed) timerSlot.appendChild(elapsed);
+      if (intervalSlot) intervalSlot.style.display = '';
+      if (timerSlot) timerSlot.style.display = '';
       if (sticky) sticky.style.display = 'none';
       if (modeBar) modeBar.style.display = 'none';
       if (finishBtn) finishBtn.style.display = 'none';
@@ -14087,13 +14082,42 @@
   }
 
   // ラウンドカウンター：タップで確認モーダル → OKでカウントダウン（戻る）
+  // HIITカウンター長押しで本数(rounds)を編集（1/N以降＝開始後でも変更できるように）
+  let _counterLongFired = false;
   function attachRoundCounterTap(el, idx) {
-    // onclick属性に任せる（重複イベント防止のため、ここでは何もしない）
-    return;
+    let pressTimer = null, startY = 0, startX = 0;
+    const start = (e) => {
+      _counterLongFired = false;   // 新しい押下でフラグをリセット（取りこぼし対策）
+      const t = e.touches ? e.touches[0] : e;
+      startY = t.clientY; startX = t.clientX;
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        _counterLongFired = true;
+        if (navigator.vibrate) navigator.vibrate(20);
+        if (typeof openHiitPicker === 'function') openHiitPicker(idx, 'rounds');
+      }, 500);
+    };
+    const move = (e) => {
+      if (!pressTimer) return;
+      const t = e.touches ? e.touches[0] : e;
+      if (Math.abs(t.clientY - startY) > 6 || Math.abs(t.clientX - startX) > 6) { clearTimeout(pressTimer); pressTimer = null; }
+    };
+    const end = () => { clearTimeout(pressTimer); pressTimer = null; };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: true });
+    el.addEventListener('touchend', end);
+    el.addEventListener('touchcancel', end);
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mousemove', move);
+    el.addEventListener('mouseup', end);
+    el.addEventListener('mouseleave', end);
   }
 
-  // 0/8 カウンターのタップ：未開始なら本数(rounds)を編集、開始後は前のラウンドへ戻る
+  // 0/8 カウンターのタップ：未開始なら本数(rounds)を編集、開始後は前のラウンドへ戻る。
+  // 長押し（本数編集）が発火した直後のタップは無視する。
   function hiitRoundCounterTap(idx) {
+    if (_counterLongFired) { _counterLongFired = false; return; }
     const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[idx];
     if (!ex) return;
     const notStarted = !ex.exStarted && (!Array.isArray(ex.setRecords) || ex.setRecords.length === 0);
@@ -14685,9 +14709,11 @@
       return `<button class="nav-btn-step go ${showSelected ? 'selected' : ''}" onclick="coreStepGo(${idx})" ${isDisabled ? 'disabled' : ''}><span class="nav-btn-icon">✓</span>完了</button>`;
     })();
     if (workoutSession.oneOff) {
-      // 単発：経過時間・戻る・順番変更を省き、開始/完了を全幅で表示
+      // 単発：経過時間・戻る・順番変更を省き、開始/完了を全幅で表示。
+      // セット数の変更(+/-)とセットチップは表示する。
       return `
       ${countdownTimerHtml}
+      ${setsHtml}
       <div class="judge-row hiit-judge-row full-width">
         ${coreGoBtnHtml}
       </div>
