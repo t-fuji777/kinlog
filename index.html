@@ -4870,13 +4870,12 @@
   }
   /* 単発ワークアウト：カード上下に配置するタイマー/インターバルのスロット */
   .oneoff-timer-slot { width: 100%; }
-  /* インターバルはヘッダーとの間に少し余白。カードとの上下は詰める */
-  #oneoffIntervalSlot { margin: 12px 0 4px; }
-  #oneoffTimerSlot { margin: 4px 0 0; }
-  .oneoff-timer-slot .timer-box {
-    width: 100%;
+  /* 上部にタイマー(左)+インターバル(右)を横並び。ヘッダーとの間に少し余白、カードとは詰める */
+  #oneoffIntervalSlot { display: flex; gap: 8px; margin: 12px 0 4px; }
+  #oneoffIntervalSlot .timer-box {
+    flex: 1;
+    width: auto;
     box-sizing: border-box;
-    flex: none;
   }
   /* 単発時はカードの下余白も詰めて、カードとタイマーを近づける */
   body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; }
@@ -11550,6 +11549,30 @@
     document.body.classList.add('oneoff-pos-' + pos);
   }
 
+  // 単発の設定（速度・傾斜・時間・本数など）を種別ごとに保存。次回起動時に復元される
+  function saveOneOffSettings() {
+    if (!workoutSession || !workoutSession.oneOff) return;
+    const type = workoutSession.oneOffType;
+    const ex = workoutSession.exercises && workoutSession.exercises[0];
+    if (!type || !ex) return;
+    let all = {};
+    try { all = JSON.parse(localStorage.getItem('wo_oneoff_settings') || '{}'); } catch (e) {}
+    if (type === 'hiit') {
+      all.hiit = {
+        protocol: ex.protocol ? { ...ex.protocol } : null,
+        roundTargetSec: (ex.roundTargetSec != null ? ex.roundTargetSec : null)
+      };
+    } else if (type === 'cardio') {
+      all.cardio = { machineProtocol: ex.machineProtocol ? { ...ex.machineProtocol } : null };
+    } else {
+      all.other = {
+        otherSec: (ex.coreSec != null ? ex.coreSec : ex.otherSec),
+        sets: (ex.currentSets || ex.targetSets || 1)
+      };
+    }
+    try { localStorage.setItem('wo_oneoff_settings', JSON.stringify(all)); } catch (e) {}
+  }
+
   // 単発ワークアウト用にワークアウト画面のクロームを切り替える。
   // ・インターバルを黒枠(カード)の上、タイマーを黒枠の下へ移動
   // ・上部タイマーバー／モード切替／セッション完了／種目追加を隠す
@@ -11570,10 +11593,13 @@
     const finishHint = document.getElementById('finishWorkoutHint');
     const addSection = document.querySelector('.add-exercise-section');
     if (oneOff) {
-      if (intervalSlot && interval) intervalSlot.appendChild(interval);
-      if (timerSlot && elapsed) timerSlot.appendChild(elapsed);
-      if (intervalSlot) intervalSlot.style.display = '';
-      if (timerSlot) timerSlot.style.display = '';
+      // タイマー(左) + インターバル(右) を上部スロットに横並び配置
+      if (intervalSlot) {
+        if (elapsed) intervalSlot.appendChild(elapsed);
+        if (interval) intervalSlot.appendChild(interval);
+        intervalSlot.style.display = '';
+      }
+      if (timerSlot) timerSlot.style.display = 'none';
       if (sticky) sticky.style.display = 'none';
       if (modeBar) modeBar.style.display = 'none';
       if (finishBtn) finishBtn.style.display = 'none';
@@ -11621,7 +11647,8 @@
     const leavingWorkout = prevScreen && prevScreen.id === 'screen-workout' && name !== 'workout';
     if (leavingWorkout) {
       if (workoutSession && workoutSession.oneOff) {
-        // 単発（その場限り）は記録を残さないので確認なしで離脱。セッション・下書きをクリアし配置を戻す
+        // 単発（その場限り）は記録を残さないので確認なしで離脱。設定は保存し、セッション・下書きはクリア
+        if (typeof saveOneOffSettings === 'function') saveOneOffSettings();
         if (typeof clearWorkoutDraft === 'function') clearWorkoutDraft();
         workoutSession = {};
         stopElapsedTimer();
@@ -12986,6 +13013,16 @@
         other: true, otherSec: 60  // タイマー既定60秒（画面で±変更可）
       };
     }
+    // 前回変更した設定（速度・傾斜・時間・本数など）を復元
+    let savedOneOff = {};
+    try { savedOneOff = JSON.parse(localStorage.getItem('wo_oneoff_settings') || '{}'); } catch (e) {}
+    if (type === 'hiit' && savedOneOff.hiit && savedOneOff.hiit.protocol) {
+      base.protocol = { ...base.protocol, ...savedOneOff.hiit.protocol };
+    } else if (type === 'cardio' && savedOneOff.cardio && savedOneOff.cardio.machineProtocol) {
+      base.machineProtocol = { ...base.machineProtocol, ...savedOneOff.cardio.machineProtocol };
+    } else if (type === 'other' && savedOneOff.other && savedOneOff.other.otherSec != null) {
+      base.otherSec = savedOneOff.other.otherSec;
+    }
     // startWorkout と同じセッション種目形状で単一種目を構築
     const ex = {
       name: base.name,
@@ -13015,6 +13052,14 @@
       currentSets: 1, currentWeight: 0, currentReps: 0,
       setRecords: [], judge: null, keepReps: null
     };
+    // HIITの本数タイマー(roundTargetSec)・その他のセット数も復元
+    if (type === 'hiit' && savedOneOff.hiit && savedOneOff.hiit.roundTargetSec != null) {
+      ex.roundTargetSec = savedOneOff.hiit.roundTargetSec;
+    }
+    if (type === 'other' && savedOneOff.other && savedOneOff.other.sets != null) {
+      ex.targetSets = savedOneOff.other.sets;
+      ex.currentSets = savedOneOff.other.sets;
+    }
     currentWorkout = null;            // メニュー非紐付け
     workoutSession = {
       menuId: null,
@@ -22718,6 +22763,7 @@
     if (!workoutSession || !Array.isArray(workoutSession.exercises)) return;
     // 単発ワークアウト（その場限り）は履歴・前回記録・代替プールに一切保存せず終了
     if (workoutSession.oneOff) {
+      if (typeof saveOneOffSettings === 'function') saveOneOffSettings();
       if (typeof clearWorkoutDraft === 'function') clearWorkoutDraft();
       workoutSession = {};
       stopElapsedTimer();
