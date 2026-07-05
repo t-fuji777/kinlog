@@ -4857,6 +4857,24 @@
   .hiit-main-row .hiit-round-num {
     min-width: 50px;
   }
+  /* HIIT本体：カウンターを上段へ移動したため、タイマー(1fr)+リセット(auto)の2列に */
+  .hiit-main-row.hiit-main-row-nocounter {
+    grid-template-columns: 1fr auto;
+  }
+  /* 上段に置いたラウンドカウンター：本数ラベルと高さ・大きさを揃える */
+  .hiit-round-num-inrow {
+    min-width: 44px;
+    padding: 2px 6px;
+  }
+  /* 単発ワークアウト：カード上下に配置するタイマー/インターバルのスロット */
+  .oneoff-timer-slot { width: 100%; }
+  #oneoffIntervalSlot { margin: 0 0 10px; }
+  #oneoffTimerSlot { margin: 10px 0 0; }
+  .oneoff-timer-slot .timer-box {
+    width: 100%;
+    box-sizing: border-box;
+    flex: none;
+  }
   /* タイマー内に+/-を配置するレイアウト */
   .hiit-time-with-steps {
     display: grid !important;
@@ -7564,7 +7582,9 @@
         <div class="workout-progress" id="workoutProgress"></div>
       </div>
     </div>
+    <div id="oneoffIntervalSlot" class="oneoff-timer-slot" style="display:none"></div>
     <div id="exerciseList"></div>
+    <div id="oneoffTimerSlot" class="oneoff-timer-slot" style="display:none"></div>
     <div class="add-exercise-section">
       <button class="add-exercise-btn" onclick="openManualAddExercise()">＋ 種目追加</button>
     </div>
@@ -11467,6 +11487,47 @@
     requestAnimationFrame(step);
   }
 
+  // 単発ワークアウト用にワークアウト画面のクロームを切り替える。
+  // ・インターバルを黒枠(カード)の上、タイマーを黒枠の下へ移動
+  // ・上部タイマーバー／モード切替／セッション完了／種目追加を隠す
+  // 通常ワークアウトでは元の配置に戻す（要素は移動のみでID/ハンドラは維持）。
+  function applyWorkoutChrome() {
+    const oneOff = !!(workoutSession && workoutSession.oneOff);
+    const sticky = document.querySelector('.workout-sticky-top');
+    const bar = document.getElementById('workoutTimerBar');
+    const elapsed = document.getElementById('elapsedTimerBox');
+    const interval = document.getElementById('intervalTimerBox');
+    const modeBar = document.getElementById('timerModeBar');
+    const intervalSlot = document.getElementById('oneoffIntervalSlot');
+    const timerSlot = document.getElementById('oneoffTimerSlot');
+    const finishBtn = document.getElementById('finishWorkoutBtn');
+    const finishHint = document.getElementById('finishWorkoutHint');
+    const addSection = document.querySelector('.add-exercise-section');
+    if (oneOff) {
+      if (intervalSlot && interval) intervalSlot.appendChild(interval);
+      if (timerSlot && elapsed) timerSlot.appendChild(elapsed);
+      if (intervalSlot) intervalSlot.style.display = '';
+      if (timerSlot) timerSlot.style.display = '';
+      if (sticky) sticky.style.display = 'none';
+      if (modeBar) modeBar.style.display = 'none';
+      if (finishBtn) finishBtn.style.display = 'none';
+      if (finishHint) finishHint.style.display = 'none';
+      if (addSection) addSection.style.display = 'none';
+    } else {
+      if (bar) {
+        if (elapsed) bar.appendChild(elapsed);
+        if (interval) bar.appendChild(interval);
+        if (modeBar) bar.appendChild(modeBar);
+      }
+      if (sticky) sticky.style.display = '';
+      if (modeBar) modeBar.style.display = '';
+      if (finishBtn) finishBtn.style.display = '';
+      if (addSection) addSection.style.display = '';
+      if (intervalSlot) intervalSlot.style.display = 'none';
+      if (timerSlot) timerSlot.style.display = 'none';
+    }
+  }
+
   function showScreen(name) {
     // 既に同じ画面が表示されている場合：
     // ・スクロール位置が下にある → 最上部にスクロール
@@ -11493,17 +11554,26 @@
     // ワークアウト画面から離れる時：未完了の進捗があれば確認
     const leavingWorkout = prevScreen && prevScreen.id === 'screen-workout' && name !== 'workout';
     if (leavingWorkout) {
-      // セッション完了されていない状態で進捗（記録/開始済種目）があれば破棄確認モーダルを表示
-      const hasProgress = (typeof hasWorkoutProgress === 'function') && hasWorkoutProgress();
-      if (hasProgress) {
-        // 移動先を保存しておき、モーダルでOK押下時に showScreen を再実行
-        pendingLeaveWorkoutTarget = name;
-        const modal = document.getElementById('leaveWorkoutModal');
-        if (modal) modal.classList.add('show');
-        return; // 一旦遷移を中止（モーダル待ち）
+      if (workoutSession && workoutSession.oneOff) {
+        // 単発（その場限り）は記録を残さないので確認なしで離脱。セッション・下書きをクリアし配置を戻す
+        if (typeof clearWorkoutDraft === 'function') clearWorkoutDraft();
+        workoutSession = {};
+        stopElapsedTimer();
+        stopInterval();
+        try { applyWorkoutChrome(); } catch (e) {}
+      } else {
+        // セッション完了されていない状態で進捗（記録/開始済種目）があれば破棄確認モーダルを表示
+        const hasProgress = (typeof hasWorkoutProgress === 'function') && hasWorkoutProgress();
+        if (hasProgress) {
+          // 移動先を保存しておき、モーダルでOK押下時に showScreen を再実行
+          pendingLeaveWorkoutTarget = name;
+          const modal = document.getElementById('leaveWorkoutModal');
+          if (modal) modal.classList.add('show');
+          return; // 一旦遷移を中止（モーダル待ち）
+        }
+        stopElapsedTimer();
+        stopInterval();
       }
-      stopElapsedTimer();
-      stopInterval();
     }
     // 並び替えモードなら解除
     if (reorderMode) {
@@ -11515,6 +11585,7 @@
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const target = document.getElementById('screen-' + name);
     if (target) target.classList.add('active');
+    if (name === 'workout') { try { applyWorkoutChrome(); } catch (e) {} }
     // 全画面でヘッダーを固定（スクロール時も上部に残る）
     document.body.classList.add('header-fixed');
     document.querySelectorAll('.nav-btn, .header-nav-btn').forEach(b => {
@@ -12811,6 +12882,7 @@
     renderExerciseList();
     renderProgress();
     showScreen('workout');
+    applyWorkoutChrome();
     // タイマー表示状態を反映（前回の状態を維持しつつDOMに適用）
     applyTimerDisplay();
   }
@@ -12887,6 +12959,7 @@
     renderExerciseList();
     renderProgress();
     showScreen('workout');
+    applyWorkoutChrome();
     applyTimerDisplay();
   }
 
@@ -13464,8 +13537,8 @@
         ${ex.other ? renderOtherCard(idx, ex) : (ex.core ? renderCoreCard(idx, ex) : (ex.cardio ? `
         ${ex.hiit && ex.protocol ? renderHiitProtocol(idx, ex.protocol) : ''}
         ${ex.cardioMachine && ex.machineProtocol ? renderCardioMachineProtocol(idx, ex.machineProtocol) : ''}
-        <div class="judge-row hiit-judge-row${(ex.hiit || ex.cardioMachine) ? ' hiit-judge-row-with-back' : ''}">
-          ${(ex.hiit || ex.cardioMachine) ? `
+        <div class="judge-row hiit-judge-row${workoutSession.oneOff ? ' full-width' : ((ex.hiit || ex.cardioMachine) ? ' hiit-judge-row-with-back' : '')}">
+          ${(!workoutSession.oneOff && (ex.hiit || ex.cardioMachine)) ? `
           <div class="nav-time-wrap hiit-inline-time">
             <div class="nav-time-display ${getNavTimeStateClass(ex)}" id="time-${idx}" onclick="askTimeReset(${idx})">${ex.duration ? formatDuration(ex.duration) : formatDuration(ex.elapsedSeconds || 0)}</div>
           </div>
@@ -13499,7 +13572,7 @@
             return `<button class="judge-btn ok ${showSelected ? 'selected' : ''} ${ex.exStarted && !ex.judge && !allHiitRecorded ? 'in-progress' : ''}" onclick="judge(${idx}, 'ok')" ${finalDisabled ? 'disabled' : ''}>${btnLabel}</button>`;
           })()}
         </div>
-        ${(ex.hiit || ex.cardioMachine) ? `
+        ${(!workoutSession.oneOff && (ex.hiit || ex.cardioMachine)) ? `
         <div class="reorder-row reorder-row-core">
           <div class="reorder-time-hint">※タップ</div>
           <div class="reorder-handle" data-idx="${idx}">ここを長押しで順番変更</div>
@@ -13768,7 +13841,7 @@
       list.appendChild(card);
       // 筋トレ以外（HIIT/有酸素/体幹/その他）には長押しバーがHTML内で生成されないので、
       // ここでカード末尾に追加する
-      if (!card.querySelector('.reorder-handle')) {
+      if (!(workoutSession && workoutSession.oneOff) && !card.querySelector('.reorder-handle')) {
         const reorderRow = document.createElement('div');
         reorderRow.className = 'reorder-row reorder-row-full';
         reorderRow.innerHTML = `<div class="reorder-handle" data-idx="${idx}">ここを長押しで順番変更</div>`;
@@ -14152,6 +14225,10 @@
         <div class="hiit-phase hiit-phase-main-noframe">
           <div class="hiit-main-head hiit-main-head-no-label">
             <div class="hiit-sub-labels-wrap">
+              <div class="hiit-round-num hiit-round-num-tappable hiit-round-num-inrow ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="confirmEraseLastHiitRound(${idx})"`} title="タップで前のラウンドに戻る">
+                <div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div>
+                <div class="hiit-round-num-hint">※タップ</div>
+              </div>
               <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
                 <div class="hiit-sub-num"><span class="hiit-sub-num-text">本数</span><span class="hiit-sub-num-unit-spacer">本</span></div>
                 <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openHiitPicker(${idx}, 'rounds')">${p.rounds}</span><span class="hiit-sub-unit">本</span></div>
@@ -14167,11 +14244,7 @@
             </div>
           </div>
           <div class="hiit-rounds-wrap">
-            <div class="hiit-main-row">
-              <div class="hiit-round-num hiit-round-num-tappable ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="confirmEraseLastHiitRound(${idx})"`} title="タップで前のラウンドに戻る">
-                <div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div>
-                <div class="hiit-round-num-hint">※タップ</div>
-              </div>
+            <div class="hiit-main-row hiit-main-row-nocounter">
               <div class="hiit-simple-time hiit-time-with-steps ${(timerState.running || isAllDone) ? 'running' : ''} ${(!timerState.running && timerState.elapsed > 0 && remainingSec > 0 && !timerState.completed) ? 'paused' : ''} ${timerState.completed ? 'done' : ''}" id="hiitRoundTime-${idx}" data-target="${roundTargetSec}" onclick="toggleHiitRoundTimer(${idx})">
                 <button class="hiit-time-step minus" onclick="event.stopPropagation(); adjustHiitTargetSec(${idx}, -10)" ${(timerState.running || isAllDone) ? 'disabled' : ''} title="−10秒">−</button>
                 <div class="hiit-time-center">
@@ -14472,6 +14545,28 @@
       </div>
     `;
 
+    // 開始/完了ボタン（単発・通常で共通）
+    const coreGoBtnHtml = (() => {
+      if (!ex.exStarted) {
+        const prevDone = isPrevExerciseFinished(idx);
+        const isSkipped = ex.judge === 'skip';
+        return `<button class="nav-btn-step go" onclick="coreStepGo(${idx})" ${(!prevDone || isSkipped) ? 'disabled' : ''}>開始</button>`;
+      }
+      const allRecorded = ex.setRecords.length >= totalSets;
+      const isCompleted = ex.judge === 'ok';
+      const showSelected = allRecorded && !isCompleted;
+      const isDisabled = isCompleted || !allRecorded;
+      return `<button class="nav-btn-step go ${showSelected ? 'selected' : ''}" onclick="coreStepGo(${idx})" ${isDisabled ? 'disabled' : ''}><span class="nav-btn-icon">✓</span>完了</button>`;
+    })();
+    if (workoutSession.oneOff) {
+      // 単発：経過時間・戻る・順番変更を省き、開始/完了を全幅で表示
+      return `
+      ${countdownTimerHtml}
+      <div class="judge-row hiit-judge-row full-width">
+        ${coreGoBtnHtml}
+      </div>
+    `;
+    }
     return `
       ${countdownTimerHtml}
       <div class="nav-row ${ex.bilateral ? 'nav-row-core-bi' : 'nav-row-core'}">
@@ -14487,23 +14582,7 @@
           return `<button class="nav-btn-side ${(currentSide || 'R') === 'R' ? 'side-r' : 'side-l'}" onclick="toggleCoreSideNew(${idx})" title="記録する側を切り替え" ${sideLocked ? 'disabled' : ''}>${sideLabel(currentSide)}</button>`;
         })() : ''}
         <button class="nav-btn-step back" onclick="coreStepBack(${idx})" ${ex.judge !== 'ok' ? 'disabled' : ''}>戻る</button>
-        ${(() => {
-          if (!ex.exStarted) {
-            // 未開始：開始ボタン（スキップ済 or 直前種目が完了/スキップしてなければdisabled）
-            const prevDone = isPrevExerciseFinished(idx);
-            const isSkipped = ex.judge === 'skip';
-            return `<button class="nav-btn-step go" onclick="coreStepGo(${idx})" ${(!prevDone || isSkipped) ? 'disabled' : ''}>開始</button>`;
-          }
-          // 開始済：
-          // - 全セット記録済み かつ judge!=ok → 緑色selected（押せる、完了確定する）
-          // - judge=ok（完了確定） → disabled（灰色、取消は戻る経由）
-          // - 未記録 → disabled（灰色）
-          const allRecorded = ex.setRecords.length >= totalSets;
-          const isCompleted = ex.judge === 'ok';
-          const showSelected = allRecorded && !isCompleted; // 全セット記録済みで未確定 → 緑表示
-          const isDisabled = isCompleted || !allRecorded;
-          return `<button class="nav-btn-step go ${showSelected ? 'selected' : ''}" onclick="coreStepGo(${idx})" ${isDisabled ? 'disabled' : ''}><span class="nav-btn-icon">✓</span>完了</button>`;
-        })()}
+        ${coreGoBtnHtml}
       </div>
       <div class="reorder-row ${ex.bilateral ? 'reorder-row-core-bi' : 'reorder-row-core'}">
         <div class="reorder-time-hint">※タップ</div>
