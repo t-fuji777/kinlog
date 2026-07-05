@@ -4932,9 +4932,14 @@
   /* 単発の有酸素：共通の外枠を外し、傾斜/速度/時間をHIITの傾斜と同一構造の独立枠に
      （中身はHIITと同じクラスをそのまま使用。枠デザインは .hiit-prep-cool-item の共通ルールを共有） */
   body.oneoff-workout .machine-params-top { border: none; background: none; padding: 0; gap: 6px; align-items: flex-start; }
-  /* 単発のカウントダウンタイマー：縦幅とフォントを大きく */
-  body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 75px; }
-  body.oneoff-workout #exerciseList .hiit-simple-time-value { font-size: 40px; }
+  /* 単発のカウントダウンタイマー：縦幅とフォントを大きく。※タップは削除しその分数値を拡大 */
+  body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 75px; min-width: 0; }
+  body.oneoff-workout #exerciseList .hiit-simple-time-value { font-size: 48px; }
+  body.oneoff-workout #exerciseList .hiit-simple-time-hint { display: none; }
+  /* その他（セット枠と同じ行）はタイマー幅が狭いため、ボタンを細身にして数値は42px */
+  body.oneoff-workout #exerciseList .hiit-main-row:not(.hiit-main-row-nocounter) .hiit-simple-time-value { font-size: 42px; }
+  body.oneoff-workout #exerciseList .hiit-main-row:not(.hiit-main-row-nocounter) .hiit-time-step { min-width: 28px; padding: 0 4px; }
+  body.oneoff-workout #exerciseList .hiit-main-row:not(.hiit-main-row-nocounter) .hiit-reset-in { width: 30px; height: 30px; margin-left: 2px; }
   /* 単発: 内容全体（インターバル＋カード＋タイマー）を上/真ん中/下に配置 */
   body.oneoff-workout #screen-workout.active {
     display: flex;
