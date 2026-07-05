@@ -4600,6 +4600,8 @@
   }
   /* 本番ヘッダー内の本数・ダッシュ・回復：下のカウンタ枠と同じ見た目に統一 */
   /* 背景は準備・クールダウンと同じ bg-1（黒）に揃える */
+  /* 単発の有酸素（傾斜/速度/時間）も同じ枠デザインを共有 */
+  body.oneoff-workout .machine-params-top .hiit-prep-cool-item,
   .hiit-main-head .hiit-prep-cool-item {
     background: var(--bg-1);
     border: 1px solid var(--border);
@@ -4881,14 +4883,14 @@
   body.oneoff-workout #exerciseList .exercise { margin-bottom: 0; padding-top: 10px; padding-bottom: 10px; }
   /* その他: セットカウンター(0/1)の ※タップ だけフォントを小さく */
   body.oneoff-workout [id^="coreSetCounter"] .hiit-round-num-hint { font-size: 7px; }
-  /* HIIT: セットカウンターの「セット」ラベルは狭い枠でも1行で収める */
-  body.oneoff-workout .hiit-round-num-inrow .hiit-sub-num-text { white-space: nowrap; font-size: 9px; margin: 0; }
-  /* HIIT: セット枠を横幅広めに。数字ボックスは傾斜/速度と同デザイン */
-  body.oneoff-workout .hiit-round-num-inrow { min-width: 64px; }
-  body.oneoff-workout .hiit-set-value { font-size: 18px; }
-  /* 単発の有酸素：共通の外枠を外し、各パラメータ(傾斜/速度/時間)を独立した枠に */
-  body.oneoff-workout .machine-params-top { border: none; background: none; padding: 0; }
-  body.oneoff-workout .machine-param-value { border-color: var(--border); }
+  /* HIIT: セット枠は傾斜と同一クラス構造を使用（デザインは自動で一致）。ラベルは1行固定 */
+  body.oneoff-workout .hiit-round-num-tappable .hiit-sub-num-text { white-space: nowrap; }
+  /* 全セット完了時（緑）: 新構造（数字ボックス+単位）に完了色を適用 */
+  body.oneoff-workout .hiit-round-num-tappable.done-final .hiit-phase-speed { color: var(--ok); border-color: var(--ok); }
+  body.oneoff-workout .hiit-round-num-tappable.done-final .hiit-sub-unit { color: var(--ok); opacity: 0.7; }
+  /* 単発の有酸素：共通の外枠を外し、傾斜/速度/時間をHIITの傾斜と同一構造の独立枠に
+     （中身はHIITと同じクラスをそのまま使用。枠デザインは .hiit-prep-cool-item の共通ルールを共有） */
+  body.oneoff-workout .machine-params-top { border: none; background: none; padding: 0; gap: 6px; align-items: flex-start; }
   /* 単発のカウントダウンタイマー：縦幅とフォントを大きく */
   body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 75px; }
   body.oneoff-workout #exerciseList .hiit-simple-time-value { font-size: 40px; }
@@ -14393,9 +14395,9 @@
         <div class="hiit-phase hiit-phase-main-noframe">
           <div class="hiit-main-head hiit-main-head-no-label">
             <div class="hiit-sub-labels-wrap">
-              <div class="hiit-round-num hiit-round-num-tappable hiit-round-num-inrow ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="hiitRoundCounterTap(${idx})"`} title="タップで本数を変更">
+              <div class="${workoutSession.oneOff ? 'hiit-phase-label hiit-sub-label hiit-prep-cool-item' : 'hiit-round-num hiit-round-num-inrow'} hiit-round-num-tappable ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="hiitRoundCounterTap(${idx})"`} title="タップで本数を変更">
                 ${workoutSession.oneOff
-                  ? `<div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div><div class="hiit-phase-speed-row"><span class="hiit-phase-speed hiit-set-value">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></span></div>`
+                  ? `<div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span><span class="hiit-sub-num-unit-spacer">/${totalRounds}</span></div><div class="hiit-phase-speed-row"><span class="hiit-phase-speed">${currentRound}</span><span class="hiit-sub-unit">/${totalRounds}</span></div>`
                   : `<div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div><div class="hiit-round-num-hint">※タップ</div>`}
               </div>
               <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
@@ -16278,6 +16280,23 @@
 
   // トレッドミル用のプロトコル表示（傾斜・速度・時間のみ。タイマーと完了ボタンはhiit-judge-rowで共通）
   function renderCardioMachineProtocol(idx, p) {
+    // 単発：HIITの傾斜と同一構造・同一クラスの独立枠（デザインが自動で一致する）
+    if (workoutSession.oneOff) {
+      const item = (label, unit, field, valueText) => `
+        <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
+          <div class="hiit-sub-num"><span class="hiit-sub-num-text">${label}</span><span class="hiit-sub-num-unit-spacer">${unit}</span></div>
+          <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openCardioMachinePicker(${idx}, '${field}')">${valueText}</span><span class="hiit-sub-unit">${unit}</span></div>
+        </div>`;
+      return `
+        <div class="cardio-machine-row">
+          <div class="machine-params-top">
+            ${item('傾斜', '%', 'incline', (p.incline || 0).toFixed(1))}
+            ${item('速度', 'km/h', 'speed', (p.speed || 0).toFixed(1))}
+            ${item('時間', '分', 'minutes', p.minutes || 1)}
+          </div>
+        </div>
+      `;
+    }
     return `
       <div class="cardio-machine-row">
         <div class="machine-params-top">
