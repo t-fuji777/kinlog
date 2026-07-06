@@ -10702,8 +10702,8 @@
         return;
       }
       // 履歴あり：その日のセッションを保持（後段で利用）
-      // 複数あれば最新（最後に追加された）を採用
-      pastDaySession = matchedSessions[matchedSessions.length - 1];
+      // 複数あれば最新を採用。履歴は新しい順（unshiftで先頭に追加）なので先頭が最新。
+      pastDaySession = matchedSessions[0];
     }
 
     // 表示するメニューを決定：
@@ -11025,6 +11025,13 @@
       // テストモード時は仮想の今日を使用
       const realToday = (isAdminMode && adminSelectedDow !== null) ? adminSelectedDow : now.getDay();
       homeSelectedDow = realToday;
+    }
+    // 今週（0）に戻る際、自動選択した「今日」の選択は解除する。
+    // （残ったままだと今日カードが閲覧専用になり「トレーニング開始」ボタンが消えるため）
+    if (newOffset === 0) {
+      const now = new Date();
+      const realToday = (isAdminMode && adminSelectedDow !== null) ? adminSelectedDow : now.getDay();
+      if (homeSelectedDow === realToday) homeSelectedDow = null;
     }
     homeWeekOffset = newOffset;
     // 曜日選択は保持（同じ曜日の前週/翌週カードに切り替わる）
@@ -23056,7 +23063,7 @@
     // 記録行（インデント付き）
     const detailRow = (text) => `<div style="color: var(--text-3); padding-left: 2em;">${text}</div>`;
 
-    const blocks = session.exercises.filter(e => e.judge).map(e => {
+    const blocks = session.exercises.filter(e => e.judge || (e.setRecords && e.setRecords.length > 0)).map(e => {
       const nameRow = buildNameRow(e);
 
       // 「その他」種別（core / other）：経過時間のみで詳細記録を出さない
@@ -24028,7 +24035,7 @@
     const contents = document.querySelectorAll('.tab-content');
     tabs.forEach(t => t.classList.remove('active'));
     contents.forEach(c => c.style.display = 'none');
-    const logTab = Array.from(tabs).find(t => /ログ/.test(t.textContent || ''));
+    const logTab = Array.from(tabs).find(t => /記録一覧|ログ/.test(t.textContent || ''));
     if (logTab) logTab.classList.add('active');
     const logContent = document.getElementById('tab-log');
     if (logContent) logContent.style.display = 'block';
