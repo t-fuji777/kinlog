@@ -8951,6 +8951,12 @@
   }
   function saveWorkoutDraft() {
     try {
+      // 単発（その場限り）は記録を残さない設計のため下書きにも保存しない
+      // （バックグラウンド遷移/強制終了時に残って復元プロンプトが出るのを防ぐ）
+      if (workoutSession && workoutSession.oneOff) {
+        clearWorkoutDraft();
+        return;
+      }
       if (!hasWorkoutProgress()) {
         clearWorkoutDraft();
         return;
@@ -11163,7 +11169,9 @@
     __homeResizeTimer = setTimeout(() => {
       const homeScreen = document.getElementById('screen-home');
       if (homeScreen && homeScreen.classList.contains('active')) {
-        renderHomeMenuList();
+        // renderHomeMenuList は存在しない関数だったため renderMenuGrid に修正
+        // （#menuGrid が無ければ内部で即returnする安全な関数）
+        renderMenuGrid();
       }
     }, 150);
   });
@@ -14795,7 +14803,7 @@
       <div class="hiit-rounds-wrap" style="margin-top: 0; margin-bottom: 10px;">
         <div class="hiit-main-row">
           ${coreCounterHtml}
-          <div class="hiit-simple-time hiit-time-with-steps ${(isTimerRunning || allSetsRecorded) ? 'running' : ''} ${isTimerPaused ? 'paused' : ''}" id="coreTime-${idx}" data-target="${targetSec}" onclick="toggleCoreCountdown(${idx})">
+          <div class="hiit-simple-time hiit-time-with-steps ${(isTimerRunning || allSetsRecorded) ? 'running' : ''} ${isTimerPaused ? 'paused' : ''} ${(coreState && coreState.completed) ? 'done' : ''}" id="coreTime-${idx}" data-target="${targetSec}" onclick="toggleCoreCountdown(${idx})">
             <button class="hiit-time-step minus" onclick="event.stopPropagation(); adjustCoreTargetSec(${idx}, -10)" ${(isTimerRunning || allSetsRecorded) ? 'disabled' : ''} title="−10秒">−</button>
             <div class="hiit-time-center">
               <span class="hiit-simple-time-value">${formatDuration(Math.floor(remainingSec))}</span>
@@ -15010,12 +15018,20 @@
       state.running = false;
       state.handle = null;
       state.startMs = null;
+      // アラート鳴動中（0到達=completed）にリセットされた場合の後始末。
+      // これを怠るとアラートが鳴り続け、completedが残って次タップで誤記録される。
+      state.notified = false;
+      state.completed = false;
+      state.waiting = false;
     }
+    // 鳴っていればアラート音を停止
+    if (typeof stopNotifyLoop === 'function') stopNotifyLoop();
     const ex = workoutSession.exercises[idx];
     const target = ex && ex.coreSec ? ex.coreSec : 30;
     const el = document.getElementById(`coreTime-${idx}`);
     if (el) {
       el.classList.remove('running');
+      el.classList.remove('done'); // 赤点滅を解除
       const valEl = el.querySelector('.hiit-simple-time-value');
       if (valEl) valEl.textContent = formatDuration(target);
     }
@@ -15507,6 +15523,9 @@
         const totalRounds = ex && ex.protocol ? (ex.protocol.rounds || 8) : 8;
         const recordedCount = ex && Array.isArray(ex.setRecords) ? ex.setRecords.length : 0;
         const willBeFinal = (recordedCount + 1) >= totalRounds;
+        // 【重要】stopNotifyLoop()はhiit分岐でstate.elapsedを0にするため、
+        // 記録用の経過秒をここで退避してからアラートを止める（従来は0が記録されていた）
+        const roundElapsed = Math.round(state.elapsed);
         // アラート停止 + done表示解除
         if (typeof stopNotifyLoop === 'function') stopNotifyLoop();
         const el = document.getElementById(`hiitRoundTime-${idx}`);
@@ -15517,7 +15536,7 @@
           ex.setRecords.push({
             weight: ex.protocol.dashSpeed,
             reps: 1,
-            time: Math.round(state.elapsed)
+            time: roundElapsed
           });
           state.completed = false;
           state.waiting = false;
@@ -15549,7 +15568,7 @@
         ex.setRecords.push({
           weight: ex.protocol.dashSpeed,
           reps: 1,
-          time: Math.round(state.elapsed)
+          time: roundElapsed
         });
         // タイマーを次ラウンド用にリセット（completed=false でアラート解除）
         if (state.handle) clearInterval(state.handle);
@@ -22962,7 +22981,12 @@
     } else {
       hist.unshift(workoutSession);
     }
-    saveHistory(hist);
+    // 保存失敗（localStorage容量超過等）でも以降の後始末・画面遷移が止まらないようにする
+    try {
+      saveHistory(hist);
+    } catch (e) {
+      toast('⚠ 保存に失敗しました（容量不足の可能性）');
+    }
     // セッション完了で履歴に保存されたので下書きはクリア
     if (typeof clearWorkoutDraft === 'function') clearWorkoutDraft();
     const lastW = loadLastWeights();
@@ -23128,15 +23152,15 @@
 
   function renderHistory() {
     let hist = loadHistory();
-    // 「不明」（メニューが解決できない）記録を除去する。
-    // 実在するメニューの記録は残す。全件が不明の場合は安全のため削除しない（表示のみ）。
+    // 「不明」（メニューが解決できない）記録は一覧から隠す（表示のみ）。
+    // 【重要】localStorageからの削除は行わない。以前はここで saveHistory(valid) して
+    // いたため、使用中の別メニューが1件でも残っていると、削除したメニューの過去記録が
+    // 履歴画面を開くだけで永久に消えていた。表示フィルタに限定してデータ消失を防ぐ。
     try {
       if (!isAdminMode) {
         const valid = hist.filter(s => !!getMenu(s.menuId));
         if (valid.length > 0 && valid.length !== hist.length) {
-          saveHistory(valid);
-          rebuildLastWeightsFromHistory(valid);
-          hist = valid;
+          hist = valid; // 表示用のみ差し替え（保存はしない）
         }
       }
     } catch (e) { /* noop */ }
