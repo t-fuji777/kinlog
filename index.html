@@ -1354,6 +1354,18 @@
     letter-spacing: 0;
     margin-left: 1px;
   }
+  /* 前回差（総重量/総回数/総セット数の値の下）：数値(24px)の半分=12px。＋は緑・−は赤 */
+  .today-meta-diff {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    margin-top: -2px;
+    letter-spacing: -0.2px;
+  }
+  .today-meta-diff.pos { color: var(--ok); }
+  .today-meta-diff.neg { color: var(--warn); }
+  .today-meta-diff.zero { color: var(--text-3); }
   .today-start {
     background: var(--accent); color: var(--accent-text);
     padding: 14px 12px; border-radius: var(--radius);
@@ -10387,6 +10399,42 @@
     });
   }
 
+  // 前回セッションとの差分HTML（総重量/総回数/総セット数）。前回が無ければ空文字。
+  // ＋は緑・−は赤・±0はグレー。フォントは数値の半分（CSS: today-meta-diff）。
+  // menuId とcurSession（表示中セッション）から、それより前の同メニュー最新セッションを探して差分を算出。
+  function prevSessionDiffs(menuId, curSession, curTotals) {
+    const empty = { w: '', reps: '', sets: '' };
+    try {
+      if (!menuId || !curSession || !curSession.date) return empty;
+      const curTime = new Date(curSession.date).getTime();
+      const prev = loadHistory()
+        .filter(h => h && h.menuId === menuId && h.date && Array.isArray(h.exercises) && new Date(h.date).getTime() < curTime)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+      if (!prev) return empty;
+      let pw = 0, pr = 0, ps = 0;
+      prev.exercises.forEach(ex => {
+        if (!ex.setRecords || ex.setRecords.length === 0) return;
+        ps += ex.setRecords.length;
+        ex.setRecords.forEach(s => {
+          pw += (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0);
+          pr += (parseInt(s.reps) || 0);
+        });
+      });
+      const mk = (cur, prevVal, isW) => {
+        const d = cur - prevVal;
+        const abs = isW ? Math.abs(d).toLocaleString('en-US') : Math.abs(d);
+        if (d > 0) return `<div class="today-meta-diff pos">+${abs}</div>`;
+        if (d < 0) return `<div class="today-meta-diff neg">−${abs}</div>`;
+        return `<div class="today-meta-diff zero">±0</div>`;
+      };
+      return {
+        w: mk(curTotals.weight, Math.round(pw), true),
+        reps: mk(curTotals.reps, pr, false),
+        sets: mk(curTotals.sets, ps, false),
+      };
+    } catch (e) { return empty; }
+  }
+
   function renderRecommend() {
     // 週間スケジュールで今日以外の曜日が選択されている場合は、その曜日の情報を表示
     if (homeSelectedDow !== null) {
@@ -10568,6 +10616,9 @@
     const setsDisp = hasPrev ? `${totalSets}<span class="today-meta-unit">セット</span>` : '-';
     const totalDisp = (hasPrev && totalSeconds > 0) ? formatDuration(totalSeconds) : '-';
     const elapsedDisp = (hasPrev && totalDuration > 0) ? formatDuration(totalDuration) : '-';
+    // 前回差（総重量/総回数/総セット数の下に表示）
+    const curTotals = { weight: Math.round(totalWeight), reps: totalReps, sets: totalSets };
+    const diffs = hasPrev ? prevSessionDiffs(displayMenuId, lastSession, curTotals) : { w: '', reps: '', sets: '' };
 
     zone.innerHTML = `
       <div class="today-card">
@@ -10595,14 +10646,17 @@
           <div class="today-meta-item">
             <div class="today-meta-label">総重量</div>
             <div class="today-meta-value">${wDisp}</div>
+            ${diffs.w}
           </div>
           <div class="today-meta-item">
             <div class="today-meta-label">総回数</div>
             <div class="today-meta-value">${repsDisp}</div>
+            ${diffs.reps}
           </div>
           <div class="today-meta-item">
             <div class="today-meta-label">総セット数</div>
             <div class="today-meta-value">${setsDisp}</div>
+            ${diffs.sets}
           </div>
         </div>
         ${rec.type === 'completed'
@@ -10851,6 +10905,9 @@
     const setsDisp = displaySession ? `${totalSets}<span class="today-meta-unit">セット</span>` : '-';
     const totalDisp = (displaySession && totalSeconds > 0) ? formatDuration(totalSeconds) : '-';
     const elapsedDisp = (displaySession && totalDuration > 0) ? formatDuration(totalDuration) : '-';
+    // 前回差（総重量/総回数/総セット数の下に表示）
+    const curTotals = { weight: Math.round(totalWeight), reps: totalReps, sets: totalSets };
+    const diffs = displaySession ? prevSessionDiffs(effectiveMenuKey, displaySession, curTotals) : { w: '', reps: '', sets: '' };
 
     // ボタンは今日以外は無効（記録閲覧専用）
     // 選択日カードは常に「今日以外」なので必ず無効ボタンとなる
@@ -10879,14 +10936,17 @@
           <div class="today-meta-item">
             <div class="today-meta-label">総重量</div>
             <div class="today-meta-value">${wDisp}</div>
+            ${diffs.w}
           </div>
           <div class="today-meta-item">
             <div class="today-meta-label">総回数</div>
             <div class="today-meta-value">${repsDisp}</div>
+            ${diffs.reps}
           </div>
           <div class="today-meta-item">
             <div class="today-meta-label">総セット数</div>
             <div class="today-meta-value">${setsDisp}</div>
+            ${diffs.sets}
           </div>
         </div>
         <button class="today-start disabled${reasonText === '実施済' ? ' done' : ''}" disabled>${reasonText}</button>
@@ -23087,7 +23147,8 @@
     // 記録行（インデント付き）
     const detailRow = (text) => `<div style="color: var(--text-3); padding-left: 2em;">${text}</div>`;
 
-    const blocks = session.exercises.filter(e => e.judge || (e.setRecords && e.setRecords.length > 0)).map(e => {
+    // スキップした種目は一覧に載せない（上に詰めて表示）。記録済み or 完了(judge≠skip)のみ表示。
+    const blocks = session.exercises.filter(e => e.judge !== 'skip' && (e.judge || (e.setRecords && e.setRecords.length > 0))).map(e => {
       const nameRow = buildNameRow(e);
 
       // 「その他」種別（core / other）：経過時間のみで詳細記録を出さない
