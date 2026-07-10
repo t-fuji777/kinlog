@@ -5950,9 +5950,12 @@
     pointer-events: none;
     visibility: hidden;
   }
-  /* 前月の日付（先頭の空きマス）: 黒枠は当月と同じ（.cal-cellの枠を継承）、
-     数字だけ薄く・細くして当月と区別。タップ不可。記録があればドットも表示 */
-  .cal-cell.cal-cell-prev {
+  /* 前月の日付（先頭の空きマス）: 黒い枠線＋中は白で当月と区別。タップ不可。
+     記録があればドットも表示（has-recordの暗背景に負けないよう詳細度を上げる） */
+  .cal-cell.cal-cell-prev,
+  .cal-cell.cal-cell-prev.has-record {
+    background: #FFFFFF;
+    border-color: #000000;
     cursor: default;
     pointer-events: none;
   }
