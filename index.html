@@ -5950,6 +5950,17 @@
     pointer-events: none;
     visibility: hidden;
   }
+  /* 前月の日付（先頭の空きマス）: 当月とデザインを分ける（薄い数字・枠背景なし・タップ不可） */
+  .cal-cell.cal-cell-prev {
+    background: transparent;
+    border-color: transparent;
+    cursor: default;
+    pointer-events: none;
+  }
+  .cal-cell.cal-cell-prev .day-num {
+    color: var(--text-4);
+    font-weight: 500;
+  }
   .cal-cell.today {
     border-color: var(--accent-border);
     border-width: 2px;
@@ -24076,6 +24087,18 @@
     const todayDate = today.getDate();
 
     let html = '';
+    // 先頭の空きマスには前月の日付を表示（当月とはデザインを分ける：薄い数字・枠なし・タップ不可）
+    if (startDow > 0) {
+      const prevLastDate = new Date(calYear, calMonth, 0).getDate();
+      for (let i = startDow - 1; i >= 0; i--) {
+        const pd = prevLastDate - i;
+        html += `
+        <div class="cal-cell cal-cell-prev">
+          <span class="day-num">${pd}</span>
+          <div class="dot-row"></div>
+        </div>`;
+      }
+    }
     // 各日（最初の日に grid-column-start を指定して曜日位置に配置）
     for (let d = 1; d <= daysInMonth; d++) {
       const cellDate = new Date(calYear, calMonth, d);
