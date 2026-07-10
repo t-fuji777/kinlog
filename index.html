@@ -5950,10 +5950,9 @@
     pointer-events: none;
     visibility: hidden;
   }
-  /* 前月の日付（先頭の空きマス）: 当月とデザインを分ける（薄い数字・枠背景なし・タップ不可） */
+  /* 前月の日付（先頭の空きマス）: 黒枠は当月と同じ（.cal-cellの枠を継承）、
+     数字だけ薄く・細くして当月と区別。タップ不可。記録があればドットも表示 */
   .cal-cell.cal-cell-prev {
-    background: transparent;
-    border-color: transparent;
     cursor: default;
     pointer-events: none;
   }
@@ -24087,15 +24086,24 @@
     const todayDate = today.getDate();
 
     let html = '';
-    // 先頭の空きマスには前月の日付を表示（当月とはデザインを分ける：薄い数字・枠なし・タップ不可）
+    // 先頭の空きマスには前月の日付を表示（枠は当月と同じ黒枠、数字は薄くして区別。タップ不可）
+    // トレーニングの記録があればドットも当月と同様に表示する
     if (startDow > 0) {
+      const prevYear = calMonth === 0 ? calYear - 1 : calYear;
+      const prevMonth = calMonth === 0 ? 11 : calMonth - 1;
       const prevLastDate = new Date(calYear, calMonth, 0).getDate();
       for (let i = startDow - 1; i >= 0; i--) {
         const pd = prevLastDate - i;
+        const pRecords = getRecordsForDate(prevYear, prevMonth, pd);
+        const pIds = [...new Set(pRecords.map(r => r.menuId).filter(Boolean))];
+        const pDots = pIds.slice(0, 3).map(mid => {
+          const color = getMenuColor(mid);
+          return `<span class="cal-dot" style="background:${color}"></span>`;
+        }).join('');
         html += `
-        <div class="cal-cell cal-cell-prev">
+        <div class="cal-cell cal-cell-prev ${pRecords.length > 0 ? 'has-record' : ''}">
           <span class="day-num">${pd}</span>
-          <div class="dot-row"></div>
+          <div class="dot-row">${pDots}</div>
         </div>`;
       }
     }
