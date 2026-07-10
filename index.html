@@ -24574,7 +24574,10 @@
       if (onWorkout || hasProgress) return;
       const t = await fetchTag();
       if (t && baselineTag && t !== baselineTag) {
-        try { location.reload(); } catch (e) {}
+        // 【重要】location.reload() だと GitHub Pages の HTTPキャッシュ(max-age=600)から
+        // 古いHTMLが返り、更新を検知したのに古い版を読み直してしまう。
+        // クエリ付きURLで確実にキャッシュを回避して最新版を取得する
+        try { location.replace(location.pathname + '?_=' + Date.now()); } catch (e) {}
       }
     });
   })();
