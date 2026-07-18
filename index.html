@@ -14091,7 +14091,8 @@
           // セット数上限：通常 5、左右設定 10（=実質5セット）
           let normalRowHtml = '';
           const minSets = ex.bilateral ? 2 : 1;
-          const maxSets = ex.bilateral ? 10 : 5;
+          // 前回記録を8セットまで表記できるよう上限8（左右は内部×2で16）
+          const maxSets = ex.bilateral ? 16 : 8;
           // 全て横並び（折り返さない）
           let nh = '';
           for (let i = 0; i < ex.currentSets; i++) nh += renderNormalChip(i, i);
@@ -14507,7 +14508,8 @@
       ex.currentReps = Math.max(0, ex.currentReps + delta);
       document.getElementById('r-' + idx).textContent = ex.currentReps;
     } else if (field === 'sets') {
-      const setsCap = ex.bilateral ? 10 : 5;
+      // 前回記録を8セットまで表記できるよう上限8（左右は内部×2で16）
+      const setsCap = ex.bilateral ? 16 : 8;
       ex.currentSets = Math.max(1, Math.min(setsCap, ex.currentSets + delta));
       if (ex.setRecords.length > ex.currentSets + (ex.maxTraining && ex.maxTraining.enabled ? ex.maxTraining.sets : 0)) {
         ex.setRecords = ex.setRecords.slice(0, ex.currentSets + (ex.maxTraining && ex.maxTraining.enabled ? ex.maxTraining.sets : 0));
@@ -16603,17 +16605,17 @@
     if (kind === 'coreSets') {
       inputId = 'exFormCoreSetsInput';
       isBilateral = (exFormCoreSide === 'bilateral');
-      // bilateral：片側基準1〜6（1刻み）。単体：1〜12（1刻み）
+      // bilateral：片側基準1〜8（1刻み）。単体：1〜12（1刻み）
       step = 1;
       min = 1;
-      max = isBilateral ? 6 : 12;
+      max = isBilateral ? 8 : 12;
       title = isBilateral ? 'セット（左右）' : 'セット';
     } else if (kind === 'sets') {
       inputId = 'exFormSets';
       isBilateral = (exFormSide === 'bilateral');
       step = 1;
       min = 1;
-      max = isBilateral ? 6 : 12;
+      max = isBilateral ? 8 : 12;
       title = isBilateral ? 'セット（左右）' : 'セット';
     } else if (kind === 'maxSets') {
       inputId = 'exFormMaxSets';
@@ -19634,14 +19636,14 @@
     // セットラベル更新
     const lbl = document.getElementById('exFormSetsLabel');
     if (lbl) lbl.textContent = side === 'bilateral' ? 'セット（左右）' : 'セット';
-    // bilateral切替時：片側基準1〜6に、単体時は1〜12に調整
+    // bilateral切替時：片側基準1〜8に、単体時は1〜12に調整
     const setsInput = document.getElementById('exFormSets');
     if (setsInput) {
       let cur = parseInt(setsInput.value, 10);
       if (!isNaN(cur)) {
         if (side === 'bilateral') {
           if (cur < 1) cur = 1;
-          if (cur > 6) cur = 6;
+          if (cur > 8) cur = 8;
           setsInput.value = String(cur);
         } else {
           if (cur < 1) cur = 1;
@@ -19724,14 +19726,14 @@
       paramsGrid.classList.remove('one-col');
       paramsGrid.classList.add('two-col');
     }
-    // bilateral切替時：セット値を調整（片側基準1〜6 / 単体1〜12）
+    // bilateral切替時：セット値を調整（片側基準1〜8 / 単体1〜12）
     const setsInput = document.getElementById('exFormCoreSetsInput');
     if (setsInput) {
       let cur = parseInt(setsInput.value, 10);
       if (!isNaN(cur)) {
         if (side === 'bilateral') {
           if (cur < 1) cur = 1;
-          if (cur > 6) cur = 6;
+          if (cur > 8) cur = 8;
           setsInput.value = String(cur);
         } else if (side === 'single') {
           if (cur < 1) cur = 1;
