@@ -14305,6 +14305,20 @@
     el.addEventListener('mouseleave', end);
   }
 
+  // 単発HIIT: セット枠の合計数ボックスをタップ → 本数（総セット数）ピッカーを開く。
+  // 開始後でも増減できる。長押し（本数編集）が発火した直後の合成タップは無視する。
+  function openHiitRoundsPickerTap(idx) {
+    if (_counterLongFired) { _counterLongFired = false; return; }
+    if (typeof openHiitPicker === 'function') openHiitPicker(idx, 'rounds');
+  }
+
+  // 単発その他: セット枠の合計数ボックスをタップ → セット数ピッカーを開く（稼働中は無効）
+  function openCoreSetsPicker(idx) {
+    const st = (typeof coreTimers !== 'undefined') && coreTimers ? coreTimers[idx] : null;
+    if (st && st.running) return;
+    if (typeof openPicker === 'function') openPicker(idx, 'sets');
+  }
+
   // 0/8 カウンターのタップ：未開始なら本数(rounds)を編集、開始後は前のラウンドへ戻る。
   // 長押し（本数編集）が発火した直後のタップは無視する。
   function hiitRoundCounterTap(idx) {
@@ -14599,7 +14613,7 @@
             <div class="hiit-sub-labels-wrap">
               <div class="${workoutSession.oneOff ? 'hiit-phase-label hiit-sub-label hiit-prep-cool-item' : 'hiit-round-num hiit-round-num-inrow'} hiit-round-num-tappable ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="hiitRoundCounterTap(${idx})"`} title="${workoutSession.oneOff ? 'タップで取り消し' : 'タップで本数を変更'}">
                 ${workoutSession.oneOff
-                  ? `<div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div><div class="hiit-phase-speed-row"><span class="hiit-set-current${setJustDone ? ' is-latest' : ''}">${currentRound}</span><span class="hiit-set-sep">/</span><span class="hiit-phase-speed">${totalRounds}</span></div>`
+                  ? `<div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div><div class="hiit-phase-speed-row"><span class="hiit-set-current${setJustDone ? ' is-latest' : ''}">${currentRound}</span><span class="hiit-set-sep">/</span><span class="hiit-phase-speed" onclick="event.stopPropagation(); openHiitRoundsPickerTap(${idx})">${totalRounds}</span></div>`
                   : `<div class="hiit-round-num-text">${currentRound}<span class="hiit-round-total">/${totalRounds}</span></div><div class="hiit-round-num-hint">※タップ</div>`}
               </div>
               <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
@@ -14905,7 +14919,7 @@
     const coreCounterHtml = workoutSession.oneOff
       ? `<div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item hiit-round-num-tappable ${allSetsRecorded ? 'done-final' : ''}" id="coreSetCounter-${idx}" onclick="confirmCoreStepBack(${idx})" title="タップで取り消し">
             <div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div>
-            <div class="hiit-phase-speed-row"><span class="hiit-set-current${coreSetJustDone ? ' is-latest' : ''}">${currentSetNum}</span><span class="hiit-set-sep">/</span><span class="hiit-phase-speed">${totalSets}</span></div>
+            <div class="hiit-phase-speed-row"><span class="hiit-set-current${coreSetJustDone ? ' is-latest' : ''}">${currentSetNum}</span><span class="hiit-set-sep">/</span><span class="hiit-phase-speed" onclick="event.stopPropagation(); openCoreSetsPicker(${idx})">${totalSets}</span></div>
           </div>`
       : `<div class="hiit-round-num hiit-round-num-tappable ${allSetsRecorded ? 'done-final' : ''}" id="coreSetCounter-${idx}" onclick="confirmCoreStepBack(${idx})" title="タップで前のセットに戻る">
             <div class="hiit-round-num-text">${currentSetNum}<span class="hiit-round-total">/${totalSets}</span></div>
