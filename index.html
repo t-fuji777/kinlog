@@ -13641,7 +13641,13 @@
       // currentWorkout.id が未設定（ユーザー定義メニュー等）でも正しく動くようworkoutSession.menuIdをフォールバック
       const menuKey = (currentWorkout && currentWorkout.id) || workoutSession.menuId;
       const key = getLastWeightKey(menuKey, ex);
-      const last = lastW[key];
+      let last = lastW[key];
+      // linkId付き種目で link:: キーに記録が無い場合は従来キー(メニューID::種目名)へフォールバック。
+      // 記録リンク修正(linkId引き継ぎ)以前の履歴から再構築された前回記録は従来キーで
+      // 保存されているため、これが無いと既存種目の「前回」が全て消えてしまう
+      if (!last && ex && ex.linkId) {
+        last = lastW[menuKey + '::' + (ex.name || '')];
+      }
       const card = document.createElement('div');
       card.className = 'exercise' + (ex.judge ? ' ' + ex.judge : '') + (reorderMode && idx === reorderingIdx ? ' reordering' : '') + (ex.swappedFrom ? ' swapped' : '');
 
@@ -17714,8 +17720,13 @@
         if (existingIdx >= 0) {
           // 手動編集された代替種目（manualEdit）は履歴で上書きしない
           if (arr[existingIdx] && arr[existingIdx].manualEdit) return;
+          // 種類(machineKind)は保持: 履歴由来の値を優先し、無ければ既存候補の値を引き継ぐ
+          // （丸ごと置換でウェイトスタック設定が消えてプレートロードに戻るのを防ぐ）
+          const mk = ex.machineKind || (arr[existingIdx] && arr[existingIdx].machineKind);
+          if (mk) updated.machineKind = mk;
           arr[existingIdx] = updated;
         } else {
+          if (ex.machineKind) updated.machineKind = ex.machineKind;
           arr.push(updated);
           addedCount++;
         }
@@ -17754,6 +17765,9 @@
       weight: candidate.weight,
       reps: candidate.reps,
       sets: candidate.sets,
+      // 種類(プレートロード/ウェイトスタック/ダンベル)を保持。
+      // これを落とすと代替経由でウェイトスタック設定がプレートロードに戻ってしまう
+      machineKind: candidate.machineKind || undefined,
       manualEdit: true
     };
     if (existingIdx >= 0) {
@@ -17862,6 +17876,8 @@
     const newEx = {
       name: candidate.name,
       swappedFrom: origEx.name,
+      // 種類(machineKind)を保持（落とすと重量ステップがプレートロード扱いになる）
+      machineKind: candidate.machineKind || 'plate',
       targetWeight: candidate.weight,
       targetReps: candidate.reps,
       targetSets: candidate.sets,
@@ -19361,6 +19377,8 @@
         reps: target.reps,
         sets: target.sets
       };
+      // 種類(machineKind)を保持（落とすとウェイトスタック設定がプレートロードに戻る）
+      if (target.machineKind) newEx.machineKind = target.machineKind;
       if (dest === 'storage') newEx.stored = true;
       // 重複チェックは移動先の区分で判定（メイン行き=非stored同名、保管行き=stored同名）。
       // 追加できなかった場合は代替プールから消さず、成功トーストも出さない
@@ -19397,7 +19415,8 @@
           name: ex.name,
           weight: ex.weight,
           reps: ex.reps,
-          sets: ex.sets
+          sets: ex.sets,
+          machineKind: ex.machineKind
         });
       }
     }
