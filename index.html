@@ -18131,6 +18131,8 @@
     renderWeekStrip();
     renderRecommend();
     renderMenuGrid();
+    // 設定画面の週間スケジュール（割り当て表示）にも新しい名称を反映
+    if (typeof renderSettings === 'function') renderSettings();
     toast('✓ 名前を変更');
   }
 
@@ -18291,6 +18293,8 @@
     const rmBtn = document.getElementById('menuEditToggleRemove');
     if (rmBtn) rmBtn.style.display = '';
     renderMenuEditList();
+    // 設定画面の週間スケジュール（割り当て表示）にも複製メニューを反映
+    if (typeof renderSettings === 'function') renderSettings();
     toast('✓ 「' + newName + '」を複製しました');
   }
 
