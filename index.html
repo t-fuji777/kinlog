@@ -19651,6 +19651,14 @@
     });
     currentEditorMenuId = null;
     renderMenuEditList();
+    // メニュー編集を終えたら設定画面の一番上（メニュー編集セクション）へ戻す
+    // （下の週間スケジュール位置のまま残らないように）
+    try {
+      const settingsScreen = document.getElementById('screen-settings');
+      if (settingsScreen && settingsScreen.classList.contains('active')) {
+        window.scrollTo(0, 0);
+      }
+    } catch (e) { /* noop */ }
   }
 
 
