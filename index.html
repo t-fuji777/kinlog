@@ -10448,42 +10448,41 @@
     } catch (e) { /* noop */ }
   }
 
-  /* ワンタイム移行（2026-08-16 マスター指示）:
-     既存の代替プール/外した記録のうち、複製メニューIDキーのものを元メニューIDへ統合する
-     （以後は getSwapRootId によりキーが常に元メニューへ解決され、複製と共有される） */
-  function migSwapPoolRoot() {
+  /* ワンタイム逆移行（2026-08-16 マスター指示: 代替種目はメニューごとに独立へ戻す）:
+     一時的な共有化(wo_mig_swap_root)で複製メニューの代替候補が元メニュー側へ統合された
+     端末では、複製メニュー側にも同じ候補をコピーして独立化する（データ喪失なし。
+     不要な候補は各メニューで個別に削除すればよい）。共有化が実行されていない端末では何もしない */
+  function migSwapPoolUnshare() {
     try {
       if (isAdminMode) return;
-      if (localStorage.getItem('wo_mig_swap_root') === 'done') return;
-      const pool = loadSwapPool();
-      const removed = loadSwapRemoved();
-      let changed = false;
-      Object.keys(pool).forEach((mid) => {
-        const root = getSwapRootId(mid);
-        if (root === mid) return;
-        if (!pool[root]) pool[root] = [];
-        (pool[mid] || []).forEach((c) => {
-          if (c && !pool[root].some((r) => r && r.name === c.name)) pool[root].push(c);
+      if (localStorage.getItem('wo_mig_swap_unshare') === 'done') return;
+      if (localStorage.getItem('wo_mig_swap_root') === 'done') {
+        const pool = loadSwapPool();
+        const removed = loadSwapRemoved();
+        let changed = false;
+        const um = loadUserMenus();
+        Object.keys(um).forEach((mid) => {
+          if (!um[mid] || !um[mid].dupFrom) return;
+          const root = getSwapRootId(mid);
+          if (root === mid) return;
+          if (!pool[mid] && Array.isArray(pool[root]) && pool[root].length > 0) {
+            pool[mid] = JSON.parse(JSON.stringify(pool[root]));
+            changed = true;
+          }
+          if (!removed[mid] && Array.isArray(removed[root]) && removed[root].length > 0) {
+            removed[mid] = [...removed[root]];
+            changed = true;
+          }
         });
-        delete pool[mid];
-        changed = true;
-      });
-      Object.keys(removed).forEach((mid) => {
-        const root = getSwapRootId(mid);
-        if (root === mid) return;
-        if (!removed[root]) removed[root] = [];
-        (removed[mid] || []).forEach((n) => { if (!removed[root].includes(n)) removed[root].push(n); });
-        delete removed[mid];
-        changed = true;
-      });
-      if (changed) { saveSwapPool(pool); saveSwapRemoved(removed); }
-      localStorage.setItem('wo_mig_swap_root', 'done');
+        if (changed) { saveSwapPool(pool); saveSwapRemoved(removed); }
+      }
+      localStorage.setItem('wo_mig_swap_unshare', 'done');
     } catch (e) { /* noop */ }
   }
 
   function initMainApp() {
     migCreatePushMenu();
-    migSwapPoolRoot();
+    migSwapPoolUnshare();
     renderDate();
     renderRecommend();
     renderWeekStrip();
@@ -17804,7 +17803,6 @@
   }
   function markSwapRemoved(menuId, name) {
     if (!menuId || !name || isAdminMode) return;
-    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const map = loadSwapRemoved();
     if (!map[menuId]) map[menuId] = [];
     if (!map[menuId].includes(name)) map[menuId].push(name);
@@ -17812,7 +17810,6 @@
   }
   function unmarkSwapRemoved(menuId, name) {
     if (!menuId || !name || isAdminMode) return;
-    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const map = loadSwapRemoved();
     if (!map[menuId]) return;
     map[menuId] = map[menuId].filter(n => n !== name);
@@ -17821,7 +17818,6 @@
   }
   function isSwapRemoved(menuId, name) {
     if (!menuId || !name) return false;
-    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const map = loadSwapRemoved();
     return !!(map[menuId] && map[menuId].includes(name));
   }
@@ -17836,8 +17832,7 @@
     sortedHist.forEach(session => {
       if (!session.exercises) return;
       // セッションのメニューIDが特定できない場合はスキップ
-      // （複製メニューの履歴は元メニューのプールに統合＝共有）
-      const menuId = getSwapRootId(session.menuId);
+      const menuId = session.menuId;
       if (!menuId) return;
       session.exercises.forEach(ex => {
         if (ex.cardio) return;
@@ -17879,11 +17874,7 @@
     // （代替→メイン/保管へ移動した種目が履歴経由で代替に復活して二重化するのを解消。
     //   既に二重化している既存データもここで掃除される）
     Object.keys(pool).forEach(mId => {
-      // 共有プールのため、リンクグループ（元＋複製）全メニューの種目名で二重判定する
-      const groupIds = getAllMenuIds().filter(id => getSwapRootId(id) === mId);
-      if (!groupIds.includes(mId)) groupIds.push(mId);
-      const exNames = new Set();
-      groupIds.forEach(id => getMenuExercises(id).forEach(e => { if (e && e.name) exNames.add(e.name); }));
+      const exNames = new Set(getMenuExercises(mId).map(e => e && e.name).filter(Boolean));
       pool[mId] = pool[mId].filter(c => c && !exNames.has(c.name));
       if (pool[mId].length === 0) delete pool[mId];
     });
@@ -17893,7 +17884,6 @@
 
   // 指定メニューの代替種目リストを取得
   function getSwapCandidatesByMenu(menuId) {
-    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const pool = loadSwapPool();
     return (menuId && pool[menuId]) ? pool[menuId] : [];
   }
@@ -17901,7 +17891,6 @@
   // 指定メニューに代替種目を追加（同名があれば上書き）
   function addSwapCandidate(menuId, candidate) {
     if (!menuId) return;
-    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const pool = loadSwapPool();
     if (!pool[menuId]) pool[menuId] = [];
     // 同名の既存候補を削除してから新しいオブジェクトを追加する。
@@ -17932,7 +17921,6 @@
   // 指定メニューから代替種目を削除
   function removeSwapCandidate(menuId, candidateName) {
     if (!menuId) return;
-    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const pool = loadSwapPool();
     if (pool[menuId]) {
       pool[menuId] = pool[menuId].filter(c => c.name !== candidateName);
