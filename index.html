@@ -1479,6 +1479,12 @@
   #screen-settings .section-head:first-of-type {
     margin-top: 12px;
   }
+  /* 設定画面の先頭見出しの上余白。
+     通常は「メニュー編集」が先頭。未割り当ての過去記録がある時だけ
+     「過去記録の割り当て」が先頭に来るので、上余白の付け替えを明示する */
+  #screen-settings #menuEditSectionHead { margin-top: 12px; }
+  #screen-settings.has-orphan #menuEditSectionHead { margin-top: 28px; }
+  #screen-settings #orphanHistorySection .section-head { margin-top: 12px; }
   .section-link {
     color: var(--accent); font-size: 11px;
     text-decoration: none; cursor: pointer;
@@ -7560,7 +7566,14 @@
   </section>
 
   <section class="screen" id="screen-settings">
-    <div class="section-head">
+    <!-- 削除したメニューの過去記録（未割り当て）がある時だけ、設定画面の一番上に表示される -->
+    <div id="orphanHistorySection" style="display:none">
+      <div class="section-head"><div class="section-title">過去記録の割り当て</div></div>
+      <p class="orphan-desc">削除したメニューの記録です。どのメニューの記録か選ぶと、前回記録・カレンダー・履歴に反映されます。</p>
+      <div id="orphanHistoryList"></div>
+    </div>
+
+    <div class="section-head" id="menuEditSectionHead">
       <div class="section-title">メニュー編集</div>
       <div class="menu-edit-actions">
         <button class="menu-edit-action-btn dup" id="menuEditToggleDup" onclick="toggleMenuDupMode()" title="複製モード切替">⧉</button>
@@ -7569,13 +7582,6 @@
       </div>
     </div>
     <div class="menu-edit-list" id="menuEditList"></div>
-
-    <!-- 削除したメニューの過去記録がある時だけ表示される -->
-    <div id="orphanHistorySection" style="display:none">
-      <div class="section-head"><div class="section-title">過去記録の割り当て</div></div>
-      <p class="orphan-desc">削除したメニューの記録です。どのメニューの記録か選ぶと、前回記録・カレンダー・履歴に反映されます。</p>
-      <div id="orphanHistoryList"></div>
-    </div>
 
     <div class="section-head"><div class="section-title">週間スケジュール</div></div>
     <div class="mode-toggle" id="settingsModeToggle">
@@ -9890,9 +9896,15 @@
     const sec = document.getElementById('orphanHistorySection');
     const list = document.getElementById('orphanHistoryList');
     if (!sec || !list) return;
-    if (isAdminMode) { sec.style.display = 'none'; return; }
+    const screen = document.getElementById('screen-settings');
+    // セクションを出す＝設定画面の先頭がこれになるので、見出しの上余白も切り替える
+    const setShown = (shown) => {
+      sec.style.display = shown ? '' : 'none';
+      if (screen) screen.classList.toggle('has-orphan', shown);
+    };
+    if (isAdminMode) { setShown(false); return; }
     const groups = getOrphanHistoryGroups();
-    if (!groups.length) { sec.style.display = 'none'; list.innerHTML = ''; return; }
+    if (!groups.length) { setShown(false); list.innerHTML = ''; return; }
     const fmt = (d) => d ? `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}` : '-';
     list.innerHTML = groups.map(g => {
       const shown = g.names.slice(0, 4).map(n => escapeHtml(n)).join('、');
@@ -9912,7 +9924,7 @@
         </div>
       `;
     }).join('');
-    sec.style.display = '';
+    setShown(true);
   }
 
   function openOrphanMenuPicker(groupKey) {
