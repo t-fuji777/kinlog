@@ -9962,6 +9962,96 @@
     } catch (e) { /* noop */ }
   }
 
+  /* 削除されたメニューの過去記録を現行メニューへ引き取る（毎起動・冪等）:
+     メニューを削除すると、その履歴は menuId が解決できなくなり
+       ・カレンダー/履歴で「不明」表示（履歴一覧からは非表示）
+       ・現行メニューに前回記録が引き継がれない（linkId昇格も効かない）
+     という状態になる。そこで種目名（＋linkId）の一致度が最も高い現行メニューへ
+     履歴の menuId を付け替える。元のID・名称は origMenuId / origMenuName に残す。
+     誤引き取りは本人が気づきにくく手で戻せないため、判定は安全側に倒す：
+       ・採否は「種目名の一致数」だけで判定する（linkIdは順位付けの重みにのみ使う）
+       ・種目が2個以下のセッションは全種目一致を要求する
+       ・同点の候補が複数あるときは引き取らない
+       ・引き取り元メニューの種類数が現存メニュー数を超える実行は丸ごと中止する
+         （メニュー削除ではなく、インポート中断等でメニュー定義が欠落した状態の疑い）
+     併せて、解決できる履歴には表示名(menuName)を保存し、将来メニューを削除しても
+     「不明」ではなく当時のメニュー名が残るようにする。
+     ※必ず rebuildLastWeightsFromHistory の前に呼ぶこと（前回記録の再構築に反映させるため） */
+  function migAdoptOrphanHistory() {
+    try {
+      if (isAdminMode) return false;
+      const hist = loadHistory();
+      if (!Array.isArray(hist) || hist.length === 0) return false;
+      const menuIds = getAllMenuIds();
+      // 候補が1つも無い場合は読み込み失敗の可能性があるため何もしない（誤った付け替え防止）
+      if (!menuIds.length) return false;
+      // 現行メニューの索引：メニュー本体に出ている種目名と linkId のみを対象にする。
+      // 保管(stored)種目と代替種目プールは含めない。代替プールは履歴から自動生成される
+      // ため、含めると「引き取り→プール追加→さらに引き取り」と自己増殖してしまう
+      const index = [];
+      menuIds.forEach(id => {
+        if (!getMenu(id)) return;
+        const names = new Set(), links = new Set();
+        (getMenuExercises(id) || []).forEach(e => {
+          if (!e || !e.name || e.stored) return;
+          names.add(e.name);
+          if (e.linkId) links.add(e.linkId);
+        });
+        if (names.size) index.push({ id, names, links });
+      });
+      if (!index.length) return false;
+      let changed = false;
+      // 付け替えは即時適用せず一旦ためる（下の一括中止判定のため）
+      const adoptions = [];
+      hist.forEach(session => {
+        if (!session || !session.menuId || !Array.isArray(session.exercises)) return;
+        const cur = getMenu(session.menuId);
+        if (cur) {
+          // 解決できる履歴：表示名を保存/更新しておく
+          const nm = cur.fullName || cur.name;
+          if (nm && session.menuName !== nm) { session.menuName = nm; changed = true; }
+          return;
+        }
+        // ここから孤立履歴：最も一致する現行メニューを探す
+        const exNames = session.exercises.filter(e => e && e.name).map(e => e.name);
+        if (!exNames.length) return;
+        const exLinks = session.exercises.filter(e => e && e.linkId).map(e => e.linkId);
+        let best = null, bestScore = 0, bestNames = 0, tied = false;
+        index.forEach(cand => {
+          let nameHits = 0, score = 0;
+          exNames.forEach(n => { if (cand.names.has(n)) { nameHits++; score += 1; } });
+          // linkId一致は同一種目である強い根拠。ただし順位付けにのみ使い、
+          // 採否のしきい値は種目名の一致数だけで判定する（加点でしきい値を通さない）
+          exLinks.forEach(l => { if (cand.links.has(l)) score += 2; });
+          if (score > bestScore) { bestScore = score; bestNames = nameHits; best = cand; tied = false; }
+          else if (best && score === bestScore) { tied = true; }
+        });
+        // 同点＝どちらとも決められないので引き取らない（従来どおり残す）
+        if (!best || tied) return;
+        // 種目2個以下は全一致、3個以上は半数以上の種目名一致を要求する
+        const need = (exNames.length <= 2) ? exNames.length : Math.ceil(exNames.length / 2);
+        if (bestNames < need) return;
+        adoptions.push({ session, toId: best.id });
+      });
+      // 引き取り元メニューの種類数が現存メニュー数を超える場合は、通常のメニュー削除ではなく
+      // インポート中断等でメニュー定義が丸ごと欠けている疑いが強い。何も保存せず中止する
+      const srcIds = new Set(adoptions.map(a => a.session.menuId));
+      if (srcIds.size > index.length) return false;
+      adoptions.forEach(a => {
+        const session = a.session;
+        if (!session.origMenuId) session.origMenuId = session.menuId;
+        // 当時のメニュー名は追跡用に必ず残す（下で menuName を引き取り先の名前に更新するため）
+        if (!session.origMenuName && session.menuName) session.origMenuName = session.menuName;
+        session.menuId = a.toId;
+        const adopted = getMenu(a.toId);
+        if (adopted) session.menuName = adopted.fullName || adopted.name;
+        changed = true;
+      });
+      if (changed) saveHistory(hist);
+      return changed;
+    } catch (e) { return false; }
+  }
+
   function initMainApp() {
     migCreatePushMenu();
     migSwapPoolUnshare();
@@ -16448,6 +16538,10 @@
       // セッションのメニューIDが特定できない場合はスキップ
       const menuId = session.menuId;
       if (!menuId) return;
+      // 削除メニューから引き取った履歴は代替プールに反映しない。
+      // 反映すると、旧メニューで入れ替えて実施した種目が引き取り先メニューの
+      // 代替候補として恒久的に増えてしまう
+      if (session.origMenuId) return;
       session.exercises.forEach(ex => {
         if (ex.cardio) return;
         if (!ex.swappedFrom) return;
@@ -21753,8 +21847,12 @@
     const sc = secEl ? parseInt(secEl.value, 10) || 0 : 0;
     const totalSeconds = mn * 60 + sc;
     const dateObj = new Date(year, month, day, 12, 0, 0);
+    // menuName も保存：将来このメニューを削除しても、カレンダー等で「不明」ではなく
+    // 当時のメニュー名を表示できるようにする
+    const pastMenu = getMenu(menuId);
     const newSession = {
       menuId,
+      menuName: pastMenu ? (pastMenu.fullName || pastMenu.name) : undefined,
       date: dateObj.toISOString(),
       exercises,
       totalSeconds: totalSeconds
@@ -21912,6 +22010,13 @@
         if (elapsedStartMs) totalMs += (Date.now() - elapsedStartMs);
         workoutSession.totalSeconds = Math.floor(totalMs / 1000);
       }
+    } catch (_) { /* noop */ }
+
+    // menuName も保存：将来このメニューを削除しても、カレンダー等で「不明」ではなく
+    // 当時のメニュー名を表示できるようにする
+    try {
+      const doneMenu = getMenu(workoutSession.menuId);
+      if (doneMenu) workoutSession.menuName = doneMenu.fullName || doneMenu.name;
     } catch (_) { /* noop */ }
 
     const wasEditing = !!editingHistoryDate;
@@ -22313,6 +22418,16 @@
             if (!prev || new Date(session.date) >= new Date(prev.date)) {
               newLastW[linkKey] = entry;
             }
+          }
+        } else {
+          // 逆方向の補完：linkId付きの履歴でも「メニューID::種目名」キーを併記する。
+          // 引き取り先メニューの同名種目に linkId が無い場合、これが無いと link:: キーに
+          // しか記録が残らず前回記録が表示されない（読み出し側は link:: を優先するので
+          // 生きているリンク種目の共有動作は変わらない）
+          const plainKey = session.menuId + '::' + ex.name;
+          const prevPlain = newLastW[plainKey];
+          if (!prevPlain || new Date(session.date) >= new Date(prevPlain.date)) {
+            newLastW[plainKey] = entry;
           }
         }
       });
@@ -22844,6 +22959,9 @@
       // 履歴削除等で wo_lastweights が古い値を持っている場合の整合性確保
       try {
         if (!isAdminMode) {
+          // 削除済みメニューの履歴を現行メニューへ引き取ってから再構築する
+          // （順序が逆だと引き取った履歴が前回記録に反映されない）
+          migAdoptOrphanHistory();
           const hist = loadHistory();
           rebuildLastWeightsFromHistory(hist);
         }
