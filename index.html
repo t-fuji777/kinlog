@@ -7803,7 +7803,7 @@
 
     <div class="ex-form-field" style="margin-top: 28px">
       <label class="settings-section-label">ユーザー名</label>
-      <input type="text" class="ex-form-input" id="settingsUserName" placeholder="ユーザー名（任意）" maxlength="20" oninput="checkMaxLen(this, 20, 'ユーザー名')" onblur="saveUserName()">
+      <input type="text" class="ex-form-input" id="settingsUserName" placeholder="ユーザー名（任意）" oninput="checkMaxLen(this, 20, 'ユーザー名')" onblur="saveUserName()">
     </div>
 
     <div class="ex-form-field" style="margin-top: 28px">
@@ -8020,11 +8020,11 @@
     <h3 class="modal-title">名前を変更</h3>
     <div class="ex-form-field">
       <label class="ex-form-label">名前（20文字まで）</label>
-      <input type="text" class="ex-form-input" id="menuRenameInput" placeholder="" maxlength="20" oninput="checkMaxLen(this, 20, 'メニュー名')">
+      <input type="text" class="ex-form-input" id="menuRenameInput" placeholder="" oninput="checkMaxLen(this, 20, 'メニュー名')">
     </div>
     <div class="ex-form-field" style="margin-top: 12px">
       <label class="ex-form-label">短縮名（3文字まで）</label>
-      <input type="text" class="ex-form-input" id="menuRenameShort" placeholder="" maxlength="3" oninput="checkMaxLen(this, 3, '短縮名')">
+      <input type="text" class="ex-form-input" id="menuRenameShort" placeholder="" oninput="checkMaxLen(this, 3, '短縮名')">
     </div>
     <p style="font-size: 11px; color: var(--text-4); margin: 4px 0 0; line-height: 1.5">
       カレンダーや週間スケジュールなど、スペースの狭い箇所で使われます。
@@ -8123,7 +8123,7 @@
     <h3 class="modal-title">新しいメニューを追加</h3>
     <div class="ex-form-field">
       <label class="ex-form-label">名前（20文字まで）</label>
-      <input type="text" class="ex-form-input" id="newMenuName" placeholder="" maxlength="20" oninput="checkMaxLen(this, 20, 'メニュー名')">
+      <input type="text" class="ex-form-input" id="newMenuName" placeholder="" oninput="checkMaxLen(this, 20, 'メニュー名')">
     </div>
     <p style="font-size: 11px; color: var(--text-4); margin: 4px 0 0; line-height: 1.5">
       追加したメニューは設定＞メニュー編集から種目を登録できます。<br>
@@ -8146,7 +8146,7 @@
 
     <div class="ex-form-field">
       <label class="ex-form-label">種目名（20文字まで）</label>
-      <input type="text" class="ex-form-input" id="exFormName" placeholder="" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="checkMaxLen(this, 20, '種目名');">
+      <input type="text" class="ex-form-input" id="exFormName" placeholder="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="checkMaxLen(this, 20, '種目名');">
     </div>
 
     <!-- 筋トレ用フィールド -->
@@ -8448,7 +8448,7 @@
       <span style="flex-shrink: 0">現在：</span>
       <span id="renameOldName" style="color: var(--text-2); font-weight: 700; overflow: hidden; text-overflow: ellipsis; min-width: 0"></span>
     </p>
-    <input type="text" id="renameInput" class="ex-form-input" placeholder="新しい名前" maxlength="20" oninput="checkMaxLen(this, 20, '名前')">
+    <input type="text" id="renameInput" class="ex-form-input" placeholder="新しい名前" oninput="checkMaxLen(this, 20, '名前')">
     <p style="font-size: 11px; color: var(--text-4); margin: 6px 0 0; line-height: 1.5">
       20文字まで入力できます。
     </p>
@@ -8641,7 +8641,7 @@
     <div class="position-section-title" id="positionNumSectionTitle">番号<span id="positionNumError" class="position-num-error" style="display:none">※1〜20のどれかを選択</span></div>
     <div class="position-grid" id="positionEditorNumGrid"></div>
     <div class="position-section-title">名前（8文字まで）</div>
-    <input type="text" id="positionEditorLabel" class="ex-form-input" placeholder="" maxlength="8" oninput="checkPositionLabelLen(this)" style="margin-bottom: 4px">
+    <input type="text" id="positionEditorLabel" class="ex-form-input" placeholder="" oninput="checkPositionLabelLen(this)" style="margin-bottom: 4px">
     <div class="modal-actions">
       <button class="modal-btn" onclick="closePositionEditor()">キャンセル</button>
       <button class="modal-btn primary" onclick="savePositionEditor()">保存</button>
@@ -20829,6 +20829,8 @@
   // 入力中の文字数チェック（6文字超は強制カット＋赤枠フラッシュ）
   function checkPositionLabelLen(el) {
     if (!el) return;
+    el._posLabelCheck = true;
+    if (el._imeComposing) return; // IME変換中は切り捨てない（確定時に検査）
     const chars = [...el.value];
     if (chars.length > POSITION_LABEL_MAXLEN) {
       // 6文字に強制カット
@@ -24467,8 +24469,24 @@
   // 入力欄の最大文字数を超えたら自動切り捨て＋赤枠＋トースト警告
   // input要素から直接 oninput="checkMaxLen(this, 20, '種目名')" として呼ぶ
   // window.checkMaxLen で global 公開し、HTML属性から呼べるようにする
+  /* IME変換中は文字数制限を適用しない。
+     maxlength属性やinput時の即時切り捨ては、変換中の読み（例: 3文字超のかな）まで
+     弾いてしまい日本語入力ができなくなるため、変換確定(compositionend)後に検査する */
+  document.addEventListener('compositionstart', (e) => {
+    if (e.target) e.target._imeComposing = true;
+  }, true);
+  document.addEventListener('compositionend', (e) => {
+    const el = e.target;
+    if (!el) return;
+    el._imeComposing = false;
+    // 確定した値で改めて文字数検査（保留していた制限を適用）
+    if (el._maxLenSpec) checkMaxLen(el, el._maxLenSpec.max, el._maxLenSpec.label);
+    if (el._posLabelCheck && typeof checkPositionLabelLen === 'function') checkPositionLabelLen(el);
+  }, true);
   function checkMaxLen(el, maxLen, label) {
     if (!el) return;
+    el._maxLenSpec = { max: maxLen, label: label };
+    if (el._imeComposing) return; // 変換中は切り捨てない（確定時に検査）
     const val = el.value;
     // サロゲートペア対応の文字数カウント
     const len = [...val].length;
