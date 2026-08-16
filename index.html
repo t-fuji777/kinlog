@@ -120,7 +120,7 @@
   body {
     min-height: 100vh;
     padding-top: 0; /* ヘッダー側でsafe-area分の余白を確保するため、body自体は0に */
-    padding-bottom: 0; /* ナビが画面最下部に張り付くようにbodyの下paddingは0にする（safe-bottomは.nav側で処理） */
+    padding-bottom: 0;
     /* Subtle atmospheric background — 単色のみ（グラデは ::before で固定描画） */
     background: var(--bg);
   }
@@ -402,7 +402,6 @@
     padding: 28px 22px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   }
-  .setup-step-indicator { display: flex; gap: 6px; margin-bottom: 24px; }
 
   .kicker {
     font-family: var(--font-mono);
@@ -593,58 +592,6 @@
   .mode-btn:not(.selected):active {
     background: var(--bg-3);
     color: var(--text);
-  }
-
-  /* Manual schedule assignment */
-  .manual-assign {
-    margin-top: 14px;
-  }
-  .manual-assign-title {
-    font-family: var(--font-mono);
-    font-size: 10px; color: var(--text-3);
-    letter-spacing: 1.5px; font-weight: 700;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-  }
-  .manual-assign-row {
-    display: flex; align-items: center;
-    gap: 10px; padding: 3px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .manual-assign-row:last-child { border-bottom: none; }
-  .manual-assign-dow {
-    font-size: 18px; font-weight: 700;
-    color: var(--text);
-    min-width: 28px;
-    text-align: center;
-    font-family: var(--font-display);
-  }
-  .manual-assign-select {
-    flex: 1;
-    background: var(--bg-2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 10px;
-    min-height: 32px;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 13px; font-weight: 700;
-    cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 8px;
-    text-align: left;
-    line-height: 1.2;
-  }
-  .manual-assign-select:active {
-    background: var(--bg-3);
-  }
-  .manual-assign-select.empty {
-    color: var(--text-3);
-    font-style: italic;
-    font-weight: 500;
-  }
-  .manual-assign-select-arrow {
-    color: var(--text-3); font-size: 14px;
   }
 
   /* Menu picker list (modal) */
@@ -2253,22 +2200,6 @@
     letter-spacing: 1.5px; text-transform: uppercase;
     margin-bottom: 14px;
   }
-  .workout-progress-wrap {
-    background: transparent;
-    padding: 0;
-    margin: 0;
-  }
-  .workout-progress {
-    display: flex; gap: 4px;
-  }
-  .progress-dot {
-    flex: 1; height: 7px;
-    background: var(--border);
-    border-radius: 3px;
-    transition: background 0.3s;
-  }
-  .progress-dot.done { background: var(--ok); }
-  .progress-dot.skip { background: var(--warn); opacity: 0.5; }
 
   /* Exercise card */
   .exercise {
@@ -6775,159 +6706,12 @@
     letter-spacing: 0.3px;
   }
 
-  /* Chart */
-  .chart-box {
-    background: var(--bg-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px 8px 4px 8px;
-    margin-bottom: 10px;
-  }
-  .chart-title {
-    font-size: 14px; font-weight: 700;
-    margin-bottom: 8px; color: var(--text);
-  }
-  .chart-sub {
-    font-family: var(--font-mono);
-    font-size: 10px; color: var(--text-3);
-    margin-bottom: 12px;
-    letter-spacing: 1px; text-transform: uppercase;
-    font-weight: 600;
-  }
-  .chart-canvas { width: 100%; height: 200px; }
-
-  /* チャート期間タブ（元サイズ） */
-  .chart-period-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 0;
-  }
-  .chart-period-tab {
-    flex: 1;
-    padding: 5px 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 700;
-    background: var(--bg-2);
-    color: var(--text-3);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    cursor: pointer;
-    text-align: center;
-    letter-spacing: 0.5px;
-    transition: all 0.15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .chart-period-tab.active {
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-  /* X軸ラベル領域（Canvas内描画なのでマージン不要） */
-  .chart-x-labels {
-    margin: 0;
-    padding: 0;
-    font-size: 0;
-  }
-
-  .chart-menu-picker {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-    padding: 0 4px;
-  }
-  .chart-menu-picker-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-3);
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    flex-shrink: 0;
-  }
-  .chart-menu-select {
-    flex: 1;
-    padding: 10px 14px;
-    background: var(--bg-1);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='%239CA3AF'%3E%3Cpath d='M2 4l4 4 4-4z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    background-size: 12px;
-    padding-right: 36px;
-  }
-  .chart-empty {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-3);
-    font-size: 13px;
-  }
-
   .empty {
     text-align: center; padding: 50px 20px;
     color: var(--text-3); font-size: 14px;
     line-height: 1.8;
   }
 
-  /* ==================== NAV ==================== */
-  .nav {
-    /* fixed で完全固定。stickyだとスクロール末端で微動するためfixedに変更 */
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    /* .appの最大幅500pxに合わせて中央寄せ */
-    max-width: 500px;
-    margin: 0 auto;
-    background: #1d1d22;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    display: flex;
-    padding: 0 0 var(--safe-bottom); /* 上padding=0、下はsafe-bottomのみ。ボタンを限界まで下げる */
-    z-index: 100;
-    /* iOS Safariでスクロール中にナビが微動するのを防ぐ：GPUレイヤー化 + 強制固定 */
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    will-change: transform;
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-  }
-  .nav-btn {
-    flex: 1; background: none; border: none;
-    color: var(--text-3);
-    padding: 6px 4px 10px; /* 下を増やしてアイコン+ラベルを上方向に押し上げ */
-    font-family: var(--font-mono);
-    font-size: 11px; font-weight: 700;
-    letter-spacing: 1.5px;
-    cursor: pointer;
-    transition: color 0.15s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-right: 1px solid rgba(255, 255, 255, 0.3);
-    /* ダブルタップによるズーム・スクロール挙動を無効化 */
-    touch-action: manipulation;
-    -webkit-touch-callout: none;
-  }
-  .nav-btn:last-child {
-    border-right: none;
-  }
-  .nav-btn .nav-icon {
-    display: block; font-size: 24px;
-    margin-bottom: 2px;
-    line-height: 1;
-  }
-  .nav-btn.active { color: var(--accent); }
 
   /* ==================== TOAST ==================== */
   .toast {
@@ -6982,41 +6766,6 @@
   }
   .export-inline-msg.success { color: var(--ok); }
   .export-inline-msg.error { color: var(--warn); }
-
-  /* ==================== NOTIFY STOP BUTTON ==================== */
-  .notify-stop-btn {
-    position: fixed;
-    bottom: calc(110px + var(--safe-bottom));
-    left: 50%; transform: translateX(-50%) translateY(40px);
-    background: var(--warn);
-    color: #fff;
-    padding: 16px 28px;
-    border: 2px solid #fff;
-    border-radius: 100px;
-    font-size: 15px; font-weight: 800;
-    z-index: 9999;
-    opacity: 0;
-    pointer-events: none;
-    box-shadow: 0 8px 32px rgba(239, 68, 68, 0.5), 0 0 0 4px rgba(239, 68, 68, 0.2);
-    letter-spacing: 0.5px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.3s;
-    animation: notifyStopPulse 1.2s ease-in-out infinite;
-  }
-  .notify-stop-btn.show {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(-50%) translateY(0);
-  }
-  @keyframes notifyStopPulse {
-    0%, 100% { transform: translateX(-50%) translateY(0) scale(1); }
-    50% { transform: translateX(-50%) translateY(0) scale(1.05); }
-  }
-  .notify-stop-btn:active {
-    animation: none;
-    transform: translateX(-50%) translateY(0) scale(0.95);
-  }
 
   /* ==================== MODAL ==================== */
   .modal-backdrop {
@@ -7617,7 +7366,6 @@
 
 <div class="setup-bg" id="setup-screen" style="display:none">
   <div class="setup-card">
-    <div class="setup-step-indicator" id="stepIndicator"></div>
 
     <div class="setup-step" data-step="1" style="display:none">
       <h1 class="display-title setup-title-1line">今週のトレーニング曜日を選択</h1>
@@ -7632,7 +7380,6 @@
         <div class="day-chip" data-dow="5"><div class="day-chip-dow">金</div><div class="day-chip-en">FRI</div></div>
         <div class="day-chip" data-dow="6"><div class="day-chip-dow">土</div><div class="day-chip-en">SAT</div></div>
       </div>
-      <div id="manualAssignSection" style="display:none"></div>
       <div class="setup-actions single">
         <button class="btn primary" onclick="finishSetup()" id="step1Next" disabled>完了</button>
       </div>
@@ -7662,7 +7409,6 @@
         <span class="header-nav-label">設定</span>
       </button>
     </div>
-    <div class="header-date" id="dateDisplay" style="display:none"></div>
   </header>
 
   <section class="screen active" id="screen-home">
@@ -7700,9 +7446,6 @@
           <button class="timer-mode-btn" data-mode="only-elapsed" onclick="setTimerMode('only-elapsed')" title="タイマーのみ">①</button>
           <button class="timer-mode-btn" data-mode="only-interval" onclick="setTimerMode('only-interval')" title="インターバルのみ">②</button>
         </div>
-      </div>
-      <div class="workout-progress-wrap" id="workoutProgressWrap" style="display:none">
-        <div class="workout-progress" id="workoutProgress"></div>
       </div>
     </div>
     <div id="oneoffIntervalSlot" class="oneoff-timer-slot" style="display:none"></div>
@@ -7858,25 +7601,10 @@
 
   </section>
 
-  <nav class="nav" style="display:none">
-    <button class="nav-btn" data-screen="history" onclick="showScreen('history')">
-      <span class="nav-icon">≡</span>履歴</button>
-    <button class="nav-btn active" data-screen="home" onclick="showScreen('home')">
-      <span class="nav-icon">⌂</span>ホーム</button>
-    <button class="nav-btn" data-screen="settings" onclick="showScreen('settings')">
-      <span class="nav-icon">⚙</span>設定</button>
-  </nav>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<!-- HIIT本番ラウンド目標時間ピッカー -->
-<div class="modal-backdrop" id="hiitTargetPickerModal" onclick="if(event.target===this)closeHiitTargetPicker()">
-  <div class="modal" style="max-width: 320px;">
-    <div class="modal-title" style="margin:0 0 12px">設定時間</div>
-    <div class="hiit-target-options"></div>
-  </div>
-</div>
 
 <!-- HIITラウンド消去確認モーダル -->
 <div class="modal-backdrop" id="hiitEraseConfirmModal" onclick="if(event.target===this)cancelEraseConfirm()">
@@ -8605,23 +8333,6 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="targetRepsModal">
-  <div class="modal">
-    <h3 class="modal-title">目標回数を設定</h3>
-    <p style="font-size: 12px; color: var(--text-3); margin: -10px 0 12px; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden">
-      <span style="flex-shrink: 0">種目:</span>
-      <span id="targetRepsExName" style="color: var(--text-2); font-weight: 700; overflow: hidden; text-overflow: ellipsis; min-width: 0"></span>
-    </p>
-    <input type="number" id="targetRepsInput" class="ex-form-input" inputmode="numeric" placeholder="" style="text-align: center">
-    <p style="font-size: 11px; color: var(--text-4); margin: 8px 0 0; line-height: 1.5">
-      この目標回数はメニュー定義に保存され、次回以降も使用されます。
-    </p>
-    <div class="modal-actions">
-      <button class="modal-btn" onclick="closeTargetRepsEditor()">キャンセル</button>
-      <button class="modal-btn primary" onclick="saveTargetReps()">保存</button>
-    </div>
-  </div>
-</div>
 
 <div class="modal-backdrop" id="menuPickerModal">
   <div class="modal">
@@ -8733,108 +8444,6 @@
     }, { passive: false });
   })();
 
-  // ============================================================
-  // PWA対応：単一HTMLでmanifest/Service WorkerをBlobで生成
-  // ホーム画面に追加するとアプリ風に動作、データはオリジン単位で永続保存
-  // ※GitHub Pages等の固定URLでホスティングされた時のみ完全に機能する
-  // ============================================================
-  (function setupPWA() {
-    try {
-      // 1) manifest.json をBlob URLで生成して既存のlink要素のhrefを上書き
-      const manifestData = {
-        name: '筋LOG -キロク-',
-        short_name: '筋LOG',
-        description: '筋トレ・HIIT・体幹・有酸素のトレーニング記録アプリ',
-        start_url: './',
-        scope: './',
-        display: 'standalone',
-        orientation: 'portrait',
-        background_color: '#FFFFFF',
-        theme_color: '#FF5A1F',
-        lang: 'ja',
-        icons: [
-          {
-            src: document.querySelector('link[rel="apple-touch-icon"]')?.href || '',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
-          },
-          {
-            src: document.querySelector('link[rel="apple-touch-icon"]')?.href || '',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
-      };
-      const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
-      const manifestUrl = URL.createObjectURL(manifestBlob);
-      // 既存の <link rel="manifest"> を全て差し替え
-      document.querySelectorAll('link[rel="manifest"]').forEach(el => el.setAttribute('href', manifestUrl));
-
-      // 2) Service Worker をBlobで生成して登録（HTTPSまたはlocalhostでのみ動作）
-      // 単純なキャッシュ戦略：ネットワーク優先、失敗時はキャッシュから返す
-      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-        const swCode = `
-          const CACHE = 'kinlog-v3';
-          self.addEventListener('install', e => { self.skipWaiting(); });
-          self.addEventListener('activate', e => {
-            e.waitUntil((async () => {
-              const keys = await caches.keys();
-              await Promise.all(keys.map(k => (k !== CACHE && k.indexOf('kinlog-') === 0) ? caches.delete(k) : null));
-              await self.clients.claim();
-            })());
-          });
-          self.addEventListener('fetch', e => {
-            if (e.request.method !== 'GET') return;
-            const isHTML = e.request.mode === 'navigate' || (e.request.headers.get('accept') || '').indexOf('text/html') !== -1;
-            e.respondWith(
-              fetch(e.request, isHTML ? { cache: 'no-store' } : {}).then(res => {
-                const copy = res.clone();
-                caches.open(CACHE).then(c => c.put(e.request, copy)).catch(()=>{});
-                return res;
-              }).catch(() => caches.match(e.request))
-            );
-          });
-        `;
-        const swBlob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(swBlob);
-        // 注：Blob URLによるSW登録は一部ブラウザで制限あり。
-        // 固定ホスティング時は別途 /sw.js を配置する方が確実。
-        navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {
-          // Blob URLで登録できないブラウザでは何もせず（PWAインストールは可）
-        });
-      }
-    } catch (e) {
-      // PWA未対応環境でも通常動作する
-    }
-  })();
-
-  // ============================================================
-  // 【強制クリーンモード】起動時に問答無用で全データを削除する
-  // ------------------------------------------------------------
-  // FORCE_WIPE_ON_BOOT = true の間、毎回起動時に以下をすべて削除：
-  //   - localStorage
-  //   - sessionStorage
-  //   - Cache Storage（Service Workerキャッシュ）
-  //   - IndexedDB
-  //   - 既存のService Worker登録
-  // 配布版として安定動作させたくなったらfalseに戻す。
-  // ============================================================
-  // ============================================================
-  // 配布用：初回起動時に1回だけ既存データをクリアする機構
-  // ------------------------------------------------------------
-  // ※マスター運用中は無効化（誤って localStorage.clear() が走るとメニューが消えるため）
-  // ============================================================
-  (function distributionClearOnce() {
-    const FLAG_KEY = 'kinlog_distribution_cleared_v5';
-    try {
-      // 過去にフラグが立っていなくても、何もせず1だけ立てる（実データは触らない）
-      if (!localStorage.getItem(FLAG_KEY)) {
-        localStorage.setItem(FLAG_KEY, '1');
-      }
-    } catch (e) {}
-  })();
 
   // メニューの優先順序（DEFAULT_MENUS と連動）。
   // 配布版では DEFAULT_MENUS が空のため、初期は空配列。
@@ -9111,11 +8720,8 @@
       document.getElementById('setup-screen').style.display = 'none';
       document.getElementById('mainApp').style.display = 'flex';
       try {
-        renderDate();
         renderRecommend();
         renderWeekStrip();
-        renderMenuGrid();
-        renderStats();
       } catch (e) {}
       return;
     }
@@ -9195,19 +8801,11 @@
   }
 
   // ========== SETUP FLOW ==========
-  function initStepIndicator() {
-    const el = document.getElementById('stepIndicator');
-    if (!el) return;
-    // ステップが1つだけになったのでインジケーターは非表示
-    el.style.display = 'none';
-  }
-
   function showStep(n) {
     setupStep = n;
     document.querySelectorAll('.setup-step').forEach(el => el.style.display = 'none');
     const target = document.querySelector(`.setup-step[data-step="${n}"]`);
     if (target) target.style.display = 'block';
-    initStepIndicator();
     // Step 1（スケジュール画面）で優先順の説明文を動的更新 + 曜日チップを起点日基準で並べ替え
     if (n === 1) {
       updateSetupPriorityDesc();
@@ -9240,11 +8838,6 @@
   function getUserName() {
     if (isAdminMode) return 'テスト太郎';
     return (localStorage.getItem('wo_username') || '').trim();
-  }
-
-  function updateWelcomeKicker() {
-    // 旧仕様の welcomeKicker DOM は廃止されたため、何もしない（互換性のため空関数として残す）
-    return;
   }
 
   function saveUserName() {
@@ -9432,14 +9025,6 @@
     el.textContent = '設定済みのメニューを自動で割り当てます。';
   }
 
-  function nextStep() {
-    if (setupStep === 1 && setupData.availableDays.length === 0) {
-      toast('曜日を1つ以上選択してください'); return;
-    }
-    showStep(setupStep + 1);
-  }
-  function prevStep() { if (setupStep > 0) showStep(setupStep - 1); }
-
   // 曜日チップクリックハンドラ（初期化時に設定）
   let _daysGridHandlerAttached = false;
   function setupDaysGridHandler() {
@@ -9571,7 +9156,6 @@
   // 丸数字 → 普通の数字への自動マイグレーション
   (function migratePositions() {
     const CIRCLE_MAP = {'①':'1','②':'2','③':'3','④':'4','⑤':'5','⑥':'6','⑦':'7','⑧':'8','⑨':'9','⑩':'10','⑪':'11','⑫':'12','⑬':'13','⑭':'14','⑮':'15','⑯':'16','⑰':'17','⑱':'18','⑲':'19','⑳':'20'};
-    const convert = (pos) => (pos && CIRCLE_MAP[pos]) ? CIRCLE_MAP[pos] : pos;
     try {
       // カスタムメニュー
       const custom = JSON.parse(localStorage.getItem('wo_custom_menus') || '{}');
@@ -10116,15 +9700,6 @@
     return ordered.filter(d => days.includes(d));
   }
 
-  function getWeekStart(date) {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    const diff = (day === 0 ? 6 : day - 1);
-    d.setDate(d.getDate() - diff);
-    return d;
-  }
-
   function getCurrentWeekSchedule() {
     const profile = getProfile();
     if (!profile) return {};
@@ -10162,7 +9737,6 @@
     renderSettings();
     renderWeekStrip();
     renderRecommend();
-    renderMenuGrid();
     toast(mode === 'auto' ? '自動モード' : '手動モード');
   }
 
@@ -10198,7 +9772,6 @@
     renderSettings();
     renderWeekStrip();
     renderRecommend();
-    renderMenuGrid();
     toast('✓ 割当を更新');
   }
 
@@ -10211,7 +9784,6 @@
     renderSettings();
     renderWeekStrip();
     renderRecommend();
-    renderMenuGrid();
     toast('割当を解除');
   }
 
@@ -10220,97 +9792,6 @@
     menuPickerDow = null;
   }
 
-  // ========== 種目の記録リンク（他メニューの種目と前回記録を共有） ==========
-  // 種目フォームのリンクボタンから開く
-  function openExFormLinkModal() {
-    const name = (document.getElementById('exFormName')?.value || '').trim();
-    if (!name) {
-      toast('先に種目名を入力してください');
-      return;
-    }
-    const list = document.getElementById('exLinkList');
-    if (!list) return;
-    list.innerHTML = '';
-    // 編集中の種目自身のメニューIDを取得（自分自身は候補から除く）
-    const selfMenuId = exerciseFormContext ? exerciseFormContext.menuId : null;
-    // 全メニューを走査して、各種目を候補として列挙
-    let count = 0;
-    getOrderedMenuIds().forEach(menuId => {
-      const menu = getMenu(menuId);
-      if (!menu) return;
-      const exercises = getMenuExercises(menuId);
-      exercises.forEach(ex => {
-        if (!ex || !ex.name) return;
-        if (ex.cardio || ex.hiit) return; // 有酸素・HIITは記録リンク対象外
-        // 自分自身（同じメニューの同じ種目名）はスキップ
-        if (menuId === selfMenuId && ex.name === name) return;
-        count++;
-        const el = document.createElement('div');
-        el.className = 'menu-picker-item';
-        // 既にリンク済みの種目には印
-        const linkMark = ex.linkId ? ' 🔗' : '';
-        el.innerHTML = `<span class="menu-picker-name">${menu.name} / ${ex.name}${linkMark}</span>`;
-        el.onclick = () => selectExFormLink(menuId, ex);
-        list.appendChild(el);
-      });
-    });
-    if (count === 0) {
-      const empty = document.createElement('div');
-      empty.style.cssText = 'font-size: 13px; color: var(--text-4); padding: 12px 4px; text-align: center;';
-      empty.textContent = 'リンクできる種目がありません';
-      list.appendChild(empty);
-    }
-    document.getElementById('exLinkModal').classList.add('show');
-  }
-
-  // リンク先の種目を選択 → linkId を生成/継承して種目フォームに反映
-  function selectExFormLink(menuId, targetEx) {
-    // 既にlinkIdを持っている種目なら、そのlinkIdを引き継ぐ（同じグループに参加）
-    // 持っていなければ、新しいlinkIdを生成して「相手の種目にも付与」する必要がある
-    let linkId = targetEx.linkId;
-    if (!linkId) {
-      // 新規linkId生成
-      linkId = 'lnk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-      // 相手の種目にもlinkIdを付与して保存
-      const exs = [...getMenuExercises(menuId)];
-      const idx = exs.findIndex(e => e.name === targetEx.name && !e.linkId);
-      if (idx >= 0) {
-        exs[idx] = { ...exs[idx], linkId };
-        setMenuExercises(menuId, exs);
-      }
-    }
-    // 種目フォームの hidden に linkId をセット
-    const linkInput = document.getElementById('exFormLinkId');
-    if (linkInput) linkInput.value = linkId;
-    // ステータス表示更新
-    const status = document.getElementById('exFormLinkStatus');
-    if (status) {
-      const menu = getMenu(menuId);
-      status.textContent = `「${menu ? menu.name : ''} / ${targetEx.name}」と記録を共有中`;
-      status.style.color = 'var(--accent)';
-    }
-    closeExFormLinkModal();
-    toast('✓ 記録をリンクしました');
-  }
-
-  // リンク解除
-  function clearExFormLink() {
-    const linkInput = document.getElementById('exFormLinkId');
-    if (linkInput) linkInput.value = '';
-    const status = document.getElementById('exFormLinkStatus');
-    if (status) {
-      status.textContent = 'リンクなし（このメニュー独自の記録）';
-      status.style.color = 'var(--text-3)';
-    }
-    closeExFormLinkModal();
-    toast('リンクを解除しました');
-  }
-
-  function closeExFormLinkModal() {
-    document.getElementById('exLinkModal').classList.remove('show');
-  }
-
-  // 種目フォームを開いた時にリンク状態を反映
   // 記録リンクのUIは廃止したが、複製で付いた linkId は hidden に保持する必要がある。
   // この関数は種目フォームを開いたときに、編集対象の linkId を hidden に反映するだけ。
   function refreshExFormLinkStatus(ex) {
@@ -10380,14 +9861,6 @@
 
     return { type: 'completed', menuKey: scheduledMenu,
       reason: '実施済' };
-  }
-
-  function getNextTrainingDayStr(from, availableDays) {
-    for (let i = 1; i <= 7; i++) {
-      const d = (from + i) % 7;
-      if (availableDays.includes(d)) return `次は${DOW[d]}曜日。`;
-    }
-    return '';
   }
 
   // ========== MAIN APP ==========
@@ -10492,21 +9965,8 @@
   function initMainApp() {
     migCreatePushMenu();
     migSwapPoolUnshare();
-    renderDate();
     renderRecommend();
     renderWeekStrip();
-    renderMenuGrid();
-    renderStats();
-  }
-
-  function renderDate() {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1, d = now.getDate();
-    const dow = DOW[now.getDay()];
-    document.getElementById('dateDisplay').textContent = `${y}年${m}月${d}日（${dow}）`;
-    const heroEl = document.getElementById('heroKicker');
-    if (heroEl) heroEl.textContent = '';
   }
 
   // メインカードの高さを統一するためのヘルパー
@@ -10732,13 +10192,6 @@
     const totalSeconds = (lastSession && typeof lastSession.totalSeconds === 'number') ? lastSession.totalSeconds : 0;
     const hasPrev = !!lastSession;
     // 今日の記録があるか判定（表示中のメニューが今日実施済みか）
-    const doneToday = (rec.type === 'completed') || history.some(h => {
-      if (!h.date) return false;
-      if (h.menuId !== displayMenuId) return false;
-      const d = new Date(h.date);
-      const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      return ymd === todayYmd;
-    });
     const totalWeightDisplay = `${Math.round(totalWeight).toLocaleString('en-US')}<span class="today-meta-unit">kg</span>`;
 
     // 「前回」の表示ラベル：完了時は「本日の」、それ以外は「前回の記録：日付（曜日）」
@@ -11286,97 +10739,6 @@
     renderWeekStrip();
   }
 
-  function renderMenuGrid() {
-    const grid = document.getElementById('menuGrid');
-    if (!grid) return; // ホーム画面からメニュー一覧を削除したため、要素がない場合は何もしない
-    grid.innerHTML = '';
-    const rec = getTodayRecommendation();
-    const history = loadHistory();
-    // テストモード時は admin1〜7、通常時は profile.customPriority（ユーザー定義メニュー含む）を使う
-    let menuIds = isAdminMode ? getAllMenuIds() : getPriority();
-    // 今日の予定メニューがあれば先頭に移動（休息日なら現状の順のまま）
-    if (rec && rec.menuKey && menuIds.includes(rec.menuKey)) {
-      menuIds = [rec.menuKey, ...menuIds.filter(k => k !== rec.menuKey)];
-    }
-    let renderedCount = 0;
-    menuIds.forEach(key => {
-      const menu = getMenu(key);
-      if (!menu) return;
-      const btn = document.createElement('button');
-      btn.className = 'menu-btn' + (rec?.menuKey === key ? ' recommended' : '');
-      const last = history.find(h => h.menuId === key);
-      // 0日前→今日、1日前→昨日、それ以外は N日前
-      let lastStr;
-      if (!last) {
-        lastStr = '未実施';
-      } else {
-        const d = daysSince(new Date(last.date));
-        lastStr = d === 0 ? '今日' : d === 1 ? '昨日' : `${d}日前`;
-      }
-      const recentClass = last && daysSince(new Date(last.date)) <= 3 ? ' recent' : '';
-      btn.innerHTML = `
-        <div class="menu-name">${menu.name}</div>
-        <div class="menu-info">
-          <span class="menu-desc">${(menu.exercises || []).filter(e => e && !e.stored).length} 種目</span>
-          <span class="menu-info-sep">·</span>
-          <span class="menu-since${recentClass}">前回：${lastStr}</span>
-        </div>
-      `;
-      btn.onclick = () => startWorkout(key);
-      grid.appendChild(btn);
-      renderedCount++;
-    });
-    // メニュー5件以下のときは、画面に収まるよう動的にパディング調整しスクロール無効化
-    // どのスマホ端末でも下10pxを維持し、余りは上部余白として配分
-    const homeScreen = document.getElementById('screen-home');
-    if (homeScreen) {
-      // まず一旦リセット
-      document.documentElement.style.overflow = '';
-      document.body.style.overflow = '';
-      homeScreen.style.overflow = '';
-      homeScreen.style.touchAction = '';
-      homeScreen.style.paddingTop = '';
-      homeScreen.style.paddingBottom = '';
-
-      const isHomeActive = homeScreen.classList.contains('active');
-      const shouldFitScreen = renderedCount <= 5 && isHomeActive;
-
-      if (shouldFitScreen) {
-        // 次のフレームで実測（DOM更新後）
-        requestAnimationFrame(() => {
-          // 上部padding 4px固定（メニュー3件以上時のCSS固定値と同じ）、下部padding 15px固定
-          // 実機測定: padding-bottom 10px設定では実際5.3pxしか取れなかったため4.7px補正
-          homeScreen.style.paddingTop = '4px';
-          homeScreen.style.paddingBottom = '15px';
-
-          // スクロール無効化
-          document.documentElement.style.overflow = 'hidden';
-          document.body.style.overflow = 'hidden';
-          homeScreen.style.overflow = 'hidden';
-          homeScreen.style.touchAction = 'none';
-        });
-      }
-    }
-  }
-
-  function renderStats() {
-    // 「今月のサマリー」セクション削除に伴いno-op化
-  }
-
-  // 端末の画面サイズ変化（回転・アドレスバー表示等）でホーム画面の余白を再計算
-  let __homeResizeTimer = null;
-  window.addEventListener('resize', () => {
-    if (__homeResizeTimer) clearTimeout(__homeResizeTimer);
-    __homeResizeTimer = setTimeout(() => {
-      const homeScreen = document.getElementById('screen-home');
-      if (homeScreen && homeScreen.classList.contains('active')) {
-        // renderHomeMenuList は存在しない関数だったため renderMenuGrid に修正
-        // （#menuGrid が無ければ内部で即returnする安全な関数）
-        renderMenuGrid();
-      }
-    }, 150);
-  });
-
   function renderSettings() {
     const p = getProfile();
     if (!p) return;
@@ -11433,7 +10795,7 @@
           prof.availableDays.push(dow);
         }
         saveProfile(prof);
-        renderSettings(); renderWeekStrip(); renderRecommend(); renderDate(); renderMenuGrid();
+        renderSettings(); renderWeekStrip(); renderRecommend();
       };
       daysBox.appendChild(el);
     });
@@ -11720,20 +11082,6 @@
     toast('✓ 順序を変更');
   }
 
-  // 後方互換（バナーのキャンセル用）
-  function exitPriorityReorder() {
-    cleanupDragListeners();
-    document.body.style.userSelect = '';
-    document.body.style.webkitUserSelect = '';
-    reorderMode = false;
-    reorderingIdx = null;
-    reorderContext = null;
-    dragCurrentIdx = null;
-    dragRowEls = [];
-    hideReorderBanner();
-    renderSettings();
-  }
-
 
 
   function showReorderBanner() {
@@ -11977,7 +11325,7 @@
     if (name === 'workout') { try { applyWorkoutChrome(); } catch (e) {} }
     // 全画面でヘッダーを固定（スクロール時も上部に残る）
     document.body.classList.add('header-fixed');
-    document.querySelectorAll('.nav-btn, .header-nav-btn').forEach(b => {
+    document.querySelectorAll('.header-nav-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.screen === name);
     });
     // ヘッダーの×/ALLトグルボタンはワークアウト画面のみ表示
@@ -11991,9 +11339,6 @@
     if (name !== 'home') {
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
-    } else {
-      // ホームに移動した時はメニュー空判定を再評価（renderMenuGridが面倒見る）
-      try { renderMenuGrid(); } catch(e) {}
     }
     window.scrollTo(0, 0);
     // 履歴画面以外に移動するときはカレンダーのスクロール禁止を解除
@@ -12019,7 +11364,7 @@
       // ホームに来るたびに選択中の曜日と週オフセットをリセット（仕様：今日のメニューを表示）
       homeSelectedDow = null;
       homeWeekOffset = 0;
-      renderDate(); renderRecommend(); renderWeekStrip(); renderMenuGrid(); renderStats();
+      renderRecommend(); renderWeekStrip();
     }
     if (name === 'settings') {
       renderSettings();
@@ -12340,8 +11685,6 @@
       if (typeof renderHome === 'function') renderHome();
       if (typeof renderRecommend === 'function') renderRecommend();
       if (typeof renderWeekStrip === 'function') renderWeekStrip();
-      if (typeof renderMenuGrid === 'function') renderMenuGrid();
-      if (typeof renderStats === 'function') renderStats();
       // 履歴
       if (id === 'screen-history' && typeof renderHistory === 'function') renderHistory();
       if (id === 'screen-history' && typeof renderCalendar === 'function') renderCalendar();
@@ -12847,17 +12190,6 @@
   let intervalRemainingSec = 0;
   let intervalHandle = null;
 
-  function formatElapsed(ms) {
-    const totalSec = Math.floor(ms / 1000);
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    const mm = String(m).padStart(2, '0');
-    const ss = String(s).padStart(2, '0');
-    if (h > 0) return `${h}:${mm}:${ss}`;
-    return `${mm}:${ss}`;
-  }
-
   // タイマー表示用：コロンをspan化して位置調整可能にする
   function formatElapsedHtml(ms) {
     const totalSec = Math.floor(ms / 1000);
@@ -13116,14 +12448,6 @@
     // 停止中はタップしても何もしない（自動スタートは「次セット」ボタンに任せる）
   }
 
-  function toggleIntervalTimer() {
-    if (isIntervalRunning()) {
-      pauseIntervalTimer();
-    } else {
-      startIntervalTimer();
-    }
-  }
-
   function startIntervalTimer() {
     if (intervalHandle) return;
     intervalStartMs = Date.now();
@@ -13280,11 +12604,9 @@
         setRecords: [], judge: null, keepReps: null
       }))
     };
-    document.getElementById('workoutProgress') && (document.getElementById('workoutProgress').textContent = '');
     stopElapsedTimer();
     stopInterval();
     renderExerciseList();
-    renderProgress();
     showScreen('workout');
     applyWorkoutChrome();
     // タイマー表示状態を反映（前回の状態を維持しつつDOMに適用）
@@ -13377,30 +12699,12 @@
       date: new Date().toISOString(),
       exercises: [ex]
     };
-    document.getElementById('workoutProgress') && (document.getElementById('workoutProgress').textContent = '');
     stopElapsedTimer();
     stopInterval();
     renderExerciseList();
-    renderProgress();
     showScreen('workout');
     applyWorkoutChrome();
     applyTimerDisplay();
-  }
-
-  function renderProgress() {
-    const cont = document.getElementById('workoutProgress');
-    if (!cont) return;
-    cont.innerHTML = '';
-    if (!workoutSession || !Array.isArray(workoutSession.exercises)) return;
-    workoutSession.exercises.forEach(e => {
-      const dot = document.createElement('div');
-      dot.className = 'progress-dot';
-      // judge='skip' → スキップ表示、 judge='ok'（緑完了確定）→ 点灯
-      // 全セット記録済みでも judge未確定なら点灯しない
-      if (e.judge === 'skip') dot.classList.add('skip');
-      else if (e.judge === 'ok') dot.classList.add('done');
-      cont.appendChild(dot);
-    });
   }
 
   // ========== REORDER MODE ==========
@@ -14372,38 +13676,6 @@
       toast(`✓ 全${totalRounds}本完了！`);
     }
     renderExerciseList();
-    renderProgress();
-  }
-
-  // HIIT②本番：前のラウンドに戻る（カウンタータップで呼ばれる）
-  function hiitRoundCountDown(idx) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex || !ex.protocol) return;
-    if (!Array.isArray(ex.setRecords)) ex.setRecords = [];
-    // 完了確定（judge=ok）の場合：judge解除+最後のラウンドも取り消し（N/N → (N-1)/N）
-    if (ex.judge === 'ok') {
-      ex.judge = null;
-      ex.duration = null;
-      if (ex.setRecords.length > 0) ex.setRecords.pop();
-      // タイマー初期化（waiting/completedもリセット）
-      const state = hiitRoundTimers[idx];
-      if (state && state.handle) clearInterval(state.handle);
-      hiitRoundTimers[idx] = { elapsed: 0, running: false, handle: null, startMs: null, completed: false, waiting: false };
-      if (navigator.vibrate) navigator.vibrate(15);
-      renderExerciseList();
-      renderProgress();
-      return;
-    }
-    // 通常：最後のラウンド記録を取り消し
-    if (ex.setRecords.length === 0) return;
-    ex.setRecords.pop();
-    // タイマー初期化
-    const state = hiitRoundTimers[idx];
-    if (state && state.handle) clearInterval(state.handle);
-    hiitRoundTimers[idx] = { elapsed: 0, running: false, handle: null, startMs: null, completed: false, waiting: false };
-    if (navigator.vibrate) navigator.vibrate(10);
-    renderExerciseList();
-    renderProgress();
   }
 
   // ラウンドカウンター：タップで確認モーダル → OKでカウントダウン（戻る）
@@ -14731,11 +14003,7 @@
       const ss = s % 60;
       return String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
     };
-    const prepSec = p.prepSec != null ? p.prepSec : (p.prepMin != null ? p.prepMin * 60 : null);
     const cooldownSec = p.cooldownSec != null ? p.cooldownSec : (p.cooldownMin != null ? p.cooldownMin * 60 : null);
-    const prepText = (prepSec && p.prepSpeed)
-      ? `心拍：110〜120 bpm　時間：${fmtSec(prepSec)}　速度：${p.prepSpeed.toFixed(1)} km/h`
-      : '心拍：110〜120 bpm　時間：3〜5分';
     const coolText = cooldownSec
       ? `時間：${fmtSec(cooldownSec)}　速度：${(p.coolSpeed || p.recoverSpeed || 1.0).toFixed(1)} km/h`
       : '時間：3〜5分';
@@ -14794,52 +14062,6 @@
   // 体幹独立タイマー：{ "idx": { elapsed, running, handle, startMs } }
   const coreTimers = {};
 
-  // ====== その他用：旧式のカウントダウンタイマー（1セット固定） ======
-  function toggleOtherCoreTimer(idx) {
-    if (!coreTimers[idx]) coreTimers[idx] = { elapsed: 0, running: false, handle: null, startMs: null };
-    const state = coreTimers[idx];
-    const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[idx];
-    // その他のタイマーあり種目は初回タップで自動開始（開始ボタンがUI上ないため）
-    if (ex && !ex.exStarted) {
-      ex.exStarted = true;
-      ex.elapsedSeconds = ex.elapsedSeconds || 0;
-    }
-    // 完了確定（緑枠状態）なら何もしない
-    if (ex && ex.judge === 'ok') {
-      return;
-    }
-    // 0到達後（completed状態）も何もしない（その他は1セット固定なのでcompleted=完了）
-    if (state.completed) {
-      return;
-    }
-    if (state.running) {
-      if (state.handle) clearInterval(state.handle);
-      state.elapsed += (Date.now() - state.startMs) / 1000;
-      state.running = false;
-      state.handle = null;
-      state.startMs = null;
-      if (typeof stopNotifyLoop === 'function') stopNotifyLoop();
-    } else {
-      const ctx = getAudioCtx();
-      if (ctx && ctx.state === 'suspended') ctx.resume();
-      state.running = true;
-      state.notified = false;
-      state.startMs = Date.now();
-      state.handle = setInterval(() => updateOtherCoreDisplay(idx), 200);
-      if (typeof isElapsedRunning === 'function' && !isElapsedRunning() && typeof startElapsedTimer === 'function') {
-        startElapsedTimer();
-      }
-      // インターバルタイマーを停止（次セット開始時）
-      if (typeof stopInterval === 'function') {
-        try { stopInterval(); } catch (_) { /* noop */ }
-      }
-    }
-    updateOtherCoreToggleUI(idx);
-    updateOtherCoreDisplay(idx);
-    // カウンタ表示更新（0/N → 1/N）のため再描画
-    if (typeof renderExerciseList === 'function') renderExerciseList();
-  }
-
   function updateOtherCoreToggleUI(idx) {
     const state = coreTimers[idx];
     const running = !!(state && state.running);
@@ -14868,54 +14090,6 @@
     } else {
       btn.textContent = 'START';
       btn.classList.remove('running');
-    }
-  }
-
-  function updateOtherCoreDisplay(idx) {
-    const state = coreTimers[idx];
-    if (!state) return;
-    const el = document.getElementById(`coreTime-${idx}`);
-    if (!el) return;
-    const target = parseInt(el.dataset.target || '30', 10);
-    const elapsedSec = state.elapsed + (state.running && state.startMs ? (Date.now() - state.startMs) / 1000 : 0);
-    const remaining = Math.max(0, target - elapsedSec);
-    // valEl があればそれを更新（新HTML）、なければ要素全体（旧HTML）
-    const valEl = el.querySelector('.hiit-simple-time-value');
-    if (valEl) {
-      valEl.textContent = formatDuration(Math.floor(remaining));
-    } else {
-      el.textContent = formatDuration(Math.floor(remaining));
-    }
-    if (remaining <= 0) {
-      el.classList.add('done');
-      // 0到達時：completedフラグセット+完了ボタンのdisabled解除
-      if (state.running) {
-        state.completed = true;
-        state.elapsed = target;
-        state.running = false;
-        state.startMs = null;
-        if (state.handle) {
-          clearInterval(state.handle);
-          state.handle = null;
-        }
-        // 表示を初期値に戻す（赤色のdone状態は維持）
-        if (valEl) {
-          valEl.textContent = formatDuration(target);
-        }
-        // 完了ボタンのdisabledを外す
-        const card = document.querySelectorAll('#exerciseList .exercise')[idx];
-        if (card) {
-          const completeBtn = card.querySelector('.judge-btn.ok');
-          if (completeBtn) completeBtn.disabled = false;
-        }
-        if (typeof updateOtherCoreToggleUI === 'function') updateOtherCoreToggleUI(idx);
-      }
-      if (!state.notified) {
-        state.notified = true;
-        notifyTimerDone({ kind: 'core', idx });
-      }
-    } else {
-      el.classList.remove('done');
     }
   }
 
@@ -15164,7 +14338,6 @@
         state.completed = false;
         state.waiting = false;
         renderExerciseList();
-        renderProgress();
         toast(`${ex.setRecords.length}セット目を記録`);
         return;
       }
@@ -15203,12 +14376,10 @@
             ex.duration = ex.elapsedSeconds || 0;
             // 最終セット時は完了ボタンが押せる状態に
             renderExerciseList();
-            renderProgress();
             toast('全セット完了');
             return;
           }
           renderExerciseList();
-          renderProgress();
           toast(`${ex.setRecords.length}セット目を記録`);
         }
       }
@@ -15360,50 +14531,6 @@
     }
   }
 
-  // 体幹：タイマー値タップでスタート/STOP（リセットせず累積）
-  function toggleCoreTimer(idx) {
-    if (!coreTimers[idx]) coreTimers[idx] = { elapsed: 0, running: false, handle: null, startMs: null };
-    const state = coreTimers[idx];
-    if (state.running) {
-      if (state.handle) clearInterval(state.handle);
-      state.elapsed += (Date.now() - state.startMs) / 1000;
-      state.running = false;
-      state.handle = null;
-      state.startMs = null;
-      if (typeof stopNotifyLoop === 'function') stopNotifyLoop();
-    } else {
-      const ctx = getAudioCtx();
-      if (ctx && ctx.state === 'suspended') ctx.resume();
-      state.running = true;
-      state.notified = false;
-      state.startMs = Date.now();
-      state.handle = setInterval(() => updateCoreDisplayNew(idx), 200);
-      // 上タイマーが停止中なら再開
-      if (typeof isElapsedRunning === 'function' && !isElapsedRunning() && typeof startElapsedTimer === 'function') {
-        startElapsedTimer();
-      }
-    }
-    updateCoreDisplayNew(idx);
-  }
-
-  // 体幹タイマー表示更新
-  function updateCoreDisplayNew(idx) {
-    const state = coreTimers[idx];
-    if (!state) return;
-    const el = document.getElementById(`coreTime-${idx}`);
-    if (!el) return;
-    let elapsed = state.elapsed || 0;
-    if (state.running && state.startMs) {
-      elapsed += (Date.now() - state.startMs) / 1000;
-    }
-    const valEl = el.querySelector('.hiit-simple-time-value');
-    if (valEl) {
-      valEl.textContent = formatDuration(Math.floor(elapsed));
-    } else {
-      el.textContent = formatDuration(Math.floor(elapsed));
-    }
-  }
-
   // 体幹：左右切替
   function toggleCoreSideNew(idx) {
     const ex = workoutSession.exercises[idx];
@@ -15486,7 +14613,6 @@
       }
       if (navigator.vibrate) navigator.vibrate(15);
       renderExerciseList();
-      renderProgress();
       return;
     }
     // 通常：最後のセット記録を取り消し
@@ -15510,17 +14636,6 @@
     }
     if (navigator.vibrate) navigator.vibrate(10);
     renderExerciseList();
-    renderProgress();
-  }
-
-  function confirmHiitRoundCountDown(idx) {
-    const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[idx];
-    if (!ex) return;
-    // 戻すものがない場合は何もしない
-    if (ex.judge !== 'ok' && (!Array.isArray(ex.setRecords) || ex.setRecords.length === 0)) return;
-    if (confirm('前のラウンドに戻しますか？')) {
-      hiitRoundCountDown(idx);
-    }
   }
 
   function coreStepBack(idx) {
@@ -15535,60 +14650,10 @@
         if (typeof startElapsedTimer === 'function') startElapsedTimer();
       }
       renderExerciseList();
-      renderProgress();
       toast('運動中に戻しました');
       return;
     }
     // 運動中・未開始では何もしない（disabled）
-  }
-
-  // その他（タイマーなし）用：開始/完了確定（その他③と同じ挙動）
-  function otherStepGo(idx) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex) return;
-    // 【インターバル稼働中ガード】どのフェーズでもインターバル稼働中は処理しない
-    if (typeof isIntervalRunning === 'function' && isIntervalRunning()) {
-      flashIntervalAlert();
-      return;
-    }
-    // 初回タップは「開始」：種目開始フラグを立てる + 上タイマー起動
-    if (!ex.exStarted) {
-      // スキップ済の種目は開始させない
-      if (ex.judge === 'skip') return;
-      // 直前種目が完了/スキップ済でない場合は開始させない
-      if (typeof isPrevExerciseFinished === 'function' && !isPrevExerciseFinished(idx)) {
-        if (typeof toast === 'function') toast('前の種目を完了してください');
-        return;
-      }
-      ex.exStarted = true;
-      ex.elapsedSeconds = 0;
-      if (typeof isElapsedRunning === 'function' && !isElapsedRunning()) {
-        if (typeof startElapsedTimer === 'function') startElapsedTimer();
-      }
-      renderExerciseList();
-      renderProgress();
-      toast('開始');
-      return;
-    }
-    // 完了状態は disabled なので到達しない（防御的に何もしない）
-    if (ex.judge === 'ok') return;
-    // 【インターバル稼働中ガード】インターバルが動いている間は完了に進めない
-    if (typeof isIntervalRunning === 'function' && isIntervalRunning()) {
-      flashIntervalAlert();
-      return;
-    }
-    // 開始済 → 完了確定
-    ex.duration = ex.elapsedSeconds || 0;
-    ex.judge = 'ok';
-    // 【仕様変更】完了時も上タイマーは止めない。インターバルは自動スタート
-    try {
-      if (typeof startInterval === 'function') {
-        startInterval();
-      }
-    } catch (_) { /* noop */ }
-    renderExerciseList();
-    renderProgress();
-    toast('完了');
   }
 
   // その他（タイマーなし）用：戻る（完了確定取消）
@@ -15603,7 +14668,6 @@
         if (typeof startElapsedTimer === 'function') startElapsedTimer();
       }
       renderExerciseList();
-      renderProgress();
       toast('運動中に戻しました');
     }
   }
@@ -15632,7 +14696,6 @@
         if (typeof startElapsedTimer === 'function') startElapsedTimer();
       }
       renderExerciseList();
-      renderProgress();
       toast('開始');
       return;
     }
@@ -15656,7 +14719,6 @@
         }
       } catch (_) { /* noop */ }
       renderExerciseList();
-      renderProgress();
       toast('完了');
       return;
     }
@@ -15666,100 +14728,6 @@
   const hiitRoundTimers = {};
   // 準備・クールダウン独立タイマー状態：{ "idx-phase": { elapsed, running, handle, startMs } }
   const hiitSimpleTimers = {};
-
-  // ①準備、③クールダウン用の簡易タイマー行（タイム枠タップで開始/停止+リセット）
-  function renderHiitSimpleTimer(idx, phase, speed) {
-    const key = `${idx}-${phase}`;
-    const state = hiitSimpleTimers[key] || { elapsed: 0, running: false };
-    return `
-      <div class="hiit-simple-row">
-        <div class="hiit-simple-time ${state.running ? 'running' : ''}" id="hiitSimpleTime-${key}" onclick="toggleHiitSimpleTimer(${idx}, '${phase}')">
-          <span class="hiit-simple-time-value">${formatDuration(Math.floor(state.elapsed || 0))}</span>
-          <span class="hiit-simple-time-hint">※タップ</span>
-        </div>
-        <button class="hiit-simple-reset" onclick="resetHiitSimpleTimer(${idx}, '${phase}')" title="初期化">⟲</button>
-      </div>
-    `;
-  }
-
-  function resetHiitSimpleTimer(idx, phase) {
-    const key = `${idx}-${phase}`;
-    const state = hiitSimpleTimers[key];
-    if (state) {
-      if (state.handle) clearInterval(state.handle);
-      state.elapsed = 0;
-      state.running = false;
-      state.handle = null;
-      state.startMs = null;
-    }
-    const el = document.getElementById(`hiitSimpleTime-${key}`);
-    if (el) {
-      const valEl = el.querySelector('.hiit-simple-time-value');
-      if (valEl) valEl.textContent = '00:00';
-      el.classList.remove('running');
-    }
-    updateHiitSimpleToggleUI(idx, phase);
-  }
-
-  function toggleHiitSimpleTimer(idx, phase) {
-    const key = `${idx}-${phase}`;
-    if (!hiitSimpleTimers[key]) hiitSimpleTimers[key] = { elapsed: 0, running: false, handle: null, startMs: null };
-    const state = hiitSimpleTimers[key];
-    if (state.running) {
-      if (state.handle) clearInterval(state.handle);
-      state.elapsed += (Date.now() - state.startMs) / 1000;
-      state.running = false;
-      state.handle = null;
-      state.startMs = null;
-      updateHiitSimpleToggleUI(idx, phase);
-    } else {
-      state.running = true;
-      state.startMs = Date.now();
-      state.handle = setInterval(() => updateHiitSimpleDisplay(idx, phase), 200);
-      updateHiitSimpleToggleUI(idx, phase);
-      updateHiitSimpleDisplay(idx, phase);
-    }
-  }
-
-  function updateHiitSimpleToggleUI(idx, phase) {
-    const key = `${idx}-${phase}`;
-    const timeEl = document.getElementById(`hiitSimpleTime-${key}`);
-    const state = hiitSimpleTimers[key];
-    if (timeEl) {
-      if (state && state.running) {
-        timeEl.classList.add('running');
-        timeEl.classList.remove('paused');
-      } else {
-        timeEl.classList.remove('running');
-        const isPaused = state && state.elapsed > 0 && !state.running;
-        if (isPaused) {
-          timeEl.classList.add('paused');
-        } else {
-          timeEl.classList.remove('paused');
-        }
-      }
-    }
-  }
-
-  function updateHiitSimpleDisplay(idx, phase) {
-    const key = `${idx}-${phase}`;
-    const state = hiitSimpleTimers[key];
-    if (!state) return;
-    const el = document.getElementById(`hiitSimpleTime-${key}`);
-    if (!el) return;
-    const valEl = el.querySelector('.hiit-simple-time-value');
-    if (!valEl) return;
-    const elapsedSec = state.elapsed + (state.running && state.startMs ? (Date.now() - state.startMs) / 1000 : 0);
-    valEl.textContent = formatDuration(Math.floor(elapsedSec));
-  }
-
-  // 準備/クールダウン速度ピッカー
-  function openHiitSimpleSpeedPicker(idx, phase) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex || !ex.protocol) return;
-    const field = phase === 'prep' ? 'prepSpeed' : 'coolSpeed';
-    openHiitPicker(idx, field);
-  }
 
   function toggleHiitRoundTimer(idx) {
     if (!hiitRoundTimers[idx]) hiitRoundTimers[idx] = { elapsed: 0, running: false, handle: null, startMs: null };
@@ -15836,7 +14804,6 @@
           // 通知音停止（鳴っていれば）
           if (typeof stopNotifyLoop === 'function') stopNotifyLoop();
           renderExerciseList();
-          renderProgress();
           toast(`✓ 全${ex.protocol.rounds || 8}本完了！`);
           return;
         }
@@ -15857,7 +14824,6 @@
           if (typeof startInterval === 'function') startInterval();
         } catch (_) { /* noop */ }
         renderExerciseList();
-        renderProgress();
         toast(`${ex.setRecords.length}本目を記録`);
         return;
       }
@@ -16024,32 +14990,6 @@
       osc3.start(start); osc3.stop(start + dur);
     };
 
-    // ノイズ（ブザー用）
-    const buzz = (start, dur, vol = 0.4) => {
-      const bufferSize = ctx.sampleRate * dur;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * 0.3;
-      }
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.value = 400;
-      filter.Q.value = 8;
-      const gain = ctx.createGain();
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(vol, start + 0.01);
-      gain.gain.linearRampToValueAtTime(vol, start + dur - 0.05);
-      gain.gain.linearRampToValueAtTime(0, start + dur);
-      noise.start(start);
-      noise.stop(start + dur);
-    };
-
     switch (type) {
       case 'classic':
         // 電子レンジ・キッチンタイマー風：ピピピ（短）+ ピーン（長）
@@ -16185,27 +15125,10 @@
     }
   }
 
-  // STOPボタンの表示/非表示
-  function showNotifyStopButton() {
-    let btn = document.getElementById('notifyStopBtn');
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.id = 'notifyStopBtn';
-      btn.className = 'notify-stop-btn';
-      btn.textContent = '🔕 音を止める';
-      btn.onclick = stopNotifyLoop;
-      document.body.appendChild(btn);
-    }
-    btn.classList.add('show');
-  }
+  // STOPボタンの非表示
   function hideNotifyStopButton() {
     const btn = document.getElementById('notifyStopBtn');
     if (btn) btn.classList.remove('show');
-  }
-
-  // 旧playBeepは互換のため残す（プレビュー用にも使用）
-  function playBeep() {
-    playSoundOnce(getSoundType());
   }
 
   function notifyTimerDone(source) {
@@ -16382,183 +15305,6 @@
     redoHiitRound(idx);
     toast(`${ex.setRecords.length + 1}本目を取り消し`);
     renderExerciseList();
-    renderProgress();
-  }
-
-  // HIITラウンド目標時間ピッカー（10/20/30/40/50/60秒）
-  // 体幹種目用：カウントダウンタップでピッカー表示（仮変更、保存しない）
-  function openCoreTargetPicker(idx) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex || !ex.core) return;
-    const current = ex.coreSec || 30;
-    const options = [10, 20, 30, 40, 50, 60];
-    const modal = document.getElementById('hiitTargetPickerModal');
-    if (!modal) return;
-    modal.dataset.targetType = 'core';
-    modal.dataset.idx = String(idx);
-    const list = modal.querySelector('.hiit-target-options');
-    list.innerHTML = options.map(s => `
-      <button class="hiit-target-option ${s === current ? 'selected' : ''}" onclick="selectCoreTarget(${idx}, ${s})">${s}秒</button>
-    `).join('');
-    modal.classList.add('show');
-  }
-
-  function selectCoreTarget(idx, sec) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex) return;
-    // sessionの値だけ仮変更（保存はしない）
-    ex.coreSec = sec;
-    const modal = document.getElementById('hiitTargetPickerModal');
-    if (modal) {
-      modal.classList.remove('show');
-      delete modal.dataset.targetType;
-    }
-    renderExerciseList();
-  }
-
-  // その他種目用：カウントダウンタップでピッカー表示（仮変更、保存しない）
-  function openOtherTargetPicker(idx) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex || !ex.other) return;
-    const current = ex.otherSec || 60;
-    const options = [10, 20, 30, 40, 50, 60];
-    const modal = document.getElementById('hiitTargetPickerModal');
-    if (!modal) return;
-    modal.dataset.targetType = 'other';
-    modal.dataset.idx = String(idx);
-    const list = modal.querySelector('.hiit-target-options');
-    list.innerHTML = options.map(s => `
-      <button class="hiit-target-option ${s === current ? 'selected' : ''}" onclick="selectOtherTarget(${idx}, ${s})">${s}秒</button>
-    `).join('');
-    modal.classList.add('show');
-  }
-
-  function selectOtherTarget(idx, sec) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex) return;
-    // sessionの値だけ仮変更（保存はしない）
-    ex.otherSec = sec;
-    // タイマーをリセット
-    resetOtherCoreTimer(idx);
-    const modal = document.getElementById('hiitTargetPickerModal');
-    if (modal) {
-      modal.classList.remove('show');
-      delete modal.dataset.targetType;
-    }
-    renderExerciseList();
-  }
-
-  function openHiitTargetPicker(idx) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex) return;
-    const current = ex.roundTargetSec != null ? ex.roundTargetSec : 40;
-    const options = [10, 20, 30, 40, 50, 60];
-    const modal = document.getElementById('hiitTargetPickerModal');
-    if (!modal) return;
-    const list = modal.querySelector('.hiit-target-options');
-    list.innerHTML = options.map(s => `
-      <button class="hiit-target-option ${s === current ? 'selected' : ''}" onclick="selectHiitTarget(${idx}, ${s})">${s}秒</button>
-    `).join('');
-    modal.classList.add('show');
-  }
-
-  function selectHiitTarget(idx, sec) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex) return;
-    ex.roundTargetSec = sec;
-    // 独立タイマーもリセット（時間変更したのでカウントダウンも初期化）
-    redoHiitRound(idx);
-    const modal = document.getElementById('hiitTargetPickerModal');
-    if (modal) modal.classList.remove('show');
-    renderExerciseList();
-  }
-
-  // タイム +/- ボタン：5秒ずつ増減
-  // skipRender=true: 長押し連続中の高頻度呼出し用、表示だけ更新してフル再描画はしない
-  // タイマー時間調整：長押しで連続増減
-  let targetSecLongPressTimer = null;
-  let targetSecLongPressInterval = null;
-  let targetSecLongPressCleanup = null;
-  function startTargetSecLongPress(event, kind, idx, delta) {
-    // 既存タイマーがあればクリア（前回の解除し損ないも含めて完全リセット）
-    if (targetSecLongPressTimer) clearTimeout(targetSecLongPressTimer);
-    if (targetSecLongPressInterval) clearInterval(targetSecLongPressInterval);
-    if (targetSecLongPressCleanup) {
-      document.removeEventListener('mouseup', targetSecLongPressCleanup);
-      document.removeEventListener('touchend', targetSecLongPressCleanup);
-      document.removeEventListener('touchcancel', targetSecLongPressCleanup);
-    }
-    targetSecLongPressCleanup = function () {
-      const wasInterval = !!targetSecLongPressInterval;
-      if (targetSecLongPressTimer) {
-        clearTimeout(targetSecLongPressTimer);
-        targetSecLongPressTimer = null;
-      }
-      if (targetSecLongPressInterval) {
-        clearInterval(targetSecLongPressInterval);
-        targetSecLongPressInterval = null;
-      }
-      document.removeEventListener('mouseup', targetSecLongPressCleanup);
-      document.removeEventListener('touchend', targetSecLongPressCleanup);
-      document.removeEventListener('touchcancel', targetSecLongPressCleanup);
-      targetSecLongPressCleanup = null;
-      // 長押し連続中だった場合は、最後にDOM再描画して状態を反映
-      if (wasInterval) {
-        try { renderExerciseList(); } catch (_) {}
-      }
-    };
-    // 500ms後から100ms間隔で連続増減
-    targetSecLongPressTimer = setTimeout(() => {
-      targetSecLongPressInterval = setInterval(() => {
-        if (kind === 'hiit') {
-          adjustHiitTargetSec(idx, delta, true);
-        } else if (kind === 'core') {
-          adjustCoreTargetSec(idx, delta, true);
-        }
-      }, 100);
-    }, 500);
-    document.addEventListener('mouseup', targetSecLongPressCleanup);
-    document.addEventListener('touchend', targetSecLongPressCleanup);
-    document.addEventListener('touchcancel', targetSecLongPressCleanup);
-  }
-
-  // 体幹のカウントダウン目標秒数を調整
-  // skipRender=true: 長押し連続中の高頻度呼出し用、表示だけ更新してフル再描画はしない
-  // その他種目用：時間調整（±10秒、5〜180秒）
-  function adjustOtherTargetSec(idx, delta, skipRender) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex) return;
-    // 稼働中は調整不可
-    const state = coreTimers[idx];
-    if (state && state.running) return;
-    const cur = ex.otherSec || 30;
-    let next = cur + delta;
-    // 10秒の倍数に揃える
-    next = Math.round(next / 10) * 10;
-    if (next < 10) next = 10;
-    if (next > 180) next = 180;
-    if (next === cur) return;
-    ex.otherSec = next;
-    const el = document.getElementById(`coreTime-${idx}`);
-    if (el) {
-      el.dataset.target = String(next);
-      const valEl = el.querySelector('.hiit-simple-time-value');
-      if (valEl) {
-        const state = coreTimers[idx];
-        let remaining = next;
-        if (state && (state.elapsed > 0 || state.running)) {
-          let elapsed = state.elapsed || 0;
-          if (state.running && state.startMs) {
-            elapsed += (Date.now() - state.startMs) / 1000;
-          }
-          remaining = Math.max(0, next - elapsed);
-        }
-        valEl.textContent = formatDuration(Math.floor(remaining));
-      }
-    }
-    if (!skipRender) {
-      renderExerciseList();
-    }
   }
 
   function adjustCoreTargetSec(idx, delta, skipRender) {
@@ -16626,54 +15372,6 @@
     } else {
       renderExerciseList();
     }
-  }
-
-  function closeHiitTargetPicker() {
-    const modal = document.getElementById('hiitTargetPickerModal');
-    if (modal) {
-      modal.classList.remove('show');
-      delete modal.dataset.targetType;
-    }
-  }
-
-  // HIITラウンドのSTOP（上タイマー停止）：旧関数、互換のため残す
-  function hiitRoundStop(idx) {
-    if (typeof isElapsedRunning === 'function' && isElapsedRunning()) {
-      pauseElapsedTimer();
-    }
-  }
-
-  // HIITラウンドのNEXT（このセットを記録して次へ）
-  function hiitRoundNext(idx) {
-    const ex = workoutSession.exercises[idx];
-    if (!ex || !ex.protocol) return;
-    const totalRounds = ex.protocol.rounds || 8;
-    if (!ex.setRecords) ex.setRecords = [];
-    if (ex.setRecords.length >= totalRounds) return;
-    // 独立タイマーから経過時間を取得
-    const state = hiitRoundTimers[idx];
-    let setTime = 0;
-    if (state) {
-      setTime = state.elapsed + (state.running && state.startMs ? (Date.now() - state.startMs) / 1000 : 0);
-      if (state.handle) clearInterval(state.handle);
-    }
-    ex.setRecords.push({
-      weight: ex.protocol.dashSpeed,
-      reps: 1,
-      time: Math.round(setTime)
-    });
-    // 独立タイマーをリセット（次のセット用）
-    hiitRoundTimers[idx] = { elapsed: 0, running: false, handle: null, startMs: null };
-    // 全本数完了で自動judge
-    if (ex.setRecords.length >= totalRounds) {
-      ex.judge = 'ok';
-      ex.duration = ex.setRecords.reduce((sum, r) => sum + (r.time || 0), 0);
-      toast(`✓ 全${totalRounds}本完了！`);
-    } else {
-      toast(`${ex.setRecords.length}/${totalRounds} 完了`);
-    }
-    renderExerciseList();
-    renderProgress();
   }
 
   // トレッドミル用のプロトコル表示（傾斜・速度・時間のみ。タイマーと完了ボタンはhiit-judge-rowで共通）
@@ -17002,78 +15700,6 @@
   // ========== PICKER ==========
   let pickerContext = null;
 
-  // ========== TARGET REPS EDITOR ==========
-  let targetRepsContext = null; // exIdx
-
-  function openTargetRepsEditor(exIdx) {
-    const ex = workoutSession.exercises[exIdx];
-    if (!ex) return;
-    targetRepsContext = exIdx;
-    document.getElementById('targetRepsExName').textContent = ex.name;
-    document.getElementById('targetRepsInput').value = ex.targetReps || 10;
-    document.getElementById('targetRepsModal').classList.add('show');
-    setTimeout(() => {
-      const input = document.getElementById('targetRepsInput');
-      input.focus();
-      input.select();
-    }, 100);
-  }
-
-  function closeTargetRepsEditor() {
-    document.getElementById('targetRepsModal').classList.remove('show');
-    targetRepsContext = null;
-  }
-
-  function saveTargetReps() {
-    if (targetRepsContext === null || targetRepsContext === undefined) return;
-    const exIdx = targetRepsContext;
-    const val = parseInt(document.getElementById('targetRepsInput').value);
-    if (!val || val < 1) { toast('1以上の数値を入力してください'); return; }
-    const ex = workoutSession.exercises[exIdx];
-    if (!ex) return;
-
-    // セッション内の値を更新
-    ex.targetReps = val;
-    // 既に入力中の値も追随（まだ記録してない場合）
-    if (!ex.setRecords || ex.setRecords.length === 0) {
-      ex.currentReps = val;
-    }
-    // 自動判定を再計算
-    autoJudgeExercise(ex);
-
-    // メニュー定義（カスタムメニュー）にも反映 → 永続化
-    if (workoutSession && workoutSession.menuId) {
-      const menuId = workoutSession.menuId;
-      const exercises = [...getMenuExercises(menuId)];
-      let changed = false;
-      exercises.forEach(e => {
-        if (e.name === ex.name) {
-          e.reps = val;
-          changed = true;
-        }
-      });
-      if (changed) setMenuExercises(menuId, exercises);
-      // 記録リンク先（複製メニュー等）の同種目にも目標回数を反映
-      if (ex.linkId) {
-        try {
-          getAllMenuIds().forEach((mid) => {
-            if (mid === menuId) return;
-            const exs2 = [...getMenuExercises(mid)];
-            let ch2 = false;
-            exs2.forEach((e) => {
-              if (e && e.linkId === ex.linkId) { e.reps = val; ch2 = true; }
-            });
-            if (ch2) setMenuExercises(mid, exs2);
-          });
-        } catch (e2) { /* noop */ }
-      }
-    }
-
-    closeTargetRepsEditor();
-    renderExerciseList();
-    toast('✓ 目標回数を更新');
-  }
-
   function openPicker(exIdx, field) {
     const ex = workoutSession.exercises[exIdx];
     let current, step, min, max, title, unit;
@@ -17230,7 +15856,6 @@
         }
         closePicker();
         renderExerciseList();
-        if (typeof renderProgress === 'function') { try { renderProgress(); } catch (e) {} }
         return;
       }
     } else if (pickerContext.type === 'hiit') {
@@ -17389,13 +16014,6 @@
   function closeExerciseAction() {
     document.getElementById('exerciseActionModal').classList.remove('show');
     currentExerciseActionContext = null;
-  }
-
-  function actionImageRegister() {
-    if (!currentExerciseActionContext) return;
-    const name = currentExerciseActionContext.name;
-    closeExerciseAction();
-    showImageUploadChoice(name);
   }
 
   function actionRename() {
@@ -17616,56 +16234,6 @@
     pendingImageExerciseName = null;
   }
 
-  // ========== 設定画面の種目フォーム用：画像登録/表示 ==========
-  function getExFormCurrentName() {
-    const el = document.getElementById('exFormName');
-    return el ? (el.value || '').trim() : '';
-  }
-  // 種目名の変更を監視してボタン状態を更新
-  function refreshExFormImageButtons() {
-    const name = getExFormCurrentName();
-    const registerBtn = document.getElementById('exFormImageRegisterBtn');
-    const viewBtn = document.getElementById('exFormImageViewBtn');
-    const hint = document.getElementById('exFormImageHint');
-    if (!registerBtn || !viewBtn || !hint) return;
-    if (!name) {
-      // 種目名未入力：登録ボタンは無効、ヒント表示
-      registerBtn.disabled = true;
-      registerBtn.style.opacity = '0.5';
-      viewBtn.style.display = 'none';
-      hint.style.display = 'block';
-      hint.textContent = '※先に種目名を入力してください';
-      return;
-    }
-    registerBtn.disabled = false;
-    registerBtn.style.opacity = '';
-    hint.style.display = 'none';
-    // 登録済み画像があれば「画像を表示」ボタンも出す
-    const hasImage = !!getExerciseImage(name);
-    if (hasImage) {
-      viewBtn.style.display = '';
-      registerBtn.textContent = '画像を変更';
-    } else {
-      viewBtn.style.display = 'none';
-      registerBtn.textContent = '画像を登録';
-    }
-  }
-  function exFormImageRegister() {
-    const name = getExFormCurrentName();
-    if (!name) {
-      toast('先に種目名を入力してください');
-      return;
-    }
-    showImageUploadChoice(name);
-  }
-  function exFormImageView() {
-    const name = getExFormCurrentName();
-    if (!name) return;
-    const image = getExerciseImage(name);
-    if (image) {
-      showImageViewer(name, image, null);
-    }
-  }
   function chooseFromAlbum() {
     const name = pendingImageExerciseName;
     closeImageChoice();
@@ -17736,10 +16304,6 @@
     saveExerciseImages(images);
     closeImageViewer();
     renderExerciseList();
-    // 設定画面（種目フォーム）が開いていればボタン状態も更新
-    if (typeof refreshExFormImageButtons === 'function') {
-      try { refreshExFormImageButtons(); } catch (_) {}
-    }
     toast('画像を削除しました');
   }
 
@@ -17780,10 +16344,6 @@
         images[exerciseName] = dataUrl;
         if (saveExerciseImages(images)) {
           renderExerciseList();
-          // 設定画面（種目フォーム）が開いていればボタン状態も更新
-          if (typeof refreshExFormImageButtons === 'function') {
-            try { refreshExFormImageButtons(); } catch (_) {}
-          }
           toast('✓ 画像を登録しました');
         }
       };
@@ -18165,16 +16725,8 @@
     if (e.target.id === 'menuPickerModal') closeMenuPicker();
   });
 
-  document.getElementById('targetRepsModal').addEventListener('click', e => {
-    if (e.target.id === 'targetRepsModal') closeTargetRepsEditor();
-  });
-
   document.getElementById('confirmDeleteModal').addEventListener('click', e => {
     if (e.target.id === 'confirmDeleteModal') cancelDeleteHistory();
-  });
-
-  document.getElementById('targetRepsInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); saveTargetReps(); }
   });
 
   // renameInputでEnterキーで保存
@@ -18254,7 +16806,6 @@
     renderMenuEditList();
     renderWeekStrip();
     renderRecommend();
-    renderMenuGrid();
     // 設定画面の週間スケジュール（割り当て表示）にも新しい名称を反映
     if (typeof renderSettings === 'function') renderSettings();
     toast('✓ 名前を変更');
@@ -18820,7 +17371,6 @@
     renderSettings();
     renderWeekStrip();
     renderRecommend();
-    renderMenuGrid();
     toast('✓ メニューを削除');
     if (navigator.vibrate) navigator.vibrate(15);
   }
@@ -18885,7 +17435,6 @@
     renderSettings();
     renderWeekStrip();
     renderRecommend();
-    renderMenuGrid();
     toast('✓ メニューを追加');
     // 追加したメニューを即開く（種目を登録しやすくする）
     setTimeout(() => openMenuEditor(id), 200);
@@ -18914,10 +17463,7 @@
     // 保管コピー等）ため、全メニューの種目定義と代替プール全体をスナップショットする
     const snapshot = {
       allMenus: JSON.parse(JSON.stringify(loadCustomMenus())),
-      allSwap: JSON.parse(JSON.stringify(loadSwapPool())),
-      // 旧形式（後方互換のため残す）
-      exercises: JSON.parse(JSON.stringify(getMenuExercises(menuId))),
-      swap: JSON.parse(JSON.stringify(getSwapCandidatesByMenu(menuId)))
+      allSwap: JSON.parse(JSON.stringify(loadSwapPool()))
     };
     undoStack.push(snapshot);
     if (undoStack.length > UNDO_MAX) undoStack.shift();
@@ -18937,16 +17483,6 @@
       // （リンク先メニューへの伝播や複製元への自動追加も一緒に取り消される）
       saveCustomMenus(snap.allMenus);
       saveSwapPool(snap.allSwap || {});
-    } else {
-      // 旧形式スナップショット
-      setMenuExercises(menuId, snap.exercises);
-      const pool = loadSwapPool();
-      if (snap.swap && snap.swap.length > 0) {
-        pool[menuId] = snap.swap;
-      } else {
-        delete pool[menuId];
-      }
-      saveSwapPool(pool);
     }
     renderMenuEditor();
     toast('✓ 元に戻しました');
@@ -19679,11 +18215,6 @@
   function escapeAttr(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
-  // JavaScript文字列リテラル用エスケープ
-  function escapeJs(s) {
-    return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-  }
-
   // メニュー編集画面から「＋ 代替種目を追加」を押下 → 直接フォームを開く
   function openMenuSwapAddForm() {
     const menuId = currentEditorMenuId;
@@ -19696,33 +18227,6 @@
     formModal.classList.add('show');
     const inner = formModal.querySelector('.modal');
     if (inner) inner.scrollTop = 0;
-  }
-
-  // 代替種目をメインに移動する
-  // swapPool から取り出して、メニュー本体にメイン種目（stored無し）として追加する
-  function moveSwapToMain(menuId, swapIdx) {
-    if (!menuId) return;
-    const list = getSwapCandidatesByMenu(menuId);
-    const target = list[swapIdx];
-    if (!target) return;
-    pushUndoSnapshot();
-    // メイン種目として追加（保管フラグなし）
-    const exercises = [...getMenuExercises(menuId)];
-    // 同名のメイン種目が既にあれば追加しない（重複防止）
-    if (!exercises.some(e => e && e.name === target.name && !e.stored)) {
-      exercises.push({
-        name: target.name,
-        weight: target.weight,
-        reps: target.reps,
-        sets: target.sets
-      });
-      setMenuExercises(menuId, exercises);
-    }
-    // 代替種目プールからは削除
-    removeSwapCandidate(menuId, target.name);
-    renderMenuEditor();
-    toast('✓ メインに移しました');
-    if (navigator.vibrate) navigator.vibrate(10);
   }
 
   // 代替種目の編集フォームを開く
@@ -20844,7 +19348,6 @@
     };
     workoutSession.exercises.push(newEx);
     renderExerciseList();
-    renderProgress();
   }
 
   // Tap outside to close modals
@@ -21107,43 +19610,6 @@
   });
 
   // ========== SET RECORD / JUDGE ==========
-  function recordSet(exIdx, setIdx) {
-    const ex = workoutSession.exercises[exIdx];
-    // 記録済みセット（既存）への直接上書きは禁止
-    // 修正したい場合はBACKボタンで戻ってから記録し直す
-    if (ex.setRecords[setIdx]) {
-      toast('修正は戻るボタンから');
-      return;
-    }
-    // 次のセット以外（飛ばし記録）も禁止
-    if (setIdx !== ex.setRecords.length) {
-      toast('順番に記録してください');
-      return;
-    }
-    const isMax = isMaxSetIndex(ex, setIdx);
-    // 記録時の目標値も一緒に保存（後から目標を変更しても、過去セットは当時の目標で判定するため）
-    const rec = {
-      weight: ex.currentWeight,
-      reps: ex.currentReps,
-      targetWeight: ex.targetWeight,
-      targetReps: ex.targetReps
-    };
-    if (isMax) rec.isMax = true;
-    if (ex.bilateral) {
-      rec.side = ex.currentSide || 'R';
-    }
-    ex.setRecords[setIdx] = rec;
-    renderExerciseList();
-    renderProgress();
-    toast(`${setIdx + 1}セット目を記録`);
-
-    // ===== デフォルト値変更検出 =====
-    // テストモードはスキップ。マックスセットも対象（重量を上げた場合のみ）。
-    if (!isAdminMode) {
-      checkAndConfirmDefaultUpdate(exIdx, rec);
-    }
-  }
-
   // 記録した値がデフォルト（メニュー編集の登録値）と異なる場合、
   // 「デフォルト設定を変更しますか？」確認モーダルを出す。
   // 重量はデフォルトより上げた場合のみ検知（下げた場合は反映しない）。
@@ -21469,18 +19935,6 @@
     return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
   }
 
-  // 筋トレ種目（有酸素・HIIT・体幹・その他を除いた通常の筋トレ）の経過時間合計を秒で返す
-  function calcStrengthSeconds(session) {
-    if (!session || !Array.isArray(session.exercises)) return 0;
-    return session.exercises.reduce((sum, ex) => {
-      if (!ex) return sum;
-      // 種別判定：筋トレ = !cardio && !hiit && !core && !other
-      const isStrength = !ex.cardio && !ex.hiit && !ex.core && !ex.other;
-      if (!isStrength) return sum;
-      return sum + (Number(ex.duration) || 0);
-    }, 0);
-  }
-
   // タイムリセット（種目TIME表示のタップで確認ダイアログ）
   let pendingTimeResetIdx = null;
   function askTimeReset(idx) {
@@ -21589,7 +20043,6 @@
       }
       startExerciseTimer(exIdx);
       renderExerciseList();
-      renderProgress();
       toast('開始');
       return;
     }
@@ -21667,7 +20120,6 @@
       }
     }
     renderExerciseList();
-    renderProgress();
     if (isLast) {
       toast(ex.judge === 'ok' ? `全セット完了` : `✗ 目標未達`);
     } else {
@@ -21726,7 +20178,6 @@
     }
     autoJudgeExercise(ex);
     renderExerciseList();
-    renderProgress();
     // 表示用ラベル：MAX/通常+bilateral対応
     const wasMax = !!(removed && removed.isMax);
     const sideStr = (ex.bilateral && removed && removed.side) ? ` (${sideLabel(removed.side)})` : '';
@@ -21759,7 +20210,6 @@
         if (typeof startElapsedTimer === 'function') startElapsedTimer();
       }
       renderExerciseList();
-      renderProgress();
       toast('運動中に戻しました');
       return;
     }
@@ -22090,7 +20540,6 @@
       // 初回タップ：種目開始（タイマー起動）
       startExerciseTimer(idx);
       renderExerciseList();
-      renderProgress();
       // startExerciseTimer がガードで弾かれた場合は exStarted が変わらないのでトーストを抑制
       if (ex.exStarted) toast('開始');
       return;
@@ -22143,7 +20592,6 @@
       }
     }
     renderExerciseList();
-    renderProgress();
     if (ex.judge === 'ok') toast('✓ 完了');
   }
 
@@ -22162,7 +20610,6 @@
       toast('⊘ この種目をスキップ');
     }
     renderExerciseList();
-    renderProgress();
     if (navigator.vibrate) navigator.vibrate(15);
   }
 
@@ -23366,10 +21813,6 @@
     if (typeof renderHistory === 'function') {
       try { renderHistory(); } catch (_) {}
     }
-    // 統計画面も再描画（合計時間・総重量などが変わるため）
-    if (typeof renderStats === 'function') {
-      try { renderStats(); } catch (_) {}
-    }
     // 週ストリップ（曜日選択UI）も更新（記録ありマーク）
     if (typeof renderWeekStrip === 'function') {
       try { renderWeekStrip(); } catch (_) {}
@@ -23440,7 +21883,6 @@
     } catch (_) { /* noop */ }
 
     renderExerciseList();
-    renderProgress();
     showScreen('workout');
     toast('記録を編集中');
   }
@@ -23776,7 +22218,6 @@
     renderHistory();
     renderRecommend();
     renderWeekStrip();
-    renderStats();
     toast('✓ 記録を削除');
   }
 
@@ -23879,215 +22320,6 @@
     saveLastWeights(newLastW);
   }
 
-  function drawChart(canvasId, exerciseName) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    const hist = loadHistory();
-    // 全データポイント取得し、日付昇順（古い→新しい）にソート
-    // ※グラフは「通常セット（MAXセット除く）の最大重量」を採用
-    //   → MAXトレーニングはイレギュラーなので、メインセットの推移が見えるようにする
-    let allPoints = [];
-    hist.forEach(s => {
-      s.exercises.forEach(e => {
-        if (e.name === exerciseName && e.setRecords && e.setRecords.length) {
-          // MAXセットを除外した通常セットのみを対象に
-          const normalSets = e.setRecords.filter(r => !r.isMax);
-          // 通常セットがあればそこから、無ければ全体（MAX含む）から
-          const candidates = normalSets.length > 0 ? normalSets : e.setRecords;
-          // weight が有効な数値のセットだけ抽出（NaN/undefined/null/負数を除外）
-          const validWeights = candidates
-            .map(r => r.weight)
-            .filter(w => typeof w === 'number' && !isNaN(w) && w > 0);
-          if (validWeights.length === 0) return; // 有効重量なし → この日はスキップ
-          const maxW = Math.max(...validWeights);
-          allPoints.push({ date: new Date(s.date), weight: maxW });
-        }
-      });
-    });
-    allPoints.sort((a, b) => a.date - b.date);
-    // 期間別の集計
-    const period = getChartPeriod(exerciseName);
-    const now = new Date();
-    let points = [];
-    if (period === 'month') {
-      // 当月：今月以降のすべての記録
-      const cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
-      points = allPoints.filter(p => p.date >= cutoff);
-    } else if (period === '6month' || period === 'year') {
-      // 各月の最新記録1点ずつ
-      const monthsBack = (period === '6month') ? 6 : 12;
-      // 月キー順に最新記録を集計（直近monthsBack分）
-      const cutoff = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1);
-      const filtered = allPoints.filter(p => p.date >= cutoff);
-      // 月ごとにグルーピングして、その月内で最新の日付の記録を採用
-      const byMonth = {};
-      filtered.forEach(p => {
-        const key = p.date.getFullYear() + '-' + p.date.getMonth();
-        if (!byMonth[key] || p.date > byMonth[key].date) {
-          byMonth[key] = p;
-        }
-      });
-      points = Object.values(byMonth).sort((a, b) => a.date - b.date);
-    } else if (period === 'all') {
-      // 全期間：最古・中間・最新の3点
-      if (allPoints.length === 0) {
-        points = [];
-      } else if (allPoints.length === 1) {
-        points = [allPoints[0]];
-      } else if (allPoints.length === 2) {
-        points = [allPoints[0], allPoints[allPoints.length - 1]];
-      } else {
-        const oldest = allPoints[0];
-        const newest = allPoints[allPoints.length - 1];
-        // 中間：日付の中央（時間軸の中央に最も近い記録）
-        const midTime = (oldest.date.getTime() + newest.date.getTime()) / 2;
-        let midPoint = allPoints[0];
-        let minDiff = Math.abs(allPoints[0].date.getTime() - midTime);
-        allPoints.forEach(p => {
-          const diff = Math.abs(p.date.getTime() - midTime);
-          if (diff < minDiff) { minDiff = diff; midPoint = p; }
-        });
-        points = [oldest, midPoint, newest];
-      }
-    }
-    // X軸ラベルDOMはCanvas内描画で代替するため空にする
-    const idx = canvasId.replace('chart-', '');
-    const xLabelsEl = document.getElementById(`chart-x-${idx}`);
-    if (xLabelsEl) xLabelsEl.innerHTML = '';
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = canvas.offsetWidth * dpr;
-    canvas.height = canvas.offsetHeight * dpr;
-    ctx.scale(dpr, dpr);
-    const W = canvas.offsetWidth, H = canvas.offsetHeight;
-    ctx.clearRect(0, 0, W, H);
-    if (points.length === 0) {
-      ctx.fillStyle = '#45454F'; ctx.font = '11px "JetBrains Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('データなし', W / 2, H / 2);
-      return;
-    }
-    // Canvas内余白
-    // 上: ① タイトル・タブの下に少し空けて 55kg ラインへ
-    // 下: ① X軸ラベルをカード下端寄りに（カード padding-bottom 4 + Canvas padBottom で下総余白）
-    // 左右: padLeft はY軸ラベル（最大4文字「150kg」+ 小数点「150.5kg」）の幅を確保
-    const padLeft = 48;   // ※「150.5kg」等の6文字でも見切れないように十分な余白を確保
-    const padRight = 12;
-    const padTop = 16;       // タブ下から55kgラインまで余白
-    const padBottom = 18;    // X軸ラベル領域 + わずかな下余白
-    // Y軸の範囲計算：プロット用にはわずかな余白(+/-5kg)を取りつつ、
-    // ラベル表示用は実際の重量（最小・最大・中央）を表示する
-    const dataMin = Math.min(...points.map(p => p.weight));
-    const dataMax = Math.max(...points.map(p => p.weight));
-    const minW = dataMin - 5;
-    const maxW = dataMax + 5;
-    const range = Math.max(maxW - minW, 1);
-    const plotL = padLeft;
-    const plotR = W - padRight;
-    const plotT = padTop;
-    const plotB = H - padBottom;
-    const plotW = plotR - plotL;
-    const plotH = plotB - plotT;
-    // グリッド線
-    ctx.strokeStyle = '#2A2A33'; ctx.lineWidth = 1;
-    for (let i = 0; i <= 3; i++) {
-      const y = plotT + (plotH * i / 3);
-      ctx.beginPath(); ctx.moveTo(plotL, y); ctx.lineTo(plotR, y); ctx.stroke();
-    }
-    // Y軸ラベル（左、kg）：実際の重量範囲（dataMax, 中央値, dataMin）を表示
-    // ※プロット範囲は余白付き(maxW, minW)で描画するが、ラベルは実データに合わせる
-    ctx.fillStyle = '#7A7A85';
-    ctx.font = '9px "JetBrains Mono", monospace';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    const dataMid = (dataMax + dataMin) / 2;
-    // 実データの値（dataMin, dataMid, dataMax）に対応するY座標を計算
-    const yForWeight = (w) => plotB - ((w - minW) / range) * plotH;
-    const yLabelPairs = [
-      { v: dataMax, y: yForWeight(dataMax) },
-      { v: dataMid, y: yForWeight(dataMid) },
-      { v: dataMin, y: yForWeight(dataMin) }
-    ];
-    yLabelPairs.forEach(({ v, y }) => {
-      const txt = (Math.round(v * 10) / 10) + 'kg';
-      // padLeft=48 から左に8pxマージン取ってラベルを描画（textAlign=right なので右端基準）
-      ctx.fillText(txt, plotL - 8, y);
-    });
-    // ③データ点が1つなら塗りつぶし・線をスキップ（点だけ表示）
-    if (points.length >= 2) {
-      // 塗りつぶし
-      ctx.beginPath();
-      points.forEach((p, i) => {
-        const x = plotL + (plotW * i / Math.max(points.length - 1, 1));
-        const y = plotB - ((p.weight - minW) / range) * plotH;
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      const lastX = plotL + plotW;
-      ctx.lineTo(lastX, plotB);
-      ctx.lineTo(plotL, plotB);
-      ctx.closePath();
-      const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, 'rgba(255, 90, 31, 0.3)');
-      grad.addColorStop(1, 'rgba(255, 90, 31, 0)');
-      ctx.fillStyle = grad;
-      ctx.fill();
-      // ライン
-      ctx.strokeStyle = '#FF5A1F'; ctx.lineWidth = 2;
-      ctx.beginPath();
-      points.forEach((p, i) => {
-        const x = plotL + (plotW * i / Math.max(points.length - 1, 1));
-        const y = plotB - ((p.weight - minW) / range) * plotH;
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-    }
-    // ポイント（1点でも複数でも常に描画）
-    ctx.fillStyle = '#FF5A1F';
-    points.forEach((p, i) => {
-      const x = points.length === 1
-        ? plotL + plotW / 2  // 1点だけならグラフ中央に配置
-        : plotL + (plotW * i / Math.max(points.length - 1, 1));
-      const y = plotB - ((p.weight - minW) / range) * plotH;
-      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
-    });
-    // X軸ラベル：全期間は YY/M/D、それ以外は M/D
-    const fmtMD = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
-    const fmtYMD = (d) => `${d.getFullYear() % 100}/${d.getMonth() + 1}/${d.getDate()}`;
-    const labelFmt = (period === 'all') ? fmtYMD : fmtMD;
-    ctx.fillStyle = '#7A7A85';
-    ctx.font = '9px "JetBrains Mono", monospace';
-    const stepX = points.length > 1 ? plotW / (points.length - 1) : plotW;
-    const sampleLabel = labelFmt(points[0].date);
-    const labelWidth = ctx.measureText(sampleLabel).width;
-    const needRotate = stepX < (labelWidth + 4);
-    points.forEach((p, i) => {
-      const x = points.length === 1
-        ? plotL + plotW / 2
-        : plotL + (plotW * i / Math.max(points.length - 1, 1));
-      const y = plotB + 4;
-      ctx.save();
-      if (needRotate) {
-        ctx.translate(x, y);
-        ctx.rotate(-Math.PI / 4);
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(labelFmt(p.date), 0, 0);
-      } else {
-        // 両端ラベルは見切れ防止のためアラインを切替
-        if (points.length > 1 && i === points.length - 1) {
-          ctx.textAlign = 'right';
-        } else if (points.length > 1 && i === 0) {
-          ctx.textAlign = 'left';
-        } else {
-          ctx.textAlign = 'center';
-        }
-        ctx.textBaseline = 'top';
-        ctx.fillText(labelFmt(p.date), x, y);
-      }
-      ctx.restore();
-    });
-  }
-
   function switchTab(e, id) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     e.target.classList.add('active');
@@ -24102,113 +22334,6 @@
       document.body.classList.remove('calendar-no-scroll');
       document.documentElement.classList.remove('calendar-no-scroll');
     }
-    if (id === 'tab-chart') {
-      setTimeout(() => {
-        renderChartTab();
-      }, 50);
-    }
-  }
-
-  // 推移タブ：選択中のメニューID保持（null=未選択）
-  let chartSelectedMenuId = null;
-  // 推移タブ：種目別の期間（'month' | '6month' | 'year' | 'all'）。キーは exerciseName
-  const chartPeriodMap = {};
-  const CHART_PERIOD_DEFAULT = 'month';
-  function getChartPeriod(exName) {
-    return chartPeriodMap[exName] || CHART_PERIOD_DEFAULT;
-  }
-  function setChartPeriod(exName, period) {
-    chartPeriodMap[exName] = period;
-  }
-
-  // 推移タブを描画（メニューセレクト + 各種目チャート）
-  function renderChartTab() {
-    const select = document.getElementById('chartMenuSelect');
-    const container = document.getElementById('chartContainer');
-    if (!select || !container) return;
-
-    // メニュー一覧を取得（テストモード時は admin1〜N、通常時はDEFAULT_MENUS順 + ユーザーメニュー）
-    const menuIds = getAllMenuIds();
-    if (menuIds.length === 0) {
-      select.innerHTML = '';
-      container.innerHTML = '<div class="chart-empty">メニューがありません</div>';
-      return;
-    }
-
-    // セレクトの中身を更新（onchange からの呼び出しでない場合のみ）
-    // 現在のselect値を取得
-    const currentValue = select.value;
-    const validIds = menuIds.filter(id => getMenu(id));
-    // セレクト再構築
-    select.innerHTML = validIds.map(id => {
-      const m = getMenu(id);
-      const name = (m && (m.fullName || m.name)) || id;
-      return `<option value="${id}">${name}</option>`;
-    }).join('');
-
-    // 選択値を確定
-    let activeId = currentValue;
-    if (!validIds.includes(activeId)) {
-      activeId = chartSelectedMenuId && validIds.includes(chartSelectedMenuId)
-        ? chartSelectedMenuId
-        : validIds[0];
-    }
-    select.value = activeId;
-    chartSelectedMenuId = activeId;
-
-    // 該当メニューの種目を取得（有酸素・HIIT除外）
-    const menu = getMenu(activeId);
-    const exercises = (menu && Array.isArray(menu.exercises) ? menu.exercises : [])
-      .filter(ex => !ex.cardio && !ex.hiit);
-
-    if (exercises.length === 0) {
-      container.innerHTML = '<div class="chart-empty">このメニューには表示できる種目がありません</div>';
-      return;
-    }
-
-    // チャートボックスを動的生成（期間タブ + X軸ラベル領域）
-    const escAttr = (s) => String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    container.innerHTML = exercises.map((ex, i) => {
-      const p = getChartPeriod(ex.name);
-      const periods = [
-        { key: 'month',   label: '当月' },
-        { key: '6month',  label: '6ヶ月' },
-        { key: 'year',    label: '1年' },
-        { key: 'all',     label: '全期間' },
-      ];
-      const tabsHtml = periods.map(pp =>
-        `<button class="chart-period-tab${p === pp.key ? ' active' : ''}" data-ex="${escAttr(ex.name)}" data-period="${pp.key}">${pp.label}</button>`
-      ).join('');
-      return `
-      <div class="chart-box">
-        <div class="chart-title">${ex.name}</div>
-        <div class="chart-period-tabs">${tabsHtml}</div>
-        <canvas class="chart-canvas" id="chart-${i}"></canvas>
-        <div class="chart-x-labels" id="chart-x-${i}"></div>
-      </div>
-    `}).join('');
-
-    // 期間タブのイベント設定
-    container.querySelectorAll('.chart-period-tab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const exName = btn.dataset.ex;
-        const period = btn.dataset.period;
-        setChartPeriod(exName, period);
-        // 同じグラフのタブだけ active 切り替え
-        const box = btn.closest('.chart-box');
-        if (box) box.querySelectorAll('.chart-period-tab').forEach(b => b.classList.toggle('active', b === btn));
-        // 描画し直し
-        const idx = exercises.findIndex(e => e.name === exName);
-        if (idx >= 0) drawChart(`chart-${idx}`, exName);
-      });
-    });
-
-    // 各キャンバスに描画
-    setTimeout(() => {
-      exercises.forEach((ex, i) => {
-        drawChart(`chart-${i}`, ex.name);
-      });
-    }, 30);
   }
 
   // ========== CALENDAR ==========
@@ -24233,19 +22358,6 @@
       calSelectedDate = { year: newY, month: newM, day: today.getDate() };
     } else {
       calSelectedDate = { year: newY, month: newM, day: 1 };
-    }
-    renderCalendar();
-  }
-
-  function changeCalYear(delta) {
-    calYear += delta;
-    // 年切替時も同様に：今年なら今日、それ以外はその年の1月1日
-    const today = new Date();
-    if (calYear === today.getFullYear()) {
-      calMonth = today.getMonth();
-      calSelectedDate = { year: calYear, month: calMonth, day: today.getDate() };
-    } else {
-      calSelectedDate = { year: calYear, month: calMonth, day: 1 };
     }
     renderCalendar();
   }
@@ -24428,16 +22540,6 @@
       try { renderCalendar(); } catch {}
     }
     toast('✓ 色を変更しました');
-  }
-
-  function getMenuColorClass(menuId) {
-    if (!menuId) return 'other';
-    if (menuId === 'leg') return 'leg';
-    if (menuId === 'chest') return 'chest';
-    if (menuId === 'back') return 'back';
-    if (menuId === 'shoulder') return 'shoulder';
-    if (menuId === 'hiit') return 'hiit';
-    return 'other';
   }
 
   function getRecordsForDate(year, month, day) {
@@ -24678,64 +22780,6 @@
   }
 
   // ========== UTILS ==========
-  // ===== 未使用関数（旧UIの名残、互換性のため保持） =====
-  function deleteImageFromViewer() {
-    /* 復元不能：UIから呼ばれていないため空スタブ */
-  }
-  function deleteUserMenu(menuId) { confirmDeleteMenu(menuId, 'user'); }
-  function executePriorityReorder(fromIdx, toIdx) {
-    const p = getProfile();
-    if (!p) return;
-    const priority = [...getPriority()];
-    if (fromIdx < 0 || fromIdx >= priority.length || toIdx < 0 || toIdx >= priority.length) return;
-    const [moved] = priority.splice(fromIdx, 1);
-    priority.splice(toIdx, 0, moved);
-    p.customPriority = priority;
-    saveProfile(p);
-    renderSettings();
-  }
-  function exportData() {
-    /* 復元不能：UIから呼ばれていないため空スタブ（元はデータをJSONでダウンロード） */
-  }
-  function movePriority(idx, delta) {
-    const p = getProfile();
-    if (!p) return;
-    const priority = [...getPriority()];
-    const newIdx = idx + delta;
-    if (newIdx < 0 || newIdx >= priority.length) return;
-    const [moved] = priority.splice(idx, 1);
-    priority.splice(newIdx, 0, moved);
-    p.customPriority = priority;
-    saveProfile(p);
-    renderSettings();
-  }
-  function resetApp() {
-    /* 復元不能：UIから呼ばれていないため空スタブ（元はlocalStorage全削除） */
-  }
-  function resetMenu() {
-    if (!currentEditorMenuId) return;
-    const name = (DEFAULT_MENUS[currentEditorMenuId] && DEFAULT_MENUS[currentEditorMenuId].fullName) || '';
-    if (!confirm(`${name} をデフォルトに戻します。よろしいですか？`)) return;
-    resetMenuToDefault(currentEditorMenuId);
-    renderMenuEditor();
-    toast('デフォルトに戻しました');
-  }
-  function resetMenuToDefault(menuId) {
-    const custom = JSON.parse(localStorage.getItem('wo_custom_menus') || '{}');
-    delete custom[menuId];
-    localStorage.setItem('wo_custom_menus', JSON.stringify(custom));
-  }
-  function startPriorityReorder(idx) { startPriorityDrag(idx, 0); }
-  function updatePriorityRowsClasses() {
-    const previewBox = document.getElementById('settingsPreview');
-    if (!previewBox) return;
-    previewBox.querySelectorAll('.priority-row').forEach(row => {
-      const idx = parseInt(row.dataset.idx);
-      row.classList.toggle('picked', reorderMode && reorderingIdx === idx);
-      row.classList.toggle('reordering', reorderMode && reorderingIdx !== null);
-    });
-  }
-
 
   // 入力欄の最大文字数を超えたら自動切り捨て＋赤枠＋トースト警告
   // input要素から直接 oninput="checkMaxLen(this, 20, '種目名')" として呼ぶ
@@ -24835,22 +22879,16 @@
           // 完全終了後の初回起動：welcomeを一度表示してからホームへ
           document.getElementById('setup-screen').style.display = 'none';
           document.getElementById('mainApp').style.display = 'flex';
-          renderDate();
           renderRecommend();
           renderWeekStrip();
-          renderMenuGrid();
-          renderStats();
           showWelcome();
         } else {
           // バックグラウンドからの復帰：そのままホーム
           hideWelcome();
           document.getElementById('setup-screen').style.display = 'none';
           document.getElementById('mainApp').style.display = 'flex';
-          renderDate();
           renderRecommend();
           renderWeekStrip();
-          renderMenuGrid();
-          renderStats();
         }
       } else {
         // 新規：表紙(welcome)を表示。「はじめる」が押されたら welcomeStart() で setup-screen へ進む

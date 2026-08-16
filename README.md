@@ -28,11 +28,9 @@ https://t-fuji777.github.io/kinlog/
 - カウントダウンタイマー（複数音源）
 - 記録の修正・上書き禁止フロー
 - データの引き継ぎ（エクスポート/インポート）
-- オフライン動作対応
 
 ## ファイル構成
 
 - `index.html` - アプリ本体
 - `manifest.json` - PWAマニフェスト
-- `sw.js` - Service Worker（オフライン対応）
 - `icons/` - アプリアイコン各サイズ
