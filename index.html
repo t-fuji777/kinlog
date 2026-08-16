@@ -9854,28 +9854,25 @@
   // ========== 過去記録の割り当て（削除メニューの記録を現行メニューへ手動で紐付ける） ==========
   // 自動引き取り(migAdoptOrphanHistory)は種目名が一致する場合のみ働く安全設計のため、
   // 種目名を変更している等で自動では繋がらない記録をここから手動で割り当てる。
-  // 一度割り当てた記録も origMenuId 単位で残るので、割り当て先の変更もここで行える。
+  // 割り当てが済んだ記録は対象から外れ、未割り当てが無くなるとセクションごと消える。
   let pendingOrphanGroupId = null;
 
-  // 「元メニューID」ごとに、割り当て待ち／割り当て済みの履歴をまとめて返す
+  // まだ割り当てられていない（メニューが解決できない）履歴を、元メニューIDごとにまとめて返す
   function getOrphanHistoryGroups() {
     const groups = {};
     try {
       loadHistory().forEach(s => {
         if (!s || !s.menuId || !Array.isArray(s.exercises)) return;
-        const resolved = getMenu(s.menuId);
-        // 対象は「解決できない記録」か「一度割り当てた記録（割り当て直し用）」
-        if (resolved && !s.origMenuId) return;
-        const key = s.origMenuId || s.menuId;
+        // メニューが解決できる＝割り当て済み。一覧には出さない
+        if (getMenu(s.menuId)) return;
+        const key = s.menuId;
         let g = groups[key];
         if (!g) {
-          g = groups[key] = { key, count: 0, names: [], first: null, last: null, currentId: null, origName: s.origMenuName || null };
+          g = groups[key] = { key, count: 0, names: [], first: null, last: null, oldName: null };
           groups[key] = g;
         }
         g.count++;
-        if (!g.origName && s.origMenuName) g.origName = s.origMenuName;
-        // 割り当て済みなら現在の割り当て先を保持（未割り当ては null のまま）
-        if (resolved) g.currentId = s.menuId;
+        if (!g.oldName) g.oldName = s.menuName || s.origMenuName || null;
         s.exercises.forEach(e => {
           if (e && e.name && g.names.indexOf(e.name) < 0) g.names.push(e.name);
         });
@@ -9902,11 +9899,7 @@
       const rest = g.names.length > 4 ? ` ほか${g.names.length - 4}種目` : '';
       const period = (g.first && g.last && fmt(g.first) !== fmt(g.last))
         ? `${fmt(g.first)} 〜 ${fmt(g.last)}` : fmt(g.last);
-      const cur = g.currentId ? getMenu(g.currentId) : null;
-      const nowHtml = cur
-        ? `<div class="orphan-row-now assigned">✓ 「${escapeHtml(cur.fullName || cur.name)}」に割り当て済み</div>`
-        : `<div class="orphan-row-now unassigned">未割り当て（カレンダーで「不明」と表示されます）</div>`;
-      const label = g.origName ? `旧「${escapeHtml(g.origName)}」の記録` : '削除されたメニューの記録';
+      const label = g.oldName ? `旧「${escapeHtml(g.oldName)}」の記録` : '削除されたメニューの記録';
       return `
         <div class="orphan-row">
           <div class="orphan-row-head">
@@ -9914,8 +9907,8 @@
             <span class="orphan-row-period">${period}</span>
           </div>
           <div class="orphan-row-ex">${shown}${rest}</div>
-          ${nowHtml}
-          <button class="orphan-assign-btn" onclick="openOrphanMenuPicker('${escapeAttr(g.key)}')">${cur ? '割り当てを変更' : 'メニューを選ぶ'}</button>
+          <div class="orphan-row-now unassigned">未割り当て（カレンダーで「不明」と表示されます）</div>
+          <button class="orphan-assign-btn" onclick="openOrphanMenuPicker('${escapeAttr(g.key)}')">メニューを選ぶ</button>
         </div>
       `;
     }).join('');
@@ -9953,9 +9946,9 @@
     let n = 0;
     hist.forEach(s => {
       if (!s || !s.menuId) return;
-      // 未割り当ては menuId、割り当て済みは origMenuId でグループを判定する
-      const key = s.origMenuId || s.menuId;
-      if (key !== groupKey) return;
+      // 対象は未割り当て（メニューが解決できない）記録のみ。割り当て済みには触れない
+      if (s.menuId !== groupKey) return;
+      if (getMenu(s.menuId)) return;
       if (!s.origMenuId) s.origMenuId = s.menuId;
       if (!s.origMenuName && s.menuName) s.origMenuName = s.menuName;
       s.menuId = targetMenuId;
