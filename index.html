@@ -10382,7 +10382,74 @@
   }
 
   // ========== MAIN APP ==========
+  /* ワンタイム移行（2026-08-16 マスター指示）:
+     「胸」と「肩＋三頭」の中身を結合したメニュー「胸・肩・三頭（Push）」を自動作成し、
+     メニュー一覧の「背中＋二頭」の直後に配置する。
+     各種目は記録リンク(linkId)で元メニューと前回記録を共有する（複製メニューと同じ仕組み）。
+     作成済み（または手動で同名を作成済み）ならフラグを立てて二度と実行しない。 */
+  function migCreatePushMenu() {
+    try {
+      if (isAdminMode) return;
+      if (localStorage.getItem('wo_mig_push_menu') === 'done') return;
+      const targetName = '胸・肩・三頭（Push）';
+      const ids = getAllMenuIds();
+      const norm = (s) => String(s || '').replace(/[\s　]/g, '');
+      // 既に存在するなら作らずフラグのみ
+      if (ids.some((id) => { const m = getMenu(id); return m && (norm(m.name) === norm(targetName) || norm(m.fullName) === norm(targetName)); })) {
+        localStorage.setItem('wo_mig_push_menu', 'done');
+        return;
+      }
+      const findMenu = (pred) => {
+        for (const id of ids) { const m = getMenu(id); if (m && pred(norm(m.fullName || m.name))) return { id, m }; }
+        return null;
+      };
+      // 胸: 「胸」を含み、肩・背中を含まないメニュー（例:「胸」「胸の日」）
+      const chest = findMenu((n) => n.indexOf('胸') >= 0 && n.indexOf('肩') < 0 && n.indexOf('背') < 0);
+      // 肩＋三頭: 「肩」と「三頭」を含むメニュー
+      const shoulder = findMenu((n) => n.indexOf('肩') >= 0 && n.indexOf('三頭') >= 0);
+      if (!chest || !shoulder) return; // 見つからなければ何もしない（次回起動時に再試行）
+      // 種目コピー: 元にlinkIdが無ければ付与して書き戻し、同じlinkIdで記録を共有する
+      const buildCopies = (srcId) => {
+        const srcExs = [...getMenuExercises(srcId)];
+        let changed = false;
+        const copies = [];
+        srcExs.forEach((e, i) => {
+          if (!e) return;
+          if (!e.linkId && !e.cardio && !e.hiit) {
+            srcExs[i] = { ...e, linkId: 'lnk_' + Date.now() + '_p' + i + '_' + Math.random().toString(36).slice(2, 6) };
+            changed = true;
+          }
+          copies.push(JSON.parse(JSON.stringify(srcExs[i])));
+        });
+        if (changed) setMenuExercises(srcId, srcExs);
+        return copies;
+      };
+      const exercises = [...buildCopies(chest.id), ...buildCopies(shoulder.id)];
+      if (!exercises.length) return;
+      const newId = 'user_push_' + Date.now();
+      const userMenus = loadUserMenus();
+      userMenus[newId] = { name: targetName, fullName: targetName, exercises: [] };
+      saveUserMenus(userMenus);
+      setMenuExercises(newId, exercises);
+      // 並び順: 「背中」を含むメニューの直後へ挿入（無ければ末尾）
+      const back = findMenu((n) => n.indexOf('背中') >= 0);
+      const profile = getProfile();
+      if (profile) {
+        let pri = (Array.isArray(profile.customPriority) && profile.customPriority.length > 0)
+          ? [...profile.customPriority] : getAllMenuIds().filter((id) => id !== newId);
+        pri = pri.filter((id) => id !== newId);
+        const bi = back ? pri.indexOf(back.id) : -1;
+        if (bi >= 0) pri.splice(bi + 1, 0, newId); else pri.push(newId);
+        profile.customPriority = pri;
+        saveProfile(profile);
+      }
+      localStorage.setItem('wo_mig_push_menu', 'done');
+      toast('メニュー「胸・肩・三頭（Push）」を追加しました');
+    } catch (e) { /* noop */ }
+  }
+
   function initMainApp() {
+    migCreatePushMenu();
     renderDate();
     renderRecommend();
     renderWeekStrip();
