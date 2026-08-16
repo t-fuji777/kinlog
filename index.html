@@ -10448,8 +10448,42 @@
     } catch (e) { /* noop */ }
   }
 
+  /* ワンタイム移行（2026-08-16 マスター指示）:
+     既存の代替プール/外した記録のうち、複製メニューIDキーのものを元メニューIDへ統合する
+     （以後は getSwapRootId によりキーが常に元メニューへ解決され、複製と共有される） */
+  function migSwapPoolRoot() {
+    try {
+      if (isAdminMode) return;
+      if (localStorage.getItem('wo_mig_swap_root') === 'done') return;
+      const pool = loadSwapPool();
+      const removed = loadSwapRemoved();
+      let changed = false;
+      Object.keys(pool).forEach((mid) => {
+        const root = getSwapRootId(mid);
+        if (root === mid) return;
+        if (!pool[root]) pool[root] = [];
+        (pool[mid] || []).forEach((c) => {
+          if (c && !pool[root].some((r) => r && r.name === c.name)) pool[root].push(c);
+        });
+        delete pool[mid];
+        changed = true;
+      });
+      Object.keys(removed).forEach((mid) => {
+        const root = getSwapRootId(mid);
+        if (root === mid) return;
+        if (!removed[root]) removed[root] = [];
+        (removed[mid] || []).forEach((n) => { if (!removed[root].includes(n)) removed[root].push(n); });
+        delete removed[mid];
+        changed = true;
+      });
+      if (changed) { saveSwapPool(pool); saveSwapRemoved(removed); }
+      localStorage.setItem('wo_mig_swap_root', 'done');
+    } catch (e) { /* noop */ }
+  }
+
   function initMainApp() {
     migCreatePushMenu();
+    migSwapPoolRoot();
     renderDate();
     renderRecommend();
     renderWeekStrip();
@@ -16992,6 +17026,20 @@
         }
       });
       if (changed) setMenuExercises(menuId, exercises);
+      // 記録リンク先（複製メニュー等）の同種目にも目標回数を反映
+      if (ex.linkId) {
+        try {
+          getAllMenuIds().forEach((mid) => {
+            if (mid === menuId) return;
+            const exs2 = [...getMenuExercises(mid)];
+            let ch2 = false;
+            exs2.forEach((e) => {
+              if (e && e.linkId === ex.linkId) { e.reps = val; ch2 = true; }
+            });
+            if (ch2) setMenuExercises(mid, exs2);
+          });
+        } catch (e2) { /* noop */ }
+      }
     }
 
     closeTargetRepsEditor();
@@ -17698,6 +17746,26 @@
   // プールは {menuId: [{name, weight, reps, sets}, ...]} 形式
   // 旧形式データ（フラット配列 or 元種目別連想配列）は読み込み時にクリア
   const SWAP_POOL_SCHEMA_VERSION = 'v3';
+  /* 代替プールの共有キー解決: 複製メニュー(dupFrom持ち)は元メニューのIDに解決し、
+     複製と元で代替種目プール・外した記録(tombstone)を共有する（2026-08-16 マスター指示） */
+  function getSwapRootId(menuId) {
+    try {
+      if (!menuId) return menuId;
+      const um = loadUserMenus();
+      let id = menuId;
+      let guard = 0;
+      while (guard++ < 10) {
+        const m = um[id];
+        if (!m || !m.dupFrom) break;
+        const parent = m.dupFrom;
+        // 参照先が実在しない（元メニュー削除済み等）ならそこで停止
+        if (!um[parent] && !DEFAULT_MENUS[parent]) break;
+        id = parent;
+      }
+      return id;
+    } catch (e) { return menuId; }
+  }
+
   function loadSwapPool() {
     if (isAdminMode) return {}; // テストモード時は代替種目を空に
     // スキーマバージョン確認。合わなければ初期化。
@@ -17736,6 +17804,7 @@
   }
   function markSwapRemoved(menuId, name) {
     if (!menuId || !name || isAdminMode) return;
+    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const map = loadSwapRemoved();
     if (!map[menuId]) map[menuId] = [];
     if (!map[menuId].includes(name)) map[menuId].push(name);
@@ -17743,6 +17812,7 @@
   }
   function unmarkSwapRemoved(menuId, name) {
     if (!menuId || !name || isAdminMode) return;
+    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const map = loadSwapRemoved();
     if (!map[menuId]) return;
     map[menuId] = map[menuId].filter(n => n !== name);
@@ -17751,6 +17821,7 @@
   }
   function isSwapRemoved(menuId, name) {
     if (!menuId || !name) return false;
+    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const map = loadSwapRemoved();
     return !!(map[menuId] && map[menuId].includes(name));
   }
@@ -17765,7 +17836,8 @@
     sortedHist.forEach(session => {
       if (!session.exercises) return;
       // セッションのメニューIDが特定できない場合はスキップ
-      const menuId = session.menuId;
+      // （複製メニューの履歴は元メニューのプールに統合＝共有）
+      const menuId = getSwapRootId(session.menuId);
       if (!menuId) return;
       session.exercises.forEach(ex => {
         if (ex.cardio) return;
@@ -17807,7 +17879,11 @@
     // （代替→メイン/保管へ移動した種目が履歴経由で代替に復活して二重化するのを解消。
     //   既に二重化している既存データもここで掃除される）
     Object.keys(pool).forEach(mId => {
-      const exNames = new Set(getMenuExercises(mId).map(e => e && e.name).filter(Boolean));
+      // 共有プールのため、リンクグループ（元＋複製）全メニューの種目名で二重判定する
+      const groupIds = getAllMenuIds().filter(id => getSwapRootId(id) === mId);
+      if (!groupIds.includes(mId)) groupIds.push(mId);
+      const exNames = new Set();
+      groupIds.forEach(id => getMenuExercises(id).forEach(e => { if (e && e.name) exNames.add(e.name); }));
       pool[mId] = pool[mId].filter(c => c && !exNames.has(c.name));
       if (pool[mId].length === 0) delete pool[mId];
     });
@@ -17817,6 +17893,7 @@
 
   // 指定メニューの代替種目リストを取得
   function getSwapCandidatesByMenu(menuId) {
+    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const pool = loadSwapPool();
     return (menuId && pool[menuId]) ? pool[menuId] : [];
   }
@@ -17824,6 +17901,7 @@
   // 指定メニューに代替種目を追加（同名があれば上書き）
   function addSwapCandidate(menuId, candidate) {
     if (!menuId) return;
+    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const pool = loadSwapPool();
     if (!pool[menuId]) pool[menuId] = [];
     // 同名の既存候補を削除してから新しいオブジェクトを追加する。
@@ -17854,6 +17932,7 @@
   // 指定メニューから代替種目を削除
   function removeSwapCandidate(menuId, candidateName) {
     if (!menuId) return;
+    menuId = getSwapRootId(menuId); // 複製メニューは元メニューと共有
     const pool = loadSwapPool();
     if (pool[menuId]) {
       pool[menuId] = pool[menuId].filter(c => c.name !== candidateName);
@@ -20493,6 +20572,30 @@
     return result;
   }
 
+  /* 記録リンク(linkId)でつながった種目の定義変更を、他メニューの同linkId種目へ伝播する。
+     複製メニューと元メニューで設定（重量/回数/セット/種類/左右/MAX/位置/名前等）を共有するため。
+     各メニュー側の stored（保管フラグ）と linkId は維持する。 */
+  function propagateLinkedExercise(sourceMenuId, mergedEx) {
+    try {
+      if (!mergedEx || !mergedEx.linkId) return;
+      getAllMenuIds().forEach((mid) => {
+        if (mid === sourceMenuId) return;
+        const exs = [...getMenuExercises(mid)];
+        let changed = false;
+        exs.forEach((e, i) => {
+          if (e && e.linkId === mergedEx.linkId) {
+            const copy = JSON.parse(JSON.stringify(mergedEx));
+            copy.linkId = e.linkId;
+            if (e.stored) copy.stored = true; else delete copy.stored;
+            exs[i] = copy;
+            changed = true;
+          }
+        });
+        if (changed) setMenuExercises(mid, exs);
+      });
+    } catch (e) { /* noop */ }
+  }
+
   function saveExerciseForm() {
     if (!exerciseFormContext) return;
     const exerciseData = collectExerciseFormData();
@@ -20520,6 +20623,8 @@
         exercises.push(exerciseData);
       }
       setMenuExercises(menuId, exercises);
+      // 記録リンク先（複製メニュー等）の同種目にも設定変更を反映
+      if (!isNewAdd) propagateLinkedExercise(menuId, exercises[exIdx]);
 
       // 複製メニュー（dupFrom あり）で新規に種目を作った場合、
       // 元メニューの保管にも同じ種目（同じ linkId・stored）を追加して記録共有する
@@ -20743,7 +20848,7 @@
           const exs = [...getMenuExercises(mid)];
           let changed = false;
           exs.forEach(e => {
-            if (e.name === ex.name) {
+            if (e && (e.name === ex.name || (ex.linkId && e.linkId === ex.linkId))) {
               e.positionList = newList ? newList.map(p => ({ ...p })) : null;
               e.positions = null;
               e.position = null;
