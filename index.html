@@ -8943,6 +8943,8 @@
     // タイマー停止
     if (typeof stopElapsedTimer === 'function') stopElapsedTimer();
     if (typeof stopInterval === 'function') stopInterval();
+    // アラート音が鳴っていれば停止（放置すると離脱後も鳴り続ける）
+    if (typeof stopNotifyLoop === 'function') { try { stopNotifyLoop(); } catch (e) {} }
     // 種目内タイマー（core / HIIT / HIIT round）を全部停止＋state破棄
     // これをやらないと、新しいセッションで同じindexのタイマーが
     // 旧stateの running/handle を引きずり、誤動作する
@@ -8986,6 +8988,12 @@
       // （バックグラウンド遷移/強制終了時に残って復元プロンプトが出るのを防ぐ）
       if (workoutSession && workoutSession.oneOff) {
         clearWorkoutDraft();
+        return;
+      }
+      // 【重要】このページでまだ一度もセッションが始まっていない場合は保存済み下書きに触れない。
+      // welcome/ホーム画面（復元確認の前）でバックグラウンドに切り替えただけで、
+      // 前回クラッシュ時の復元用下書きが消えてしまうのを防ぐ
+      if (!workoutSession || !Array.isArray(workoutSession.exercises)) {
         return;
       }
       if (!hasWorkoutProgress()) {
@@ -9720,7 +9728,8 @@
             bilateral: s.bilateral,
             machineType: m
           };
-          if (s.bilateral && s.startSide) ex.currentSide = s.startSide;
+          // startWorkout は e.startSide から開始サイドを導出するため startSide に設定する
+          if (s.bilateral && s.startSide) ex.startSide = s.startSide;
           if (mx.mode !== 'none') {
             ex.maxTraining = {
               enabled: true,
@@ -9817,7 +9826,7 @@
         core: true,
         coreSec: 30,
         bilateral: true,
-        currentSide: 'R',
+        startSide: 'R',
         targetWeight: 0,
         targetReps: 0,
         targetSets: 6
@@ -9827,7 +9836,7 @@
         core: true,
         coreSec: 30,
         bilateral: true,
-        currentSide: 'L',
+        startSide: 'L',
         targetWeight: 0,
         targetReps: 0,
         targetSets: 6
@@ -10537,6 +10546,7 @@
       if (!prev) return empty;
       let pw = 0, pr = 0, ps = 0;
       prev.exercises.forEach(ex => {
+        if (ex.judge === 'skip') return; // スキップ種目は集計から除外（記録一覧と同じ扱い）
         if (!ex.setRecords || ex.setRecords.length === 0) return;
         ps += ex.setRecords.length;
         ex.setRecords.forEach(s => {
@@ -10702,6 +10712,7 @@
     let exerciseCount = 0, totalWeight = 0, totalReps = 0, totalSets = 0;
     if (lastSession && Array.isArray(lastSession.exercises)) {
       lastSession.exercises.forEach(ex => {
+        if (ex.judge === 'skip') return; // スキップ種目は集計から除外（記録一覧と同じ扱い）
         if (!ex.setRecords || ex.setRecords.length === 0) return;
         exerciseCount++;
         totalSets += ex.setRecords.length;
@@ -10988,6 +10999,7 @@
     let exerciseCount = 0, totalWeight = 0, totalReps = 0, totalSets = 0;
     if (displaySession && Array.isArray(displaySession.exercises)) {
       displaySession.exercises.forEach(ex => {
+        if (ex.judge === 'skip') return; // スキップ種目は集計から除外（記録一覧と同じ扱い）
         if (!ex.setRecords || ex.setRecords.length === 0) return;
         exerciseCount++;
         totalSets += ex.setRecords.length;
@@ -11250,8 +11262,10 @@
     if (homeWeekOffset === 0 && dow === realToday) {
       homeSelectedDow = null;
     } else if (homeSelectedDow === dow) {
-      // 同じ曜日を再タップ → 選択解除
+      // 同じ曜日を再タップ → 選択解除（=今日カードに戻すので週も今週へ戻す。
+      // 過去週のまま残すとカードは「今日」なのに週ナビが「N週前」という矛盾表示になる）
       homeSelectedDow = null;
+      homeWeekOffset = 0;
     } else {
       homeSelectedDow = dow;
     }
@@ -13199,6 +13213,10 @@
   function startWorkout(menuId) {
     // 直前の履歴編集が中断されたまま残っていたら破棄（残すと完了時に既存履歴を上書きしてしまう）
     editingHistoryDate = null;
+    // 前セッションの種目内タイマー・アラート音の残留を破棄
+    // （同じインデックスの種目に前回の経過時間や完了状態が引き継がれるのを防ぐ）
+    if (typeof stopAllExerciseTimers === 'function') { try { stopAllExerciseTimers(); } catch (e) {} }
+    if (typeof stopNotifyLoop === 'function') { try { stopNotifyLoop(); } catch (e) {} }
     // ワークアウト開始時に拒否済み重量記録をリセット
     declinedDefaultWeights = {};
     // ワークアウト開始時にも wo_lastweights を履歴から再構築（整合性確保）
@@ -14295,6 +14313,12 @@
     const btn = document.getElementById('finishWorkoutBtn');
     const hint = document.getElementById('finishWorkoutHint');
     if (!btn || !hint) return;
+    // 単発（その場限り）は完了ボタン自体が無い設計。ヒントも常に非表示にする
+    // （applyWorkoutChromeで隠しても再描画のたびにここで再表示されていた）
+    if (workoutSession && workoutSession.oneOff) {
+      hint.style.display = 'none';
+      return;
+    }
     if (!workoutSession || !Array.isArray(workoutSession.exercises) || workoutSession.exercises.length === 0) {
       btn.disabled = false;
       hint.style.display = 'none';
@@ -15434,6 +15458,8 @@
   function coreSetCountDown(idx) {
     const ex = workoutSession.exercises[idx];
     if (!ex) return;
+    // アラート鳴動中に取り消した場合は音を止める（従来は⟲リセット以外で止まらなかった）
+    if (typeof stopNotifyLoop === 'function') { try { stopNotifyLoop(); } catch (e) {} }
     if (!Array.isArray(ex.setRecords)) ex.setRecords = [];
     // 完了確定（judge=ok）の場合：judge解除+最後のセット記録も取り消し（N/N → (N-1)/N）
     if (ex.judge === 'ok') {
@@ -16344,6 +16370,8 @@
   function eraseLastHiitRound(idx) {
     const ex = workoutSession.exercises[idx];
     if (!ex || !Array.isArray(ex.setRecords) || ex.setRecords.length === 0) return;
+    // アラート鳴動中に取り消した場合は音を止める
+    if (typeof stopNotifyLoop === 'function') { try { stopNotifyLoop(); } catch (e) {} }
     ex.setRecords.pop();
     // judge と duration もクリア（全完了状態だった場合）
     if (ex.judge === 'ok') {
@@ -17194,8 +17222,15 @@
       } else if (pickerContext.field === 'sets') {
         ex.currentSets = val;
         if (ex.setRecords.length > val) ex.setRecords = ex.setRecords.slice(0, val);
+        // 完了確定後にセット数を増やした場合は完了を解除して続行できるようにする
+        // （解除しないと「3/5」表示なのに完了扱いのまま開始できない）
+        if (ex.judge === 'ok' && (ex.setRecords || []).length < val) {
+          ex.judge = null;
+          ex.duration = null;
+        }
         closePicker();
         renderExerciseList();
+        if (typeof renderProgress === 'function') { try { renderProgress(); } catch (e) {} }
         return;
       }
     } else if (pickerContext.type === 'hiit') {
@@ -17514,10 +17549,11 @@
       if (changed) setMenuExercises(menuId, exercises);
     }
 
-    // 3. lastWeights のキーも引き継ぐ（currentWorkout.id + '::' + name）
+    // 3. lastWeights のキーも引き継ぐ
+    // （下書き復元後は currentWorkout=null のため workoutSession.menuId へフォールバック）
     try {
       const lastW = loadLastWeights();
-      const menuId = currentWorkout?.id;
+      const menuId = (currentWorkout && currentWorkout.id) || (workoutSession && workoutSession.menuId);
       if (menuId) {
         const oldKey = menuId + '::' + oldName;
         const newKey = menuId + '::' + newName;
@@ -17526,6 +17562,24 @@
           delete lastW[oldKey];
           saveLastWeights(lastW);
         }
+      }
+    } catch {}
+
+    // 3.5 履歴(wo_history)内の種目名も変更する。
+    // これをしないと、次回起動時の rebuildLastWeightsFromHistory が履歴（旧名のまま）から
+    // wo_lastweights を全再構築するため、上で移行した新名キーが消えて前回記録が表示されなくなる
+    try {
+      const menuId = (currentWorkout && currentWorkout.id) || (workoutSession && workoutSession.menuId);
+      if (menuId) {
+        const hist = loadHistory();
+        let hChanged = false;
+        hist.forEach(session => {
+          if (!session || session.menuId !== menuId || !Array.isArray(session.exercises)) return;
+          session.exercises.forEach(e => {
+            if (e && e.name === oldName) { e.name = newName; hChanged = true; }
+          });
+        });
+        if (hChanged) saveHistory(hist);
       }
     } catch {}
 
@@ -17874,6 +17928,8 @@
     // （代替→メイン/保管へ移動した種目が履歴経由で代替に復活して二重化するのを解消。
     //   既に二重化している既存データもここで掃除される）
     Object.keys(pool).forEach(mId => {
+      // 実在しないメニューIDのキー（過去の不具合で種目名がキーになったゴミ等）は削除
+      if (!getMenu(mId)) { delete pool[mId]; return; }
       const exNames = new Set(getMenuExercises(mId).map(e => e && e.name).filter(Boolean));
       pool[mId] = pool[mId].filter(c => c && !exNames.has(c.name));
       if (pool[mId].length === 0) delete pool[mId];
@@ -17904,8 +17960,9 @@
       reps: candidate.reps,
       sets: candidate.sets,
       // 種類(プレートロード/ウェイトスタック/ダンベル)を保持。
-      // これを落とすと代替経由でウェイトスタック設定がプレートロードに戻ってしまう
-      machineKind: candidate.machineKind || undefined,
+      // これを落とすと代替経由でウェイトスタック設定がプレートロードに戻ってしまう。
+      // 呼び出し元が渡し忘れた場合も既存候補の値を継承して消えないようにする
+      machineKind: candidate.machineKind || (existingIdx >= 0 && pool[menuId][existingIdx] && pool[menuId][existingIdx].machineKind) || undefined,
       manualEdit: true
     };
     if (existingIdx >= 0) {
@@ -18853,7 +18910,12 @@
   function pushUndoSnapshot() {
     const menuId = currentEditorMenuId;
     if (!menuId) return;
+    // 【重要】操作は編集中メニュー以外にも波及する（記録リンクの設定伝播・複製元への
+    // 保管コピー等）ため、全メニューの種目定義と代替プール全体をスナップショットする
     const snapshot = {
+      allMenus: JSON.parse(JSON.stringify(loadCustomMenus())),
+      allSwap: JSON.parse(JSON.stringify(loadSwapPool())),
+      // 旧形式（後方互換のため残す）
       exercises: JSON.parse(JSON.stringify(getMenuExercises(menuId))),
       swap: JSON.parse(JSON.stringify(getSwapCandidatesByMenu(menuId)))
     };
@@ -18870,16 +18932,22 @@
       return;
     }
     const snap = undoStack.pop();
-    // 種目リストを復元
-    setMenuExercises(menuId, snap.exercises);
-    // 代替種目プールを復元
-    const pool = loadSwapPool();
-    if (snap.swap && snap.swap.length > 0) {
-      pool[menuId] = snap.swap;
+    if (snap.allMenus) {
+      // 全メニュー・全代替プールを操作前の状態へ丸ごと復元
+      // （リンク先メニューへの伝播や複製元への自動追加も一緒に取り消される）
+      saveCustomMenus(snap.allMenus);
+      saveSwapPool(snap.allSwap || {});
     } else {
-      delete pool[menuId];
+      // 旧形式スナップショット
+      setMenuExercises(menuId, snap.exercises);
+      const pool = loadSwapPool();
+      if (snap.swap && snap.swap.length > 0) {
+        pool[menuId] = snap.swap;
+      } else {
+        delete pool[menuId];
+      }
+      saveSwapPool(pool);
     }
-    saveSwapPool(pool);
     renderMenuEditor();
     toast('✓ 元に戻しました');
     if (navigator.vibrate) navigator.vibrate(10);
@@ -19670,7 +19738,8 @@
       name: target.name,
       weight: target.weight,
       reps: target.reps,
-      sets: target.sets
+      sets: target.sets,
+      machineKind: target.machineKind
     });
     const formModal = document.getElementById('exerciseFormModal');
     formModal.classList.remove('add-mode');
@@ -20654,7 +20723,8 @@
         name: exerciseData.name,
         weight: exerciseData.weight,
         reps: exerciseData.reps,
-        sets: exerciseData.sets
+        sets: exerciseData.sets,
+        machineKind: exerciseData.machineKind
       };
       // 現在のワークアウトのメニューIDに保存
       const menuId = workoutSession ? workoutSession.menuId : null;
@@ -20702,7 +20772,8 @@
         name: exerciseData.name,
         weight: exerciseData.weight,
         reps: exerciseData.reps,
-        sets: exerciseData.sets
+        sets: exerciseData.sets,
+        machineKind: exerciseData.machineKind
       });
       closeExerciseForm();
       renderMenuEditor();
@@ -20734,7 +20805,8 @@
         name: exerciseData.name,
         weight: exerciseData.weight,
         reps: exerciseData.reps,
-        sets: exerciseData.sets
+        sets: exerciseData.sets,
+        machineKind: exerciseData.machineKind
       });
       closeExerciseForm();
       renderMenuEditor();
@@ -21117,9 +21189,11 @@
   // デフォルトと違えば上下どちらでも反映対象
   function checkAndConfirmCardioMachineUpdate(exIdx, field, newVal) {
     const ex = workoutSession.exercises[exIdx];
-    if (!ex || !currentWorkout) return;
+    // 下書き復元後は currentWorkout=null のため workoutSession.menuId から取得
+    const menu = currentWorkout || (workoutSession && workoutSession.menuId ? getMenu(workoutSession.menuId) : null);
+    if (!ex || !menu) return;
     // メニュー編集の元のデフォルト値を取得
-    const baseEx = (currentWorkout.exercises || []).find(e => e.name === ex.name);
+    const baseEx = (menu.exercises || []).find(e => e.name === ex.name);
     if (!baseEx || !baseEx.machineProtocol) return;
     const defaultVal = baseEx.machineProtocol[field];
     if (defaultVal === undefined || defaultVal === newVal) return;
@@ -21141,8 +21215,10 @@
   // 速度系・時間系すべてデフォルトと違えば上下どちらでも反映対象
   function checkAndConfirmHiitUpdate(exIdx, field, newVal) {
     const ex = workoutSession.exercises[exIdx];
-    if (!ex || !currentWorkout) return;
-    const baseEx = (currentWorkout.exercises || []).find(e => e.name === ex.name);
+    // 下書き復元後は currentWorkout=null のため workoutSession.menuId から取得
+    const menu = currentWorkout || (workoutSession && workoutSession.menuId ? getMenu(workoutSession.menuId) : null);
+    if (!ex || !menu) return;
+    const baseEx = (menu.exercises || []).find(e => e.name === ex.name);
     if (!baseEx || !baseEx.protocol) return;
     const defaultVal = baseEx.protocol[field];
     if (defaultVal === undefined || defaultVal === newVal) return;
@@ -21451,6 +21527,10 @@
     if (!ex) return;
     ex.elapsedSeconds = 0;
     ex.duration = null;
+    // 開始前の状態へ完全に戻す。exStarted/_elapsedAtStartを残すと、
+    // 上タイマー再開後の最初のtickで旧経過時間が復活してしまう
+    ex.exStarted = false;
+    ex._elapsedAtStart = null;
     // 上部タイマーも停止（再スタートはユーザー操作）
     if (typeof isElapsedRunning === 'function' && isElapsedRunning()) {
       pauseElapsedTimer();
@@ -22024,6 +22104,22 @@
     }
     // 有酸素の「完了」ボタン：再タップで取消
     ex.judge = (ex.judge === type) ? null : type;
+    // HIIT: 最終ラウンドのアラート鳴動中(completed)に「完了」で確定した場合、
+    // タイマー枠タップ経路と同様に最終ラウンドの記録をpushしてから音を止める
+    // （従来はここで記録されず履歴にN-1本しか残らない＋赤点滅が残った）
+    if (ex.judge === 'ok' && ex.hiit && ex.protocol) {
+      try {
+        const st = (typeof hiitRoundTimers !== 'undefined') ? hiitRoundTimers[idx] : null;
+        const totalRounds = ex.protocol.rounds || 8;
+        if (st && st.completed && (ex.setRecords || []).length < totalRounds) {
+          const roundElapsed = Math.round(st.elapsed || 0);
+          if (!Array.isArray(ex.setRecords)) ex.setRecords = [];
+          ex.setRecords.push({ weight: ex.protocol.dashSpeed, reps: 1, time: roundElapsed });
+          st.completed = false;
+          st.waiting = false;
+        }
+      } catch (e) { /* noop */ }
+    }
     // 通知音が鳴っていたら止める
     if (ex.judge === 'ok' && typeof stopNotifyLoop === 'function') {
       stopNotifyLoop();
@@ -22156,6 +22252,9 @@
         // 編集可能な状態
         name: e.name,
         originalName: e.name,
+        // 記録リンク: これが無いと過去日付の記録が link:: キーで再構築されず、
+        // リンク種目の「前回記録」が古い通常記録のまま固定されてしまう
+        linkId: e.linkId || null,
         swappedFrom: null,
         bilateral: !!e.bilateral,
         startSide: e.startSide || 'R',
@@ -22976,6 +23075,8 @@
       const exRecord = {
         name: ex.name,
         originalName: ex.originalName,
+        // 記録リンク: 通常ワークアウト保存と同様に履歴へ引き継ぐ（前回記録のlink::キー共有）
+        linkId: ex.linkId || null,
         swappedFrom: ex.swappedFrom,
         bilateral: ex.bilateral,
         startSide: ex.startSide,
@@ -23084,12 +23185,16 @@
         const sets = parseInt(card?.querySelector('[data-field="sets"]')?.value, 10);
         const sec = parseInt(card?.querySelector('[data-field="coreSec"]')?.value, 10);
         if (!isNaN(sets) && sets > 0) {
-          exRecord.currentSets = sets;
+          // 左右(bilateral)はフォーム入力がペア単位のため、内部×2単位に変換して保存する
+          // （変換しないと記録セット数が半分になり、履歴編集のチップ表示も欠ける）
+          const internalSets = ex.bilateral ? sets * 2 : sets;
+          exRecord.currentSets = internalSets;
+          exRecord.targetSets = ex.bilateral ? ((ex.targetSets || sets) * 2) : (ex.targetSets || sets);
           if (!isNaN(sec) && sec > 0) {
             if (isCore) exRecord.coreSec = sec;
             else exRecord.otherSec = sec;
           }
-          for (let s = 0; s < sets; s++) {
+          for (let s = 0; s < internalSets; s++) {
             const rec = { seconds: !isNaN(sec) ? sec : (ex.coreSec || ex.otherSec || 60) };
             if (ex.bilateral) {
               rec.side = (ex.startSide === 'L') ? (s % 2 === 0 ? 'L' : 'R') : (s % 2 === 0 ? 'R' : 'L');
@@ -23225,10 +23330,11 @@
       const normalSets = ex.setRecords.filter(r => !r.isMax);
       const lastNormal = normalSets.length > 0 ? normalSets[normalSets.length - 1] : ex.setRecords[ex.setRecords.length - 1];
       // 代替プール更新（代替を使った場合のみ）
+      // 【修正】プールのキーは「メニューID」（従来は誤って元種目名をキーにしていた）
       // 手動編集された(manualEdit)代替種目は登録時の値を尊重し、上書きしない
-      if (ex.swappedFrom) {
-        if (!swapPool[ex.swappedFrom]) swapPool[ex.swappedFrom] = [];
-        const cands = swapPool[ex.swappedFrom];
+      if (ex.swappedFrom && menuId) {
+        if (!swapPool[menuId]) swapPool[menuId] = [];
+        const cands = swapPool[menuId];
         const existIdx = cands.findIndex(c => c.name === ex.name);
         if (existIdx >= 0 && cands[existIdx] && cands[existIdx].manualEdit) {
           // 手動編集済みは上書きしない
@@ -23239,6 +23345,9 @@
             reps: lastNormal.reps,
             sets: ex.currentSets
           };
+          // 種類(machineKind)は保持
+          const mk = ex.machineKind || (existIdx >= 0 && cands[existIdx] && cands[existIdx].machineKind);
+          if (mk) updated.machineKind = mk;
           if (existIdx >= 0) cands[existIdx] = updated;
           else cands.push(updated);
         }
@@ -23276,6 +23385,11 @@
     const session = hist.find(h => h.date === dateIso);
     if (!session) { toast('記録が見つかりません'); return; }
 
+    // 前セッションの種目内タイマー・アラート音の残留を破棄
+    // （同じインデックスの種目カードに前回の残り時間や完了状態が表示されるのを防ぐ）
+    if (typeof stopAllExerciseTimers === 'function') { try { stopAllExerciseTimers(); } catch (e) {} }
+    if (typeof stopNotifyLoop === 'function') { try { stopNotifyLoop(); } catch (e) {} }
+
     editingHistoryDate = dateIso;
     currentWorkout = getMenu(session.menuId);
     // ディープコピーでセッションを復元
@@ -23291,6 +23405,15 @@
         ex.currentReps = ex.targetReps;
       }
       if (!ex.currentSets) ex.currentSets = ex.targetSets;
+      // 時間計測系種目: 保存済みのdurationを実行時フィールドへシード。
+      // これが無いと編集モードで「戻る」→再完了した際に、上タイマーが動かない編集モードでは
+      // elapsedSecondsが0のままduration=0が確定し、記録済みの経過時間が不可逆に消えていた
+      if ((ex.cardio || ex.hiit || ex.core || ex.other)
+          && typeof ex.duration === 'number' && ex.duration > 0
+          && (ex.elapsedSeconds == null || ex.elapsedSeconds === 0)) {
+        ex.elapsedSeconds = ex.duration;
+        ex.exStarted = true;
+      }
     });
 
     // 【履歴編集モード】上タイマーは起動させない。表示は履歴保存済の totalSeconds を表示（記憶を保つ）
@@ -23425,10 +23548,13 @@
       };
 
       // 代替種目だった場合は候補プールに追加/更新
+      // 【修正】プールのキーは「メニューID」（従来は誤って元種目名をキーにしており、
+      // 更新がどこからも読まれずゴミキーが蓄積していた）
       // ただし、手動編集された(manualEdit)代替種目は登録時の値を尊重し、ワークアウト結果で上書きしない
-      if (ex.swappedFrom) {
-        if (!swapPool[ex.swappedFrom]) swapPool[ex.swappedFrom] = [];
-        const candidates = swapPool[ex.swappedFrom];
+      if (ex.swappedFrom && workoutSession.menuId) {
+        const poolKey = workoutSession.menuId;
+        if (!swapPool[poolKey]) swapPool[poolKey] = [];
+        const candidates = swapPool[poolKey];
         const existingIdx = candidates.findIndex(c => c.name === ex.name);
         if (existingIdx >= 0 && candidates[existingIdx] && candidates[existingIdx].manualEdit) {
           // 手動編集済みは上書きしない（登録した値を保持）
@@ -23439,6 +23565,9 @@
             reps: finalReps,
             sets: finalSets
           };
+          // 種類(machineKind)は保持（ウェイトスタック設定が消えるのを防ぐ）
+          const mk = ex.machineKind || (existingIdx >= 0 && candidates[existingIdx] && candidates[existingIdx].machineKind);
+          if (mk) updated.machineKind = mk;
           if (existingIdx >= 0) {
             candidates[existingIdx] = updated;
           } else {
@@ -23456,6 +23585,9 @@
       try { rebuildLastWeightsFromHistory(hist); } catch (e) { /* noop */ }
     }
     toast(wasEditing ? '✓ 記録を更新' : '✓ お疲れさま！');
+    // アラート音・種目内タイマーの残留を確実に停止（次セッションへの持ち越し防止）
+    if (typeof stopNotifyLoop === 'function') { try { stopNotifyLoop(); } catch (e) {} }
+    if (typeof stopAllExerciseTimers === 'function') { try { stopAllExerciseTimers(); } catch (e) {} }
     // セッション完了したのでメモリ上の workoutSession もクリア
     // （これをしないと showScreen('home') 内の hasWorkoutProgress() で再度確認ダイアログが出てしまう）
     workoutSession = {};
@@ -23544,7 +23676,9 @@
     return blocks.join('');
   }
 
-  function renderHistory() {
+  function renderHistory(opts) {
+    // opts.ensureDate: カレンダーからのジャンプ先セッションを必ず一覧に含める
+    const ensureDate = opts && opts.ensureDate;
     let hist = loadHistory();
     // 「不明」（メニューが解決できない）記録は一覧から隠す（表示のみ）。
     // 【重要】localStorageからの削除は行わない。以前はここで saveHistory(valid) して
@@ -23552,7 +23686,8 @@
     // 履歴画面を開くだけで永久に消えていた。表示フィルタに限定してデータ消失を防ぐ。
     try {
       if (!isAdminMode) {
-        const valid = hist.filter(s => !!getMenu(s.menuId));
+        // ジャンプ対象はメニューが解決できなくても残す（名称は「不明」で表示される）
+        const valid = hist.filter(s => !!getMenu(s.menuId) || (ensureDate && s.date === ensureDate));
         if (valid.length > 0 && valid.length !== hist.length) {
           hist = valid; // 表示用のみ差し替え（保存はしない）
         }
@@ -23564,7 +23699,13 @@
       return;
     }
     list.innerHTML = '';
-    hist.slice(0, 20).forEach(s => {
+    // 表示件数: 通常は最新20件。ジャンプ対象が21件目以降なら対象まで描画範囲を広げる
+    let showCount = 20;
+    if (ensureDate) {
+      const ti = hist.findIndex(s => s.date === ensureDate);
+      if (ti >= 0) showCount = Math.max(showCount, ti + 1);
+    }
+    hist.slice(0, showCount).forEach(s => {
       const d = new Date(s.date);
       const dateStr = `${d.getMonth() + 1}/${d.getDate()}（${DOW[d.getDay()]}）${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
       const menu = getMenu(s.menuId);
@@ -23644,6 +23785,21 @@
   function rebuildLastWeightsFromHistory(history) {
     const newLastW = {};
     if (!Array.isArray(history)) { saveLastWeights(newLastW); return; }
+    // linkId昇格用: メニューID→(種目名→linkId) の対応表（現行メニュー定義から）。
+    // linkId導入前の履歴でも、現行定義でリンクされている種目は link:: キーにも書いて
+    // 複製/Pushメニューとの前回記録共有を既存記録に対しても成立させる
+    const menuLinkMap = {};
+    const getMenuLinkId = (menuId, name) => {
+      try {
+        if (!menuId || !name) return null;
+        if (!menuLinkMap[menuId]) {
+          const m = {};
+          getMenuExercises(menuId).forEach(e => { if (e && e.name && e.linkId) m[e.name] = e.linkId; });
+          menuLinkMap[menuId] = m;
+        }
+        return menuLinkMap[menuId][name] || null;
+      } catch (e) { return null; }
+    };
     // 古い順に処理 → 同じキーは新しい記録で上書きされ、最終的に「最新の記録」が残る
     const sorted = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
     sorted.forEach(session => {
@@ -23693,7 +23849,7 @@
           }
           return obj;
         }) : [];
-        newLastW[key] = {
+        const entry = {
           weight: lastSet ? lastSet.weight : (ex.weight || 0),
           reps: ex.reps || (lastSet ? lastSet.reps : 0),
           sets: ex.sets || (Array.isArray(ex.setRecords) ? ex.setRecords.length : 0),
@@ -23705,6 +23861,19 @@
           sessionTargetWeight: sessionTargetWeight,
           sessionTargetReps: sessionTargetReps
         };
+        newLastW[key] = entry;
+        // linkId導入前の履歴（ex.linkId無し）でも、現行メニュー定義でリンクされている種目は
+        // link:: キーにも同エントリを書く（古い順処理なので最新の記録が最終的に残る）
+        if (!ex.linkId) {
+          const defLinkId = getMenuLinkId(session.menuId, ex.name);
+          if (defLinkId) {
+            const linkKey = 'link::' + defLinkId;
+            const prev = newLastW[linkKey];
+            if (!prev || new Date(session.date) >= new Date(prev.date)) {
+              newLastW[linkKey] = entry;
+            }
+          }
+        }
       });
     });
     saveLastWeights(newLastW);
@@ -24487,11 +24656,12 @@
     // カレンダー特有のスクロール禁止を解除
     document.body.classList.remove('calendar-no-scroll');
     document.documentElement.classList.remove('calendar-no-scroll');
-    // 履歴を最新化
-    if (typeof renderHistory === 'function') renderHistory();
+    // 履歴を最新化（ジャンプ対象が21件目以降でも一覧に含める）
+    if (typeof renderHistory === 'function') renderHistory({ ensureDate: sessionDate });
     // 該当アイテムまでスクロール＋ハイライト
     requestAnimationFrame(() => {
       const target = document.querySelector(`.history-item[data-date="${sessionDate}"]`);
+      if (!target) { try { toast('該当の記録を表示できません'); } catch (e) {} }
       if (target) {
         // ヘッダー高さ(60px)分オフセットして、メニュー上部がヘッダー直下にくるよう調整
         const HEADER_OFFSET = 60;
