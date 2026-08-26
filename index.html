@@ -3092,7 +3092,7 @@
   }
   .menu-color-palette {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 8px;
     justify-items: center;
   }
@@ -22910,17 +22910,35 @@
     other: '#F97316'
   };
 
-  // カレンダー表示色パレット（7色・虹順・左右対称）
-  // ワークアウト画面で使われている色（緑系・赤系・青系・水色系・テーマアクセント）と区別された代表色
+  // カレンダー表示色パレット（5色）
+  // 互いに全く似ていない色だけに絞り、カレンダー上で一目で区別できるようにする
   const COLOR_PALETTE = [
-    '#F97316', // オレンジ
-    '#EAB308', // ゴールド
+    '#EF4444', // レッド
+    '#FBBF24', // イエロー
     '#22C55E', // グリーン
-    '#14B8A6', // ティール（中央）
     '#3B82F6', // ブルー
-    '#EC4899', // ピンク
     '#A855F7'  // パープル
   ];
+  // 旧パレット（7色）で保存済みの色を最も近い新色へ寄せる対応表
+  const COLOR_PALETTE_MIGRATE = {
+    '#F97316': '#EF4444', // オレンジ→レッド
+    '#EAB308': '#FBBF24', // ゴールド→イエロー
+    '#14B8A6': '#3B82F6', // ティール→ブルー
+    '#EC4899': '#A855F7'  // ピンク→パープル
+  };
+  // 保存済みのメニュー色を新パレットへ一括変換（毎起動・冪等）
+  function migMenuColorsTo5() {
+    try {
+      if (isAdminMode) return;
+      const colors = JSON.parse(localStorage.getItem('wo_menu_colors') || '{}');
+      let changed = false;
+      Object.keys(colors).forEach(k => {
+        const up = String(colors[k] || '').toUpperCase();
+        if (COLOR_PALETTE_MIGRATE[up]) { colors[k] = COLOR_PALETTE_MIGRATE[up]; changed = true; }
+      });
+      if (changed) localStorage.setItem('wo_menu_colors', JSON.stringify(colors));
+    } catch (e) { /* noop */ }
+  }
 
   function getMenuColors() {
     if (isAdminMode) return {}; // テストモード時はユーザーの色設定を無視
@@ -23264,6 +23282,9 @@
     try {
       // 保存済みアクセントカラーを適用
       applyAccentColor(getAccentColor());
+
+      // メニュー色を新パレット（5色）へ変換
+      try { migMenuColorsTo5(); } catch (e) { /* noop */ }
 
       // 起動時に wo_lastweights を wo_history から再構築する
       // 履歴削除等で wo_lastweights が古い値を持っている場合の整合性確保
