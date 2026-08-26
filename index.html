@@ -3049,16 +3049,6 @@
     border-color: var(--ok);
     color: #fff;
   }
-  .menu-edit-action-btn.dup {
-    background: #3B82F6;
-    border-color: #3B82F6;
-    color: #fff;
-    font-size: 14px;
-  }
-  .menu-edit-action-btn.dup.active {
-    background: #2563EB;
-    border-color: #93C5FD;
-  }
   .menu-edit-action-btn.done {
     width: auto;
     min-width: 64px;
@@ -7647,7 +7637,6 @@
     <div class="section-head" id="menuEditSectionHead">
       <div class="section-title">メニュー編集</div>
       <div class="menu-edit-actions">
-        <button class="menu-edit-action-btn dup" id="menuEditToggleDup" onclick="toggleMenuDupMode()" title="複製モード切替">⧉</button>
         <button class="menu-edit-action-btn" id="menuEditToggleRemove" onclick="toggleMenuRemoveMode()" title="削除モード切替">−</button>
         <button class="menu-edit-action-btn add" onclick="openAddMenuModal()" title="追加">＋</button>
       </div>
@@ -7965,22 +7954,6 @@
 </div>
 
 <!-- メニュー複製の確認 -->
-<div class="modal-backdrop" id="dupConfirmModal">
-  <div class="modal">
-    <h3 class="modal-title">メニューを複製しますか？</h3>
-    <p style="font-size: 14px; color: var(--text-2); margin: 0 0 8px; line-height: 1.5">
-      <span id="dupConfirmName" style="font-weight: 700; color: var(--text)"></span> を複製します。
-    </p>
-    <p style="font-size: 11px; color: var(--text-4); margin: 0 0 0; line-height: 1.5">
-      複製したメニューの種目は、最初は全て保管に入ります。記録は元のメニューと共有されます。
-    </p>
-    <div class="modal-actions">
-      <button class="modal-btn" onclick="closeDupConfirm()">キャンセル</button>
-      <button class="modal-btn primary" onclick="confirmDupExecute()">複製する</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-backdrop" id="addMenuModal">
   <div class="modal">
     <h3 class="modal-title">新しいメニューを追加</h3>
@@ -17391,8 +17364,6 @@
 
   function toggleMenuRemoveMode() {
     menuRemoveMode = !menuRemoveMode;
-    // 複製モードが入っていたら解除（同時にオンにしない）
-    if (menuRemoveMode && menuDupMode) { menuDupMode = false; updateDupBtnUI(); }
     const toggleBtn = document.getElementById('menuEditToggleRemove');
     if (toggleBtn) {
       toggleBtn.classList.toggle('active', menuRemoveMode);
@@ -17403,141 +17374,8 @@
     // 「＋追加」ボタンは削除モード中は非表示（混乱防止）
     const addBtn = document.querySelector('.menu-edit-action-btn.add');
     if (addBtn) addBtn.style.display = menuRemoveMode ? 'none' : '';
-    const dupBtn = document.getElementById('menuEditToggleDup');
-    if (dupBtn) dupBtn.style.display = menuRemoveMode ? 'none' : '';
     renderMenuEditList();
     if (navigator.vibrate) navigator.vibrate(5);
-  }
-
-  // ===== メニュー複製モード =====
-  let menuDupMode = false;
-  function updateDupBtnUI() {
-    const dupBtn = document.getElementById('menuEditToggleDup');
-    if (dupBtn) {
-      dupBtn.classList.toggle('active', menuDupMode);
-      dupBtn.classList.toggle('done', menuDupMode);
-      dupBtn.textContent = menuDupMode ? '完了' : '⧉';
-      dupBtn.title = menuDupMode ? '複製を終了' : '複製モード切替';
-    }
-  }
-  function toggleMenuDupMode() {
-    menuDupMode = !menuDupMode;
-    // 削除モードが入っていたら解除
-    if (menuDupMode && menuRemoveMode) {
-      menuRemoveMode = false;
-      const rmBtn = document.getElementById('menuEditToggleRemove');
-      if (rmBtn) {
-        rmBtn.classList.remove('active', 'done');
-        rmBtn.textContent = '−';
-        rmBtn.title = '削除モード切替';
-      }
-    }
-    updateDupBtnUI();
-    // 複製モード中は「−」「＋」を隠す
-    const addBtn = document.querySelector('.menu-edit-action-btn.add');
-    if (addBtn) addBtn.style.display = menuDupMode ? 'none' : '';
-    const rmBtn2 = document.getElementById('menuEditToggleRemove');
-    if (rmBtn2) rmBtn2.style.display = menuDupMode ? 'none' : '';
-    renderMenuEditList();
-    if (navigator.vibrate) navigator.vibrate(5);
-  }
-
-  // メニューを複製する
-  // 複製でできたメニューは、中の種目を全部「保管」に入れた状態でできる（メインは空）
-  // 各種目には元メニューと同じ linkId を付けて記録を共有する
-  let _duplicating = false;
-  let _dupPendingId = null;
-  // 複製確認モーダルを開く
-  function openDupConfirm(menuId) {
-    _dupPendingId = menuId;
-    const menu = getMenu(menuId);
-    const nameEl = document.getElementById('dupConfirmName');
-    if (nameEl) nameEl.textContent = menu ? menu.name : '';
-    document.getElementById('dupConfirmModal').classList.add('show');
-  }
-  function closeDupConfirm() {
-    document.getElementById('dupConfirmModal').classList.remove('show');
-    _dupPendingId = null;
-  }
-  // 確認モーダルの「複製する」を押したとき
-  function confirmDupExecute() {
-    const id = _dupPendingId;
-    // 先にモーダルを閉じて pending をクリア（連打されても2回目は id が null で無効）
-    document.getElementById('dupConfirmModal').classList.remove('show');
-    _dupPendingId = null;
-    if (!id) return;
-    duplicateMenu(id);
-  }
-  function duplicateMenu(srcMenuId) {
-    // 二重実行ガード（ボタン連打・イベント二重発火で2つできるのを防ぐ）
-    if (_duplicating) return;
-    _duplicating = true;
-    setTimeout(() => { _duplicating = false; }, 800);
-
-    const srcMenu = getMenu(srcMenuId);
-    if (!srcMenu) { _duplicating = false; return; }
-    const srcExercises = getMenuExercises(srcMenuId);
-    // 新しいメニューID
-    const newId = 'u_dup_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-    // 新しい名前：元の名前に ② を付ける（既に②③…があれば次の番号）
-    // 元の名前から既存の丸数字サフィックスを除いた「素の名前」を求める
-    const circled = ['②','③','④','⑤','⑥','⑦','⑧','⑨'];
-    let baseName = srcMenu.name || 'メニュー';
-    circled.forEach(c => { if (baseName.endsWith(c)) baseName = baseName.slice(0, -c.length); });
-    // 既存の全メニュー名を集める
-    const existingNames = getAllMenuIds().map(id => { const m = getMenu(id); return m ? m.name : ''; });
-    // baseName+② から順に、空いている番号を探す
-    let newName = baseName + circled[0];
-    for (let k = 0; k < circled.length; k++) {
-      const candidate = baseName + circled[k];
-      if (!existingNames.includes(candidate)) { newName = candidate; break; }
-    }
-    // 各種目に linkId を付与（元種目にも付けて双方向で共有）
-    const srcCopy = [...srcExercises];
-    const storedExercises = srcExercises.map((ex, i) => {
-      let linkId = ex.linkId;
-      if (!linkId) {
-        linkId = 'lnk_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 6);
-        // 元メニューの種目にも linkId を付ける
-        srcCopy[i] = { ...srcCopy[i], linkId };
-      }
-      // 複製先の種目（保管に入れる）
-      return { ...ex, linkId, stored: true };
-    });
-    // 元メニューを linkId 付きで保存し直す
-    setMenuExercises(srcMenuId, srcCopy);
-    // 新メニューを登録
-    const userMenus = loadUserMenus();
-    userMenus[newId] = {
-      name: newName,
-      fullName: newName,
-      shortName: (srcMenu.shortName || '') + '2',
-      en: (srcMenu.en || '') + ' 2',
-      icon: srcMenu.icon || '',
-      dupFrom: srcMenuId  // どのメニューから複製したかを記録（保管エリア表示の判定に使う）
-    };
-    saveUserMenus(userMenus);
-    // 新メニューの種目（全部 stored=true で保管入り）を保存
-    setMenuExercises(newId, storedExercises);
-    // customPriority の末尾に追加（既に無ければ）
-    const profile = getProfile() || {};
-    if (Array.isArray(profile.customPriority)) {
-      if (!profile.customPriority.includes(newId)) {
-        profile.customPriority.push(newId);
-        saveProfile(profile);
-      }
-    }
-    // 複製モードを抜けて再描画
-    menuDupMode = false;
-    updateDupBtnUI();
-    const addBtn = document.querySelector('.menu-edit-action-btn.add');
-    if (addBtn) addBtn.style.display = '';
-    const rmBtn = document.getElementById('menuEditToggleRemove');
-    if (rmBtn) rmBtn.style.display = '';
-    renderMenuEditList();
-    // 設定画面の週間スケジュール（割り当て表示）にも複製メニューを反映
-    if (typeof renderSettings === 'function') renderSettings();
-    toast('✓ 「' + newName + '」を複製しました');
   }
 
   function renderMenuEditList() {
@@ -17665,14 +17503,6 @@
           confirmDeleteMenu(menuId, isUserMenu ? 'user' : 'default');
         });
         row.appendChild(deleteBtn);
-      } else if (menuDupMode) {
-        // 複製モード：タップで複製確認モーダルを開く（直接複製しない＝二重実行防止）
-        const dupMark = document.createElement('span');
-        dupMark.className = 'menu-edit-arrow';
-        dupMark.textContent = '⧉';
-        dupMark.style.color = '#3B82F6';
-        row.appendChild(dupMark);
-        row.onclick = () => openDupConfirm(menuId);
       } else {
         const arrow = document.createElement('span');
         arrow.className = 'menu-edit-arrow';
@@ -17687,8 +17517,8 @@
       list.appendChild(row);
     });
 
-    // 長押し→ドラッグで並び替え可能に（削除・複製モード中は無効）
-    if (!menuRemoveMode && !menuDupMode) {
+    // 長押し→ドラッグで並び替え可能に（削除モード中は無効）
+    if (!menuRemoveMode) {
       enableMenuDragSort();
     }
   }
