@@ -18090,11 +18090,11 @@
         <div class="menu-color-label">カレンダー表示色</div>
         <div class="menu-color-palette">${colorSwatches}</div>
       </div>
-      <div class="menu-editor-actions" style="display:flex; gap:8px;">
+      <div class="menu-editor-actions" style="display:flex; gap:8px; margin-bottom:8px;">
         <button class="menu-editor-action secondary" id="menuEditorUndoBtn" onclick="undoMenuEditorChange()" style="flex-shrink:0; ${undoStack.length === 0 ? 'opacity:0.35; pointer-events:none' : ''}" title="直前の操作を元に戻す">元に戻す</button>
         <button class="menu-editor-action primary" style="flex:1" onclick="openExerciseForm('${menuId}', null)">＋ 種目追加</button>
       </div>
-      <button class="menu-editor-action secondary" id="menuEditorImportBtn" style="width:100%; margin-top:8px" onclick="openImportSourcePicker()">他メニューから取り込む（記録を共有）</button>
+      <button class="menu-editor-action secondary" id="menuEditorImportBtn" style="width:100%; margin-bottom:14px" onclick="openImportSourcePicker()">他メニューから取り込む（記録を共有）</button>
     `;
     let mainSeq = 0; // メイン種目の表示番号（保管を除いて01から連番）
     exercises.forEach((ex, i) => {
