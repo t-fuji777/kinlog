@@ -594,6 +594,77 @@
     color: var(--text);
   }
 
+  /* 他メニューからの種目取り込み */
+  .import-ex-desc {
+    font-size: 11px; color: var(--text-2);
+    line-height: 1.5; margin: -6px 0 12px;
+  }
+  .import-ex-desc b { color: var(--text); font-weight: 800; }
+  .import-ex-toolbar {
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .import-ex-all-btn {
+    padding: 6px 12px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11px; font-weight: 700;
+    cursor: pointer;
+  }
+  .import-ex-all-btn:active { background: var(--bg-1); }
+  .import-ex-count {
+    font-family: var(--font-mono);
+    font-size: 11px; color: var(--text-3); font-weight: 700;
+  }
+  .import-ex-list {
+    max-height: 46vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .import-ex-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .import-ex-item.selected {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg-2));
+  }
+  .import-ex-item.disabled {
+    opacity: 0.4; pointer-events: none;
+  }
+  .import-ex-check {
+    width: 18px; height: 18px; flex-shrink: 0;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900; color: transparent;
+  }
+  .import-ex-item.selected .import-ex-check {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+  .import-ex-body { flex: 1; min-width: 0; }
+  .import-ex-name {
+    font-size: 13px; font-weight: 700; color: var(--text);
+    word-break: break-all;
+  }
+  .import-ex-params {
+    font-family: var(--font-mono);
+    font-size: 10px; color: var(--text-3); margin-top: 2px;
+  }
+  .import-ex-note {
+    font-size: 10px; color: var(--warn); font-weight: 700; margin-top: 2px;
+  }
+
   /* Menu picker list (modal) */
   .menu-picker-list {
     display: flex; flex-direction: column; gap: 6px;
@@ -8398,13 +8469,30 @@
 </div>
 
 
+<!-- 他メニューから種目を取り込む -->
+<div class="modal-backdrop" id="importExerciseModal">
+  <div class="modal">
+    <h3 class="modal-title" id="importExerciseTitle">取り込む種目を選択</h3>
+    <p class="import-ex-desc">選んだ種目は取り込み元と<b>前回記録・設定値が共有</b>されます。どちらのメニューで実施しても記録は引き継がれます。</p>
+    <div class="import-ex-toolbar">
+      <button class="import-ex-all-btn" onclick="toggleImportSelectAll()" id="importExAllBtn">すべて選択</button>
+      <span class="import-ex-count" id="importExCount">0件選択</span>
+    </div>
+    <div class="import-ex-list" id="importExerciseList"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeImportExerciseModal()">キャンセル</button>
+      <button class="modal-btn primary" onclick="confirmImportExercises()">取り込む</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="menuPickerModal">
   <div class="modal">
     <h3 class="modal-title" id="menuPickerTitle">部位を選択</h3>
     <div class="menu-picker-list" id="menuPickerList"></div>
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeMenuPicker()">キャンセル</button>
-      <button class="modal-btn warn" onclick="clearMenuForDay()">割当なし</button>
+      <button class="modal-btn warn" id="menuPickerClearBtn" onclick="clearMenuForDay()">割当なし</button>
     </div>
   </div>
 </div>
@@ -9809,6 +9897,9 @@
 
   function openSettingsMenuPicker(dow) {
     menuPickerDow = dow;
+    // 週間スケジュール用でのみ「割当なし」を使う
+    const clearBtn = document.getElementById('menuPickerClearBtn');
+    if (clearBtn) clearBtn.style.display = '';
     const p = getProfile();
     const currentId = p?.manualSchedule?.[dow] || null;
     document.getElementById('menuPickerTitle').textContent = `${DOW[dow]}曜日の部位を選択`;
@@ -9930,6 +10021,8 @@
   function openOrphanMenuPicker(groupKey) {
     pendingOrphanGroupId = groupKey;
     menuPickerDow = null;
+    const clearBtn = document.getElementById('menuPickerClearBtn');
+    if (clearBtn) clearBtn.style.display = 'none';
     document.getElementById('menuPickerTitle').textContent = 'この記録のメニューを選択';
     const list = document.getElementById('menuPickerList');
     list.innerHTML = '';
@@ -16778,6 +16871,196 @@
     return addedCount;
   }
 
+  // ========== 他メニューから種目を取り込む（記録・設定を双方向で共有） ==========
+  // 複製は「1つのメニュー丸ごと」しか共有できないため、複数メニューの種目を集めた
+  // 合体メニューが作れなかった。ここで取り込むと元種目と同じ linkId が付き、
+  // 前回記録と設定値がどちらのメニューからでも共有される。
+  let importSourceMenuId = null;
+  let importSelectedNames = [];
+
+  // 手順(1) 取り込み元のメニューを選ぶ
+  function openImportSourcePicker() {
+    const destId = currentEditorMenuId;
+    if (!destId) return;
+    menuPickerDow = null;
+    pendingOrphanGroupId = null;
+    // スケジュール専用の「割当なし」はここでは使わないので隠す
+    const clearBtn = document.getElementById('menuPickerClearBtn');
+    if (clearBtn) clearBtn.style.display = 'none';
+    document.getElementById('menuPickerTitle').textContent = '取り込み元のメニューを選択';
+    const list = document.getElementById('menuPickerList');
+    list.innerHTML = '';
+    let count = 0;
+    getOrderedMenuIds().forEach(menuId => {
+      if (menuId === destId) return; // 自分自身は除く
+      const menu = getMenu(menuId);
+      if (!menu) return;
+      // 保管中の種目は取り込み対象外なので件数にも含めない
+      const exs = (getMenuExercises(menuId) || []).filter(e => e && e.name && !e.stored);
+      if (!exs.length) return;
+      count++;
+      const el = document.createElement('div');
+      el.className = 'menu-picker-item';
+      const span = document.createElement('span');
+      span.className = 'menu-picker-name';
+      span.textContent = (menu.fullName || menu.name) + '（' + exs.length + '種目）';
+      el.appendChild(span);
+      el.onclick = () => { closeMenuPicker(); openImportExercisePicker(menuId); };
+      list.appendChild(el);
+    });
+    if (count === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:13px; color:var(--text-4); padding:12px 4px; text-align:center;';
+      empty.textContent = '取り込めるメニューがありません';
+      list.appendChild(empty);
+    }
+    document.getElementById('menuPickerModal').classList.add('show');
+  }
+
+  // 手順(2) 取り込む種目を選ぶ
+  function openImportExercisePicker(srcMenuId) {
+    const destId = currentEditorMenuId;
+    if (!destId || !srcMenuId) return;
+    importSourceMenuId = srcMenuId;
+    importSelectedNames = [];
+    const srcMenu = getMenu(srcMenuId);
+    const title = document.getElementById('importExerciseTitle');
+    if (title) title.textContent = '「' + (srcMenu ? (srcMenu.fullName || srcMenu.name) : '') + '」から取り込む';
+    renderImportExerciseList();
+    document.getElementById('importExerciseModal').classList.add('show');
+  }
+
+  function renderImportExerciseList() {
+    const list = document.getElementById('importExerciseList');
+    if (!list) return;
+    const destId = currentEditorMenuId;
+    const destExsAll = (getMenuExercises(destId) || []).filter(e => e && e.name);
+    // 保管中の種目は取り込み対象にしない（メニュー本体に出ていないため）。
+    // 同名が並ぶ場合は先頭だけを出す（行と種目名を1対1にして選択状態のズレを防ぐ）
+    const seenNames = {};
+    const srcExs = (getMenuExercises(importSourceMenuId) || []).filter(e => {
+      if (!e || !e.name || e.stored) return false;
+      if (seenNames[e.name]) return false;
+      seenNames[e.name] = true;
+      return true;
+    });
+    if (!srcExs.length) {
+      list.innerHTML = '<div style="font-size:13px; color:var(--text-4); padding:12px 4px; text-align:center;">種目がありません</div>';
+      updateImportCount();
+      return;
+    }
+    list.innerHTML = srcExs.map(ex => {
+      // 同名だけでなく「既に記録を共有している種目」も取り込み不可にする
+      // （同じ linkId が1メニュー内に2つあると前回記録を奪い合う）
+      const already = destExsAll.some(e => e.name === ex.name || (ex.linkId && e.linkId === ex.linkId));
+      const sel = importSelectedNames.indexOf(ex.name) >= 0;
+      let params = '';
+      if (ex.cardio) params = '有酸素';
+      else if (ex.hiit) params = 'HIIT';
+      else if (ex.core) params = '体幹';
+      else if (ex.other) params = 'その他';
+      else if (ex.weight != null && ex.reps != null) params = Number(ex.weight).toFixed(1) + 'kg × ' + ex.reps + '回 × ' + (ex.sets || 0) + 'セット';
+      const note = already ? '<div class="import-ex-note">このメニューに既にあります</div>' : '';
+      return '<div class="import-ex-item' + (sel ? ' selected' : '') + (already ? ' disabled' : '') + '" data-ex-name="' + escapeAttr(ex.name) + '">'
+        + '<div class="import-ex-check">✓</div>'
+        + '<div class="import-ex-body">'
+        + '<div class="import-ex-name">' + escapeHtml(ex.name) + '</div>'
+        + (params ? '<div class="import-ex-params">' + escapeHtml(params) + '</div>' : '')
+        + note
+        + '</div></div>';
+    }).join('');
+    list.querySelectorAll('.import-ex-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const name = item.dataset.exName;
+        const i = importSelectedNames.indexOf(name);
+        if (i >= 0) importSelectedNames.splice(i, 1); else importSelectedNames.push(name);
+        item.classList.toggle('selected', i < 0);
+        updateImportCount();
+      });
+    });
+    updateImportCount();
+  }
+
+  function updateImportCount() {
+    const el = document.getElementById('importExCount');
+    if (el) el.textContent = importSelectedNames.length + '件選択';
+    const btn = document.getElementById('importExAllBtn');
+    if (btn) {
+      const selectable = [...document.querySelectorAll('.import-ex-item:not(.disabled)')];
+      const allSel = selectable.length > 0 && selectable.every(i => i.classList.contains('selected'));
+      btn.textContent = allSel ? '選択を解除' : 'すべて選択';
+    }
+  }
+
+  function toggleImportSelectAll() {
+    const selectable = [...document.querySelectorAll('.import-ex-item:not(.disabled)')];
+    const allSel = selectable.length > 0 && selectable.every(i => i.classList.contains('selected'));
+    importSelectedNames = [];
+    selectable.forEach(item => {
+      if (allSel) {
+        item.classList.remove('selected');
+      } else {
+        item.classList.add('selected');
+        importSelectedNames.push(item.dataset.exName);
+      }
+    });
+    updateImportCount();
+  }
+
+  function closeImportExerciseModal() {
+    document.getElementById('importExerciseModal').classList.remove('show');
+    importSourceMenuId = null;
+    importSelectedNames = [];
+  }
+
+  function confirmImportExercises() {
+    const destId = currentEditorMenuId;
+    const srcId = importSourceMenuId;
+    const names = importSelectedNames.slice();
+    if (!destId || !srcId || !names.length) {
+      toast('取り込む種目を選んでください');
+      return;
+    }
+    closeImportExerciseModal();
+    pushUndoSnapshot();
+    const srcExs = [...getMenuExercises(srcId)];
+    const destExs = [...getMenuExercises(destId)];
+    let added = 0, srcChanged = false;
+    names.forEach((name, n) => {
+      const si = srcExs.findIndex(e => e && e.name === name && !e.stored);
+      if (si < 0) return;
+      const srcLink = srcExs[si].linkId;
+      // 同名の種目、または既に同じ記録リンクの種目があれば取り込まない。
+      // （同じ linkId が1メニュー内に2つあると link:: の前回記録を奪い合う）
+      if (destExs.some(e => e && (e.name === name || (srcLink && e.linkId === srcLink)))) return;
+      let linkId = srcLink;
+      if (!linkId) {
+        // 元種目にも linkId を付けて双方向で共有させる
+        linkId = 'lnk_' + Date.now() + '_im' + n + '_' + Math.random().toString(36).slice(2, 6);
+        srcExs[si] = { ...srcExs[si], linkId };
+        srcChanged = true;
+      }
+      const copy = JSON.parse(JSON.stringify(srcExs[si]));
+      copy.linkId = linkId;
+      delete copy.stored;       // 取り込み先ではメイン種目として使う
+      delete copy.swappedFrom;  // セッション用の入れ替え情報は持ち越さない
+      destExs.push(copy);
+      added++;
+    });
+    if (srcChanged) setMenuExercises(srcId, srcExs);
+    if (added) setMenuExercises(destId, destExs);
+    // linkIdを新しく付けた場合、既存履歴（linkId無し）を link:: キーへ昇格させることで
+    // 取り込んだ側にもすぐ前回記録が出るようにする
+    try { rebuildLastWeightsFromHistory(loadHistory()); } catch (e) { /* noop */ }
+    renderMenuEditor();
+    if (added) {
+      toast('✓ ' + added + '種目を取り込みました');
+      if (navigator.vibrate) navigator.vibrate(10);
+    } else {
+      toast('同名の種目があるため取り込めませんでした');
+    }
+  }
+
   // 指定メニューの代替種目リストを取得
   function getSwapCandidatesByMenu(menuId) {
     const pool = loadSwapPool();
@@ -17003,6 +17286,10 @@
 
   document.getElementById('menuPickerModal').addEventListener('click', e => {
     if (e.target.id === 'menuPickerModal') closeMenuPicker();
+  });
+
+  document.getElementById('importExerciseModal').addEventListener('click', e => {
+    if (e.target.id === 'importExerciseModal') closeImportExerciseModal();
   });
 
   document.getElementById('confirmDeleteModal').addEventListener('click', e => {
@@ -17807,6 +18094,7 @@
         <button class="menu-editor-action secondary" id="menuEditorUndoBtn" onclick="undoMenuEditorChange()" style="flex-shrink:0; ${undoStack.length === 0 ? 'opacity:0.35; pointer-events:none' : ''}" title="直前の操作を元に戻す">元に戻す</button>
         <button class="menu-editor-action primary" style="flex:1" onclick="openExerciseForm('${menuId}', null)">＋ 種目追加</button>
       </div>
+      <button class="menu-editor-action secondary" id="menuEditorImportBtn" style="width:100%; margin-top:8px" onclick="openImportSourcePicker()">他メニューから取り込む（記録を共有）</button>
     `;
     let mainSeq = 0; // メイン種目の表示番号（保管を除いて01から連番）
     exercises.forEach((ex, i) => {
@@ -19427,6 +19715,12 @@
           if (e && e.linkId === mergedEx.linkId) {
             const copy = JSON.parse(JSON.stringify(mergedEx));
             copy.linkId = e.linkId;
+            // 種目名はメニューごとに独立させる。
+            // 上書きするとそのメニューの履歴の種目名と食い違い、
+            // rebuildLastWeightsFromHistory の link:: キー昇格が外れて
+            // 触っていないメニューの前回記録が消える。
+            // 記録の共有は linkId で成立しているので名前を揃える必要はない
+            if (e.name) copy.name = e.name;
             if (e.stored) copy.stored = true; else delete copy.stored;
             exs[i] = copy;
             changed = true;
