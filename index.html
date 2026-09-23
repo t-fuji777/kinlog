@@ -3733,7 +3733,7 @@
   }
   .add-exercise-btn {
     flex: 1;
-    padding: 14px;
+    padding: 14px 10px;
     background: var(--bg-1);
     border: 1px dashed var(--border-hi);
     border-radius: var(--radius);
@@ -3744,6 +3744,9 @@
     display: flex; align-items: center; justify-content: center; gap: 6px;
     transition: all 0.15s;
   }
+  /* ボタン文言は語の区切りでだけ改行させる（狭い端末で「取り込／む」のように折れない） */
+  .add-exercise-btn .btn-label { text-align: center; line-height: 1.35; }
+  .add-exercise-btn .nb { display: inline-block; }
   .add-exercise-btn:active {
     border-color: var(--accent);
     color: var(--accent);
@@ -7570,7 +7573,8 @@
     <div id="exerciseList"></div>
     <div id="oneoffTimerSlot" class="oneoff-timer-slot" style="display:none"></div>
     <div class="add-exercise-section">
-      <button class="add-exercise-btn" onclick="openManualAddExercise()">＋ 種目追加</button>
+      <button class="add-exercise-btn" onclick="openManualAddExercise()">新規種目追加</button>
+      <button class="add-exercise-btn" id="workoutImportBtn" onclick="openWorkoutImportSourcePicker()"><span class="btn-label"><span class="nb">他メニューから</span><span class="nb">取り込む</span></span></button>
     </div>
     <div style="height: 16px"></div>
     <button id="finishWorkoutBtn" class="btn primary" style="width: 100%;" onclick="finishWorkout()">セッション完了 ✓</button>
@@ -8763,6 +8767,237 @@
   }
   function clearWorkoutDraft() {
     try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* noop */ }
+  }
+
+  // ========== ワークアウトの一時保管（ワークアウト中に設定画面へ移動した時） ==========
+  // 設定画面で編集している間、実施中のワークアウトを保管しておき、
+  // ホームの「前回の記録から開始」で続きから再開できるようにする。
+  // 再開時は、記録を付け始めた種目は保管時のまま、まだ始めていない種目は
+  // 編集後のメニュー設定で作り直す（設定変更を反映しつつ記録は失わない）。
+  const SUSPEND_KEY = 'kinlog_workout_suspended';
+  // 保管から時間が経ちすぎたもの（翌日以降など）は続きから再開させず、
+  // 「その日の記録として保存」か「破棄」を選ばせる（別の日の記録が混ざるのを防ぐ）
+  const SUSPEND_STALE_MS = 6 * 60 * 60 * 1000;
+  // テストモードは localStorage に触れない方針のため、テストモード中の保管はメモリ上だけに置く。
+  // 通常モードの保管とは互いに見えないので、テストの記録が本番に混ざらず、本番の記録も消えない
+  let adminSuspendedSnap = null;
+  function getSuspendRaw() {
+    try {
+      if (isAdminMode) return adminSuspendedSnap ? JSON.stringify(adminSuspendedSnap) : null;
+      return localStorage.getItem(SUSPEND_KEY);
+    } catch (_) { return null; }
+  }
+  function setSuspendRaw(raw) {
+    if (isAdminMode) { adminSuspendedSnap = raw ? JSON.parse(raw) : null; return; }
+    if (raw) localStorage.setItem(SUSPEND_KEY, raw); else localStorage.removeItem(SUSPEND_KEY);
+  }
+  function loadSuspendedWorkout() {
+    try {
+      const raw = getSuspendRaw();
+      if (!raw) return null;
+      const snap = JSON.parse(raw);
+      if (!snap || !snap.workoutSession || !Array.isArray(snap.workoutSession.exercises)) return null;
+      return snap;
+    } catch (_) { return null; }
+  }
+  function clearSuspendedWorkout() {
+    try { setSuspendRaw(null); } catch (_) { /* noop */ }
+  }
+  function isSuspendStale(snap) {
+    return !!(snap && (Date.now() - (snap.savedAt || 0)) > SUSPEND_STALE_MS);
+  }
+  function suspendDateLabel(snap, withMonth) {
+    const d = new Date((snap && (snap.workoutSession.date || snap.savedAt)) || Date.now());
+    return withMonth ? (d.getMonth() + 1) + '月' + d.getDate() + '日' : (d.getMonth() + 1) + '/' + d.getDate();
+  }
+  // 実施中のワークアウトを保管してセッションを閉じる。
+  // 保存できなかった場合は false を返し、呼び出し側で従来の破棄確認に切り替える
+  function suspendWorkout() {
+    try {
+      if (!workoutSession || !Array.isArray(workoutSession.exercises)) return false;
+      let totalMs = elapsedAccumulatedMs || 0;
+      if (elapsedStartMs) totalMs += (Date.now() - elapsedStartMs);
+      const snap = {
+        savedAt: Date.now(),
+        workoutSession: JSON.parse(JSON.stringify(workoutSession)),
+        timerAccumulatedMs: totalMs,
+        timerWasRunning: !!elapsedStartMs
+      };
+      setSuspendRaw(JSON.stringify(snap));
+    } catch (_) { return false; }
+    // 保管できたのでクラッシュ復帰用の下書きは不要（残すと次回起動時に復元確認が出る）
+    clearWorkoutDraft();
+    workoutSession = {};
+    currentWorkout = null;
+    try { editingHistoryDate = null; } catch (e) {}
+    stopElapsedTimer();
+    stopInterval();
+    try { stopNotifyLoop(); } catch (e) {}
+    try { stopAllExerciseTimers(); } catch (e) {}
+    return true;
+  }
+  // 保管中にメニュー編集で種目名を変えた場合、保管分の種目名も追随させる
+  // （追随しないと再開時に旧名の記録済みカードと新名の空カードが二重に並ぶ）
+  function renameInSuspendedWorkout(menuId, oldName, newName) {
+    try {
+      const snap = loadSuspendedWorkout();
+      if (!snap || snap.workoutSession.menuId !== menuId || !oldName || !newName || oldName === newName) return;
+      let changed = false;
+      snap.workoutSession.exercises.forEach(s => {
+        if (!s) return;
+        if (!s.swappedFrom && !s.sessionOnly && (s.originalName || s.name) === oldName) {
+          s.originalName = newName;
+          if (s.name === oldName) s.name = newName;
+          changed = true;
+        }
+        if (s.swappedFrom === oldName) { s.swappedFrom = newName; changed = true; }
+      });
+      if (changed) setSuspendRaw(JSON.stringify(snap));
+    } catch (_) { /* noop */ }
+  }
+  // 保管したセッションの種目と、編集後のメニュー定義を突き合わせて再開用の種目一覧を作る
+  function mergeSuspendedExercises(sessExs, menuId) {
+    const menu = getMenu(menuId);
+    if (!menu || !Array.isArray(menu.exercises)) return sessExs;
+    const defs = menu.exercises.filter(e => e && !e.stored);
+    const used = {};
+    const out = [];
+    const outDefIdx = [];
+    const hasProg = s => !!((Array.isArray(s.setRecords) && s.setRecords.length > 0) || s.exStarted || s.judge);
+    const tw = d => (d.targetWeight !== undefined ? d.targetWeight : d.weight);
+    const tr = d => (d.targetReps !== undefined ? d.targetReps : d.reps);
+    const ts = d => (d.targetSets !== undefined ? d.targetSets : d.sets);
+    const findDef = (s) => {
+      if (s.swappedFrom) return -1; // 代替で差し込んだ種目はメニュー定義と照合しない
+      const free = (k) => !used[k];
+      const nm = s.originalName || s.name;
+      let i = -1;
+      if (s.linkId) i = defs.findIndex((d, k) => free(k) && d.linkId && d.linkId === s.linkId);
+      // 同名が複数ある場合は目標値まで一致するものを優先する
+      if (i < 0) i = defs.findIndex((d, k) => free(k) && d.name === nm && tw(d) === s.targetWeight && tr(d) === s.targetReps && ts(d) === s.targetSets);
+      if (i < 0) i = defs.findIndex((d, k) => free(k) && d.name === nm);
+      if (i < 0 && s.originalName && s.originalName !== s.name) i = defs.findIndex((d, k) => free(k) && d.name === s.name);
+      return i;
+    };
+    (sessExs || []).forEach(s => {
+      if (!s) return;
+      const di = findDef(s);
+      if (di >= 0) used[di] = true;
+      // 今回だけ追加した種目が、保管中にメニューにも追加された場合はメニューの種目として扱う
+      if (s.sessionOnly && di >= 0) delete s.sessionOnly;
+      if (s.swappedFrom || s.sessionOnly || hasProg(s)) {
+        // 記録を付け始めた種目・代替種目・今回だけの種目は保管時のまま（記録を失わない）
+        out.push(s); outDefIdx.push(di);
+      } else if (di >= 0) {
+        // まだ始めていない種目は編集後の設定で作り直す
+        out.push(buildSessionExerciseFromDef(defs[di])); outDefIdx.push(di);
+      }
+      // 未着手のままメニューから削除された種目は外す
+    });
+    // 編集で追加された種目：メニュー上で直前にある種目の後ろへ差し込む
+    defs.forEach((d, k) => {
+      if (used[k]) return;
+      let pos = 0;
+      for (let j = k - 1; j >= 0; j--) {
+        const at = outDefIdx.lastIndexOf(j);
+        if (at >= 0) {
+          pos = at + 1;
+          // 元種目の直下に入っている代替種目は飛ばす（元と代替の並びを崩さない）
+          while (pos < out.length && out[pos] && out[pos].swappedFrom) pos++;
+          break;
+        }
+      }
+      out.splice(pos, 0, buildSessionExerciseFromDef(d));
+      outDefIdx.splice(pos, 0, k);
+    });
+    // 未着手の種目は編集後のメニューの並び順に揃える
+    // （記録のある種目・代替・今回だけの種目の位置は動かさない）
+    const slots = [];
+    out.forEach((s, i) => { if (s && !s.swappedFrom && !s.sessionOnly && !hasProg(s) && outDefIdx[i] >= 0) slots.push(i); });
+    const sorted = slots.map(i => ({ ex: out[i], k: outDefIdx[i] })).sort((a, b) => a.k - b.k);
+    slots.forEach((slot, n) => { out[slot] = sorted[n].ex; outDefIdx[slot] = sorted[n].k; });
+    return out;
+  }
+  // 保管分をその日の記録として保存して終了する（時間が経ちすぎた保管分用）
+  function saveSuspendedAsHistory(snap) {
+    const sess = snap.workoutSession;
+    editingHistoryDate = null;
+    try { stopAllExerciseTimers(); } catch (e) {}
+    try { stopNotifyLoop(); } catch (e) {}
+    currentWorkout = (sess.menuId && !sess.oneOff) ? (getMenu(sess.menuId) || null) : null;
+    workoutSession = sess;
+    clearSuspendedWorkout();
+    stopElapsedTimer();
+    stopInterval();
+    elapsedAccumulatedMs = (typeof snap.timerAccumulatedMs === 'number' && snap.timerAccumulatedMs > 0) ? snap.timerAccumulatedMs : 0;
+    elapsedStartMs = null;
+    finishWorkout();
+  }
+  // ホームの「前回の記録から開始」から呼ばれる
+  function resumeSuspendedWorkout() {
+    const snap = loadSuspendedWorkout();
+    if (!snap) {
+      toast('保管中のワークアウトが見つかりません');
+      try { renderRecommend(); } catch (e) {}
+      return;
+    }
+    if (isSuspendStale(snap)) {
+      const label = suspendDateLabel(snap, true);
+      if (confirm(label + 'に一時保管したワークアウトがあります。\n\nOK：' + label + 'の記録として保存する\nキャンセル：保存しない')) {
+        saveSuspendedAsHistory(snap);
+        return;
+      }
+      if (confirm('一時保管した記録を破棄します。よろしいですか？')) {
+        clearSuspendedWorkout();
+        try { renderRecommend(); } catch (e) {}
+        toast('一時保管した記録を破棄しました');
+      }
+      return;
+    }
+    editingHistoryDate = null;
+    try { stopAllExerciseTimers(); } catch (e) {}
+    try { stopNotifyLoop(); } catch (e) {}
+    declinedDefaultWeights = {};
+    try { if (!isAdminMode) rebuildLastWeightsFromHistory(loadHistory()); } catch (e) {}
+    const sess = snap.workoutSession;
+    const menu = (sess.menuId && !sess.oneOff) ? getMenu(sess.menuId) : null;
+    if (menu) {
+      try { sess.exercises = mergeSuspendedExercises(sess.exercises, sess.menuId); } catch (e) { /* 失敗時は保管時のまま再開 */ }
+    }
+    currentWorkout = menu || null;
+    workoutSession = sess;
+    clearSuspendedWorkout();
+    stopElapsedTimer();
+    stopInterval();
+    elapsedAccumulatedMs = (typeof snap.timerAccumulatedMs === 'number' && snap.timerAccumulatedMs > 0) ? snap.timerAccumulatedMs : 0;
+    elapsedStartMs = null;
+    renderExerciseList();
+    showScreen('workout');
+    applyWorkoutChrome();
+    applyTimerDisplay();
+    if (snap.timerWasRunning && elapsedAccumulatedMs > 0) {
+      setTimeout(() => { try { startElapsedTimer(); } catch (_) {} }, 100);
+    } else if (elapsedAccumulatedMs > 0) {
+      try {
+        const elTimer = document.getElementById('elapsedTimer');
+        if (elTimer) elTimer.innerHTML = formatElapsedHtml(elapsedAccumulatedMs);
+      } catch (_) {}
+    }
+    // クラッシュ復帰用の下書き保存を再開
+    try { saveWorkoutDraft(); } catch (_) {}
+    toast('一時保管したワークアウトを再開しました');
+  }
+  // 保管中のワークアウトがあれば、ホームのボタンを「前回の記録から開始」にする
+  function getSuspendResumeButton(displayMenuId) {
+    const snap = loadSuspendedWorkout();
+    if (!snap) return '';
+    const sm = snap.workoutSession.menuId;
+    const other = (sm && sm !== displayMenuId) ? getMenu(sm) : null;
+    const parts = [];
+    if (other) parts.push(escapeHtml(other.name));
+    if (isSuspendStale(snap)) parts.push(suspendDateLabel(snap, false));
+    const suffix = parts.length ? '（' + parts.join('・') + '）' : '';
+    return '<button class="today-start" onclick="resumeSuspendedWorkout()">前回の記録から開始' + suffix + '</button>';
   }
 
   // ========== WELCOME (表紙) ==========
@@ -10415,7 +10650,7 @@
               <div class="today-meta-value">-</div>
             </div>
           </div>
-          <button class="today-start disabled" disabled>ゆっくり休みましょう</button>
+          ${getSuspendResumeButton(null) || '<button class="today-start disabled" disabled>ゆっくり休みましょう</button>'}
           <div class="week-strip" id="weekStrip"></div>
         </div>
       `;
@@ -10477,7 +10712,7 @@
                 <div class="today-meta-value">-</div>
               </div>
             </div>
-            <button class="today-start disabled" disabled>ゆっくり休みましょう</button>
+            ${getSuspendResumeButton(null) || '<button class="today-start disabled" disabled>ゆっくり休みましょう</button>'}
             <div class="week-strip" id="weekStrip"></div>
           </div>
         `;
@@ -10586,9 +10821,9 @@
             ${diffs.sets}
           </div>
         </div>
-        ${rec.type === 'completed'
+        ${getSuspendResumeButton(displayMenuId) || (rec.type === 'completed'
           ? '<button class="today-start disabled done" disabled>実施済</button>'
-          : `<button class="today-start" onclick="startWorkout('${displayMenuId}')">トレーニング開始</button>`}
+          : `<button class="today-start" onclick="startWorkout('${displayMenuId}')">トレーニング開始</button>`)}
         <div class="week-strip" id="weekStrip"></div>
       </div>
     `;
@@ -11642,11 +11877,18 @@
         // セッション完了されていない状態で進捗（記録/開始済種目）があれば破棄確認モーダルを表示
         const hasProgress = (typeof hasWorkoutProgress === 'function') && hasWorkoutProgress();
         if (hasProgress) {
-          // 移動先を保存しておき、モーダルでOK押下時に showScreen を再実行
-          pendingLeaveWorkoutTarget = name;
-          const modal = document.getElementById('leaveWorkoutModal');
-          if (modal) modal.classList.add('show');
-          return; // 一旦遷移を中止（モーダル待ち）
+          // 設定画面へ移動する時は記録を一時保管してそのまま移動する
+          // （ホームの「前回の記録から開始」で再開）。履歴の編集中は対象外
+          const canSuspend = (name === 'settings') && !editingHistoryDate;
+          if (canSuspend && suspendWorkout()) {
+            toast('ワークアウトを一時保管しました');
+          } else {
+            // 移動先を保存しておき、モーダルでOK押下時に showScreen を再実行
+            pendingLeaveWorkoutTarget = name;
+            const modal = document.getElementById('leaveWorkoutModal');
+            if (modal) modal.classList.add('show');
+            return; // 一旦遷移を中止（モーダル待ち）
+          }
         }
         // 進捗なしで離脱：履歴編集モードも破棄（残すと次回完了時に既存履歴を上書きする）
         try { editingHistoryDate = null; } catch (e) {}
@@ -11992,6 +12234,8 @@
   }
   function exitAdminMode() {
     isAdminMode = false;
+    // テストモード中の一時保管（メモリ上のテスト記録）は持ち越さない
+    adminSuspendedSnap = null;
     adminMockLastWeights = null;
     adminMockHistory = null;
     adminSelectedDow = null;
@@ -12876,6 +13120,61 @@
   }
 
   // ========== WORKOUT ==========
+  // メニュー定義の種目からワークアウト用の種目データを作る
+  // （ワークアウト開始時と、一時保管からの再開時の両方で使う）
+  function buildSessionExerciseFromDef(e) {
+    return {
+      name: e.name,
+      originalName: e.name, // 代替元の追跡用
+      originalIndex: null,  // 代替された場合に、元の種目のインデックス（使わないが将来用）
+      swappedFrom: null,    // 代替表示用（元の種目名、代替時のみセット）
+      position: e.position || null,
+      positions: Array.isArray(e.positions) ? [...e.positions] : (e.position ? [e.position] : null),
+      positionList: Array.isArray(e.positionList) ? e.positionList.map(p => ({ ...p })) : null,
+      positionMemo: e.positionMemo || null,
+      cardio: e.cardio || false,
+      hiit: e.hiit || false,
+      protocol: e.protocol ? { ...e.protocol } : null,
+      cardioMachine: e.cardioMachine || false,
+      machineType: e.machineType || null,
+      machineProtocol: e.machineProtocol ? { ...e.machineProtocol } : null,
+      core: e.core || false,
+      coreSec: e.coreSec || null,
+      coreCurrentSet: 1,
+      coreCurrentSide: e.bilateral ? 'R' : null,
+      other: e.other || false,
+      otherSec: e.otherSec || null,
+      bilateral: e.bilateral || false,
+      startSide: e.startSide || 'R',
+      machineKind: e.machineKind || 'plate',
+      currentSide: e.bilateral ? (e.startSide || 'R') : null,
+      // bilateral種目はMAXセットも内部×2で扱う（既存データの後方互換のため、奇数なら×2正規化）
+      maxTraining: e.maxTraining ? (() => {
+        const mt = { ...e.maxTraining };
+        if (e.bilateral && mt.enabled && mt.sets && mt.sets % 2 !== 0) {
+          mt.sets = mt.sets * 2;
+        }
+        return mt;
+      })() : null,
+      url: e.url || null,
+      // 記録リンク（複製メニュー間の前回記録共有）: メニュー定義のlinkIdをセッション種目へ引き継ぐ。
+      // これが無いと getLastWeightKey の link:: 分岐が保存/表示/再構築の全経路で成立しなかった
+      linkId: e.linkId || null,
+      targetWeight: (e.targetWeight !== undefined ? e.targetWeight : e.weight),
+      targetReps: (e.targetReps !== undefined ? e.targetReps : e.reps),
+      targetSets: (e.targetSets !== undefined ? e.targetSets : e.sets),
+      currentSets: (e.targetSets !== undefined ? e.targetSets : e.sets),
+      // 最初のセットがマックスセットなら初期値をマックス値に
+      currentWeight: (e.maxTraining && e.maxTraining.enabled && e.maxTraining.position === 'before')
+        ? e.maxTraining.weight
+        : (e.targetWeight !== undefined ? e.targetWeight : e.weight),
+      currentReps: (e.maxTraining && e.maxTraining.enabled && e.maxTraining.position === 'before')
+        ? e.maxTraining.reps
+        : (e.targetReps !== undefined ? e.targetReps : e.reps),
+      setRecords: [], judge: null, keepReps: null
+    };
+  }
+
   function startWorkout(menuId) {
     // 直前の履歴編集が中断されたまま残っていたら破棄（残すと完了時に既存履歴を上書きしてしまう）
     editingHistoryDate = null;
@@ -12895,56 +13194,7 @@
     currentWorkout = getMenu(menuId);
     workoutSession = {
       menuId, date: new Date().toISOString(),
-      exercises: currentWorkout.exercises.filter(e => !e || !e.stored).map(e => ({
-        name: e.name,
-        originalName: e.name, // 代替元の追跡用
-        originalIndex: null,  // 代替された場合に、元の種目のインデックス（使わないが将来用）
-        swappedFrom: null,    // 代替表示用（元の種目名、代替時のみセット）
-        position: e.position || null,
-        positions: Array.isArray(e.positions) ? [...e.positions] : (e.position ? [e.position] : null),
-        positionList: Array.isArray(e.positionList) ? e.positionList.map(p => ({ ...p })) : null,
-        positionMemo: e.positionMemo || null,
-        cardio: e.cardio || false,
-        hiit: e.hiit || false,
-        protocol: e.protocol ? { ...e.protocol } : null,
-        cardioMachine: e.cardioMachine || false,
-        machineType: e.machineType || null,
-        machineProtocol: e.machineProtocol ? { ...e.machineProtocol } : null,
-        core: e.core || false,
-        coreSec: e.coreSec || null,
-        coreCurrentSet: 1,
-        coreCurrentSide: e.bilateral ? 'R' : null,
-        other: e.other || false,
-        otherSec: e.otherSec || null,
-        bilateral: e.bilateral || false,
-        startSide: e.startSide || 'R',
-        machineKind: e.machineKind || 'plate',
-        currentSide: e.bilateral ? (e.startSide || 'R') : null,
-        // bilateral種目はMAXセットも内部×2で扱う（既存データの後方互換のため、奇数なら×2正規化）
-        maxTraining: e.maxTraining ? (() => {
-          const mt = { ...e.maxTraining };
-          if (e.bilateral && mt.enabled && mt.sets && mt.sets % 2 !== 0) {
-            mt.sets = mt.sets * 2;
-          }
-          return mt;
-        })() : null,
-        url: e.url || null,
-        // 記録リンク（複製メニュー間の前回記録共有）: メニュー定義のlinkIdをセッション種目へ引き継ぐ。
-        // これが無いと getLastWeightKey の link:: 分岐が保存/表示/再構築の全経路で成立しなかった
-        linkId: e.linkId || null,
-        targetWeight: (e.targetWeight !== undefined ? e.targetWeight : e.weight),
-        targetReps: (e.targetReps !== undefined ? e.targetReps : e.reps),
-        targetSets: (e.targetSets !== undefined ? e.targetSets : e.sets),
-        currentSets: (e.targetSets !== undefined ? e.targetSets : e.sets),
-        // 最初のセットがマックスセットなら初期値をマックス値に
-        currentWeight: (e.maxTraining && e.maxTraining.enabled && e.maxTraining.position === 'before')
-          ? e.maxTraining.weight
-          : (e.targetWeight !== undefined ? e.targetWeight : e.weight),
-        currentReps: (e.maxTraining && e.maxTraining.enabled && e.maxTraining.position === 'before')
-          ? e.maxTraining.reps
-          : (e.targetReps !== undefined ? e.targetReps : e.reps),
-        setRecords: [], judge: null, keepReps: null
-      }))
+      exercises: currentWorkout.exercises.filter(e => !e || !e.stored).map(e => buildSessionExerciseFromDef(e))
     };
     stopElapsedTimer();
     stopInterval();
@@ -16861,11 +17111,14 @@
   // 前回記録と設定値がどちらのメニューからでも共有される。
   let importSourceMenuId = null;
   let importSelectedNames = [];
+  // 取り込み先: 'menu'（メニュー編集中のメニュー）/ 'session'（実施中のワークアウト）
+  let importTarget = 'menu';
 
   // 手順(1) 取り込み元のメニューを選ぶ
   function openImportSourcePicker() {
     const destId = currentEditorMenuId;
     if (!destId) return;
+    importTarget = 'menu';
     menuPickerDow = null;
     pendingOrphanGroupId = null;
     // スケジュール専用の「割当なし」はここでは使わないので隠す
@@ -16903,13 +17156,19 @@
 
   // 手順(2) 取り込む種目を選ぶ
   function openImportExercisePicker(srcMenuId) {
-    const destId = currentEditorMenuId;
+    const destId = (importTarget === 'session') ? 'session' : currentEditorMenuId;
     if (!destId || !srcMenuId) return;
     importSourceMenuId = srcMenuId;
     importSelectedNames = [];
     const srcMenu = getMenu(srcMenuId);
     const title = document.getElementById('importExerciseTitle');
     if (title) title.textContent = '「' + (srcMenu ? (srcMenu.fullName || srcMenu.name) : '') + '」から取り込む';
+    const desc = document.querySelector('#importExerciseModal .import-ex-desc');
+    if (desc) {
+      desc.innerHTML = (importTarget === 'session')
+        ? '選んだ種目を<b>今回のワークアウトに追加</b>します（メニューは変わりません）。前回記録は取り込み元と共有されます。'
+        : '選んだ種目は取り込み元と<b>前回記録・設定値が共有</b>されます。どちらのメニューで実施しても記録は引き継がれます。';
+    }
     renderImportExerciseList();
     document.getElementById('importExerciseModal').classList.add('show');
   }
@@ -16918,7 +17177,9 @@
     const list = document.getElementById('importExerciseList');
     if (!list) return;
     const destId = currentEditorMenuId;
-    const destExsAll = (getMenuExercises(destId) || []).filter(e => e && e.name);
+    const destExsAll = ((importTarget === 'session')
+      ? ((workoutSession && workoutSession.exercises) || [])
+      : (getMenuExercises(destId) || [])).filter(e => e && e.name);
     // 保管中の種目は取り込み対象にしない（メニュー本体に出ていないため）。
     // 同名が並ぶ場合は先頭だけを出す（行と種目名を1対1にして選択状態のズレを防ぐ）
     const seenNames = {};
@@ -16998,6 +17259,7 @@
   }
 
   function confirmImportExercises() {
+    if (importTarget === 'session') { confirmImportToSession(); return; }
     const destId = currentEditorMenuId;
     const srcId = importSourceMenuId;
     const names = importSelectedNames.slice();
@@ -17042,6 +17304,88 @@
       if (navigator.vibrate) navigator.vibrate(10);
     } else {
       toast('同名の種目があるため取り込めませんでした');
+    }
+  }
+
+  // ワークアウト画面の「他メニューから取り込む」：取り込み元メニューを選ぶ
+  // 新規種目追加と同じく今回のワークアウトにだけ追加する（メニュー本体は変えない）。
+  // 取り込み元の種目と記録リンクで繋ぐので、前回記録の表示と今回の記録は取り込み元と共有される
+  function openWorkoutImportSourcePicker() {
+    if (!workoutSession || !Array.isArray(workoutSession.exercises)) return;
+    importTarget = 'session';
+    menuPickerDow = null;
+    pendingOrphanGroupId = null;
+    const clearBtn = document.getElementById('menuPickerClearBtn');
+    if (clearBtn) clearBtn.style.display = 'none';
+    document.getElementById('menuPickerTitle').textContent = '取り込み元のメニューを選択';
+    const list = document.getElementById('menuPickerList');
+    list.innerHTML = '';
+    let count = 0;
+    getOrderedMenuIds().forEach(menuId => {
+      if (menuId === workoutSession.menuId) return; // 実施中のメニュー自身は除く
+      const menu = getMenu(menuId);
+      if (!menu) return;
+      const exs = (getMenuExercises(menuId) || []).filter(e => e && e.name && !e.stored);
+      if (!exs.length) return;
+      count++;
+      const el = document.createElement('div');
+      el.className = 'menu-picker-item';
+      const span = document.createElement('span');
+      span.className = 'menu-picker-name';
+      span.textContent = (menu.fullName || menu.name) + '（' + exs.length + '種目）';
+      el.appendChild(span);
+      el.onclick = () => { closeMenuPicker(); openImportExercisePicker(menuId); };
+      list.appendChild(el);
+    });
+    if (count === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:13px; color:var(--text-4); padding:12px 4px; text-align:center;';
+      empty.textContent = '取り込めるメニューがありません';
+      list.appendChild(empty);
+    }
+    document.getElementById('menuPickerModal').classList.add('show');
+  }
+
+  // 選んだ種目を今回のワークアウトの末尾に追加する
+  function confirmImportToSession() {
+    const srcId = importSourceMenuId;
+    const names = importSelectedNames.slice();
+    if (!srcId || !names.length || !workoutSession || !Array.isArray(workoutSession.exercises)) {
+      toast('取り込む種目を選んでください');
+      return;
+    }
+    closeImportExerciseModal();
+    const srcExs = [...getMenuExercises(srcId)];
+    let added = 0, srcChanged = false;
+    names.forEach((name, n) => {
+      const si = srcExs.findIndex(e => e && e.name === name && !e.stored);
+      if (si < 0) return;
+      const srcLink = srcExs[si].linkId;
+      // 同名、または同じ記録リンクの種目が既にワークアウトにあれば追加しない
+      if (workoutSession.exercises.some(e => e && (e.name === name || (srcLink && e.linkId === srcLink)))) return;
+      let linkId = srcLink;
+      if (!linkId) {
+        // 取り込み元の種目に記録リンクを付けて、前回記録を共有できるようにする
+        linkId = 'lnk_' + Date.now() + '_ws' + n + '_' + Math.random().toString(36).slice(2, 6);
+        srcExs[si] = { ...srcExs[si], linkId };
+        srcChanged = true;
+      }
+      const sx = buildSessionExerciseFromDef({ ...srcExs[si], linkId });
+      // メニュー本体に無い「今回だけ」の種目の印（一時保管からの再開で消さない・デフォルト変更をメニューに書かない）
+      sx.sessionOnly = true;
+      workoutSession.exercises.push(sx);
+      added++;
+    });
+    if (srcChanged) setMenuExercises(srcId, srcExs);
+    // 新しく付けた記録リンクへ既存履歴を載せ替え、取り込んだ種目にすぐ前回記録が出るようにする
+    try { if (!isAdminMode) rebuildLastWeightsFromHistory(loadHistory()); } catch (e) { /* noop */ }
+    renderExerciseList();
+    try { saveWorkoutDraft(); } catch (e) { /* noop */ }
+    if (added) {
+      toast('✓ ' + added + '種目を追加しました');
+      if (navigator.vibrate) navigator.vibrate(10);
+    } else {
+      toast('既にワークアウトにあるため追加できませんでした');
     }
   }
 
@@ -17871,7 +18215,9 @@
     // 保管コピー等）ため、全メニューの種目定義と代替プール全体をスナップショットする
     const snapshot = {
       allMenus: JSON.parse(JSON.stringify(loadCustomMenus())),
-      allSwap: JSON.parse(JSON.stringify(loadSwapPool()))
+      allSwap: JSON.parse(JSON.stringify(loadSwapPool())),
+      // 種目名の変更で追随させた一時保管分も、元に戻す時に一緒に戻す
+      suspendRaw: getSuspendRaw()
     };
     undoStack.push(snapshot);
     if (undoStack.length > UNDO_MAX) undoStack.shift();
@@ -17891,6 +18237,9 @@
       // （リンク先メニューへの伝播や複製元への自動追加も一緒に取り消される）
       saveCustomMenus(snap.allMenus);
       saveSwapPool(snap.allSwap || {});
+      if (Object.prototype.hasOwnProperty.call(snap, 'suspendRaw')) {
+        try { setSuspendRaw(snap.suspendRaw); } catch (e) { /* noop */ }
+      }
     }
     renderMenuEditor();
     toast('✓ 元に戻しました');
@@ -19592,6 +19941,7 @@
       pushUndoSnapshot();
       const exercises = [...getMenuExercises(menuId)];
       const isNewAdd = (exIdx === null || exIdx === undefined);
+      const prevExName = (!isNewAdd && exercises[exIdx]) ? exercises[exIdx].name : null;
       if (!isNewAdd) {
         // 編集時：既存種目の種別を上書き（種別変更も反映）
         exercises[exIdx] = { ...exercises[exIdx], ...exerciseData };
@@ -19599,6 +19949,8 @@
         exercises.push(exerciseData);
       }
       setMenuExercises(menuId, exercises);
+      // 一時保管中のワークアウトがあれば種目名の変更を追随させる
+      if (prevExName && prevExName !== exerciseData.name) renameInSuspendedWorkout(menuId, prevExName, exerciseData.name);
       // 記録リンク先（複製メニュー等）の同種目にも設定変更を反映
       if (!isNewAdd) propagateLinkedExercise(menuId, exercises[exIdx]);
 
@@ -19759,7 +20111,9 @@
       currentWeight: exerciseData.weight,
       currentReps: exerciseData.reps,
       currentSets: exerciseData.sets,
-      setRecords: [], judge: null, keepReps: null
+      setRecords: [], judge: null, keepReps: null,
+      // メニュー本体に無い「今回だけ」の種目の印
+      sessionOnly: true
     };
     workoutSession.exercises.push(newEx);
     renderExerciseList();
@@ -20213,6 +20567,10 @@
         }
         return;
       }
+      // 今回だけ追加した種目は実施中メニューに存在しない。ここで書くと
+      // 「undefined回 × undefinedセット」の幽霊種目がメニューに作られるので書かない
+      // （他メニューから取り込んだ種目は、下の記録リンク伝播で取り込み元へ反映される）
+      if (ex && ex.sessionOnly) return;
       const custom = loadCustomMenus();
       const userMenus = loadUserMenus();
 
@@ -20220,23 +20578,25 @@
       if (custom[menuId] && Array.isArray(custom[menuId]) && custom[menuId].length > 0) {
         let entry = custom[menuId][exIdx];
         if (!entry || (entry.name !== exerciseName && entry.name !== ex.originalName)) {
-          entry = custom[menuId].find(e => e.name === exerciseName)
-               || custom[menuId].find(e => e.name === ex.originalName);
+          entry = custom[menuId].find(e => e && e.name === exerciseName)
+               || custom[menuId].find(e => e && e.name === ex.originalName)
+               || (ex.linkId ? custom[menuId].find(e => e && !e.stored && e.linkId === ex.linkId) : null);
         }
-        if (!entry) {
-          entry = { name: exerciseName };
-          custom[menuId].push(entry);
+        // 見つからない（設定で削除・改名された等）場合は書かない。
+        // 名前だけの種目を追加すると「undefined回 × undefinedセット」の壊れた種目がメニューに戻ってしまう
+        if (entry) {
+          mutator(entry);
+          saveCustomMenus(custom);
         }
-        mutator(entry);
-        saveCustomMenus(custom);
       }
       // ユーザー定義メニューの場合：wo_user_menus を更新
       else if (userMenus[menuId]) {
         const exercises = userMenus[menuId].exercises || [];
         let targetEx = exercises[exIdx];
         if (!targetEx || (targetEx.name !== exerciseName && targetEx.name !== ex.originalName)) {
-          targetEx = exercises.find(e => e.name === exerciseName)
-                  || exercises.find(e => e.name === ex.originalName);
+          targetEx = exercises.find(e => e && e.name === exerciseName)
+                  || exercises.find(e => e && e.name === ex.originalName)
+                  || (ex.linkId ? exercises.find(e => e && !e.stored && e.linkId === ex.linkId) : null);
         }
         if (targetEx) {
           mutator(targetEx);
@@ -20249,15 +20609,14 @@
         custom[menuId] = JSON.parse(JSON.stringify(currentExercises));
         let entry = custom[menuId][exIdx];
         if (!entry || (entry.name !== exerciseName && entry.name !== ex.originalName)) {
-          entry = custom[menuId].find(e => e.name === exerciseName)
-               || custom[menuId].find(e => e.name === ex.originalName);
+          entry = custom[menuId].find(e => e && e.name === exerciseName)
+               || custom[menuId].find(e => e && e.name === ex.originalName)
+               || (ex.linkId ? custom[menuId].find(e => e && !e.stored && e.linkId === ex.linkId) : null);
         }
-        if (!entry) {
-          entry = { name: exerciseName };
-          custom[menuId].push(entry);
+        if (entry) {
+          mutator(entry);
+          saveCustomMenus(custom);
         }
-        mutator(entry);
-        saveCustomMenus(custom);
       }
 
       // currentWorkout側も同期（同セッション中の判定に使う）
