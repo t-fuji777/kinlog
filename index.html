@@ -16419,13 +16419,24 @@
       });
     }
 
-    // 2. すべてのメニュー定義に反映（同名種目すべて）
+    // 2. すべてのメニュー定義に反映（同名種目＋記録リンクで共有している種目）
+    // リンク種目はメニューごとに名前が違うことがあるため linkId でも照合する
+    const sessEx = (typeof workoutSession !== 'undefined' && workoutSession && Array.isArray(workoutSession.exercises))
+      ? workoutSession.exercises.find(e => e && e.name === ctx.name) : null;
+    let urlLinkId = sessEx && sessEx.linkId;
+    if (!urlLinkId) {
+      getAllMenuIds().some(mid => {
+        const hit = (getMenuExercises(mid) || []).find(e => e && e.name === ctx.name && e.linkId);
+        if (hit) { urlLinkId = hit.linkId; return true; }
+        return false;
+      });
+    }
     const allIds = getAllMenuIds();
     allIds.forEach(mid => {
       const exs = [...getMenuExercises(mid)];
       let changed = false;
       exs.forEach(e => {
-        if (e.name === ctx.name) {
+        if (e && (e.name === ctx.name || (urlLinkId && e.linkId === urlLinkId))) {
           e.url = url || undefined;
           changed = true;
         }
@@ -20255,6 +20266,35 @@
       }
     };
 
+    // 記録リンク（他メニューからの取り込み・複製）で共有している他メニューの同一種目にも
+    // 同じ変更を反映する。変更した項目だけを書き換え、他の設定は触らない。
+    // 代替種目はメニュー本体に書かないため対象外
+    const propagateToLinked = (mutator) => {
+      if (ex && ex.swappedFrom) return;
+      let linkId = ex && ex.linkId;
+      if (!linkId) {
+        const def = (getMenuExercises(menuId) || []).find(e => e && (e.name === exerciseName || e.name === ex.originalName));
+        linkId = def && def.linkId;
+      }
+      if (!linkId) return;
+      try {
+        getAllMenuIds().forEach(mid => {
+          if (mid === menuId) return;
+          const exs = [...getMenuExercises(mid)];
+          let changed = false;
+          exs.forEach((e, i) => {
+            if (e && e.linkId === linkId) {
+              const copy = JSON.parse(JSON.stringify(e));
+              mutator(copy);
+              exs[i] = copy;
+              changed = true;
+            }
+          });
+          if (changed) setMenuExercises(mid, exs);
+        });
+      } catch (e) { /* noop */ }
+    };
+
     if (type === 'weight') {
       const newWeight = changes[0].value;
       // 目標値を変更する前に、既存セット記録に「当時の目標値」をスタンプしておく
@@ -20268,6 +20308,7 @@
         });
       }
       updateMenuExercise(targetEx => { targetEx.weight = newWeight; });
+      propagateToLinked(t => { t.weight = newWeight; });
       ex.targetWeight = newWeight; // セッション内も更新
     } else if (type === 'maxWeight') {
       const newWeight = changes[0].value;
@@ -20275,6 +20316,8 @@
         if (!targetEx.maxTraining) targetEx.maxTraining = { enabled: true };
         targetEx.maxTraining.weight = newWeight;
       });
+      // リンク先はMAX設定を持っている場合のみ更新（勝手にMAXを有効化しない）
+      propagateToLinked(t => { if (t.maxTraining) t.maxTraining.weight = newWeight; });
       // セッション内のmaxTrainingも更新
       if (ex.maxTraining) ex.maxTraining.weight = newWeight;
     } else if (type === 'cardioMachine') {
@@ -20282,6 +20325,10 @@
       updateMenuExercise(targetEx => {
         if (!targetEx.machineProtocol) targetEx.machineProtocol = {};
         targetEx.machineProtocol[c.field] = c.value;
+      });
+      propagateToLinked(t => {
+        if (!t.machineProtocol) t.machineProtocol = {};
+        t.machineProtocol[c.field] = c.value;
       });
       // currentWorkout側も更新（同セッション中の判定に使う）
       if (currentWorkout && Array.isArray(currentWorkout.exercises)) {
@@ -20293,6 +20340,10 @@
       updateMenuExercise(targetEx => {
         if (!targetEx.protocol) targetEx.protocol = {};
         targetEx.protocol[c.field] = c.value;
+      });
+      propagateToLinked(t => {
+        if (!t.protocol) t.protocol = {};
+        t.protocol[c.field] = c.value;
       });
       if (currentWorkout && Array.isArray(currentWorkout.exercises)) {
         const baseEx = currentWorkout.exercises.find(e => e.name === exerciseName);
