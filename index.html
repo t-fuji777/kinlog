@@ -8975,12 +8975,20 @@
     showScreen('workout');
     applyWorkoutChrome();
     applyTimerDisplay();
-    if (snap.timerWasRunning && elapsedAccumulatedMs > 0) {
-      setTimeout(() => { try { startElapsedTimer(); } catch (_) {} }, 100);
-    } else if (elapsedAccumulatedMs > 0) {
+    // 左上のタイマーは自動で動かさず一時停止のまま再開する（保管時に動いていても同じ）。
+    // 表示は一時停止中と同じ（経過時間を赤で表示・STARTボタン）。種目を開始すれば従来どおり動き出す
+    if (elapsedAccumulatedMs > 0) {
       try {
         const elTimer = document.getElementById('elapsedTimer');
-        if (elTimer) elTimer.innerHTML = formatElapsedHtml(elapsedAccumulatedMs);
+        if (elTimer) {
+          elTimer.innerHTML = formatElapsedHtml(elapsedAccumulatedMs);
+          elTimer.classList.remove('active');
+          elTimer.classList.add('paused');
+        }
+        const ctrlBtn = document.getElementById('elapsedCtrlBtn');
+        if (ctrlBtn) { ctrlBtn.textContent = 'START'; ctrlBtn.classList.remove('running'); }
+        const resetBtn = document.querySelector('.elapsed-box .timer-reset-btn');
+        if (resetBtn) resetBtn.disabled = false;
       } catch (_) {}
     }
     // クラッシュ復帰用の下書き保存を再開
@@ -10628,7 +10636,7 @@
               <div class="today-meta-value">-</div>
             </div>
             <div class="today-meta-item">
-              <div class="today-meta-label">総時間</div>
+              <div class="today-meta-label">総合計時間</div>
               <div class="today-meta-value">-</div>
             </div>
             <div class="today-meta-item">
@@ -10690,7 +10698,7 @@
                 <div class="today-meta-value">-</div>
               </div>
               <div class="today-meta-item">
-                <div class="today-meta-label">総時間</div>
+                <div class="today-meta-label">総合計時間</div>
                 <div class="today-meta-value">-</div>
               </div>
               <div class="today-meta-item">
@@ -10796,7 +10804,7 @@
             <div class="today-meta-value">${exDisp}</div>
           </div>
           <div class="today-meta-item">
-            <div class="today-meta-label">総時間</div>
+            <div class="today-meta-label">総合計時間</div>
             <div class="today-meta-value">${totalDisp}</div>
           </div>
           <div class="today-meta-item">
@@ -10893,7 +10901,7 @@
                 <div class="today-meta-value">-</div>
               </div>
               <div class="today-meta-item">
-                <div class="today-meta-label">総時間</div>
+                <div class="today-meta-label">総合計時間</div>
                 <div class="today-meta-value">-</div>
               </div>
               <div class="today-meta-item">
@@ -10955,7 +10963,7 @@
               <div class="today-meta-value">-</div>
             </div>
             <div class="today-meta-item">
-              <div class="today-meta-label">総時間</div>
+              <div class="today-meta-label">総合計時間</div>
               <div class="today-meta-value">-</div>
             </div>
             <div class="today-meta-item">
@@ -11090,7 +11098,7 @@
             <div class="today-meta-value">${exDisp}</div>
           </div>
           <div class="today-meta-item">
-            <div class="today-meta-label">総時間</div>
+            <div class="today-meta-label">総合計時間</div>
             <div class="today-meta-value">${totalDisp}</div>
           </div>
           <div class="today-meta-item">
@@ -22982,7 +22990,7 @@
       const totalStr = (typeof s.totalSeconds === 'number' && s.totalSeconds > 0)
         ? formatDuration(s.totalSeconds) : '--:--';
       const activeStr = effSec > 0 ? formatDuration(effSec) : '--:--';
-      const summaryHtml = `<div class="history-summary"><div class="history-summary-row">▪︎総合計時間【${totalStr}】</div><div class="history-summary-row">▪︎経過時間計【${activeStr}】</div></div>`;
+      const summaryHtml = `<div class="history-summary"><div class="history-summary-row">▪︎総合計時間【${totalStr}】</div><div class="history-summary-row">▪︎アクティブ時間【${activeStr}】</div></div>`;
       const item = document.createElement('div');
       item.className = 'history-item';
       item.dataset.date = s.date;
