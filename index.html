@@ -7470,9 +7470,54 @@
     box-shadow: 0 0 20px rgba(255, 90, 31, 0.3);
   }
 
+
+  /* ==================== 横向き時の案内（縦向き固定の代替） ====================
+     iPhone はホーム画面アプリの縦向き固定（manifest の orientation）に対応しておらず、
+     アプリ側から向きをロックすることもできない。そのためスマホを横向きにした間だけ
+     画面全体を覆い、縦向きに戻すよう案内する（中の画面やタイマーはそのまま動き続ける） */
+  .rotate-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    z-index: 2147483000;
+    background: var(--bg-1);
+    align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
+  html.landscape-blocked .rotate-overlay { display: flex; }
+  html.landscape-blocked, html.landscape-blocked body { overflow: hidden; }
+  .rotate-overlay-inner { text-align: center; padding: 0 24px; }
+  .rotate-overlay-icon {
+    width: 56px; height: 56px; margin: 0 auto 16px;
+    color: var(--accent);
+  }
+  .rotate-overlay-icon svg { width: 100%; height: 100%; display: block; }
+  .rotate-overlay-title {
+    font-size: 17px; font-weight: 800; color: var(--text);
+    margin-bottom: 8px;
+  }
+  .rotate-overlay-sub {
+    font-size: 12px; color: var(--text-2); line-height: 1.6;
+  }
   </style>
 </head>
 <body class="header-fixed">
+<!-- 横向き時の案内（スマホを横向きにした間だけ表示） -->
+<div id="rotateOverlay" class="rotate-overlay" aria-hidden="true">
+  <div class="rotate-overlay-inner">
+    <div class="rotate-overlay-icon">
+      <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="17" y="6" width="22" height="40" rx="4"/>
+        <line x1="25" y1="40" x2="31" y2="40"/>
+        <path d="M45 22a14 14 0 0 1 0 12"/>
+        <path d="M45 34l3-3M45 34l-3-2"/>
+      </svg>
+    </div>
+    <div class="rotate-overlay-title">縦向きでご利用ください</div>
+    <div class="rotate-overlay-sub">スマホを縦向きに戻すと、元の画面に戻ります</div>
+  </div>
+</div>
 
 <!-- 初回起動：表紙画面（setup-screenの外側に独立配置） -->
 <div id="welcome-screen" class="welcome-screen" style="display:none">
@@ -23887,6 +23932,54 @@
         try { location.replace(location.pathname + '?_=' + Date.now()); } catch (e) {}
       }
     });
+  })();
+
+  // ========== 横向き時の案内（縦向き固定の代替） ==========
+  // iPhone はアプリ側から画面の向きを固定できないため、スマホを横向きにした間だけ
+  // 案内画面で覆う。判定は画面の縦横比ではなく端末の向きで行う
+  // （縦横比で判定すると、キーボード表示で横長になった時に誤って覆ってしまう）
+  function isPhoneDevice() {
+    try {
+      const shortSide = Math.min(screen.width || 0, screen.height || 0);
+      const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      // タブレット・パソコンは横向きでも使えるので対象外
+      return !!coarse && shortSide > 0 && shortSide < 600;
+    } catch (e) { return false; }
+  }
+  function isDeviceLandscape() {
+    try {
+      if (screen.orientation && typeof screen.orientation.type === 'string') {
+        return screen.orientation.type.indexOf('landscape') === 0;
+      }
+    } catch (e) { /* noop */ }
+    if (typeof window.orientation === 'number') return Math.abs(window.orientation) === 90;
+    return false;
+  }
+  function applyOrientationGuard() {
+    // 端末の向きと画面の縦横比の両方が横向きの時だけ覆う。
+    // 片方だけだと、キーボード表示や分割画面などで縦向きのまま覆ってしまうことがある
+    const viewportLandscape = window.innerWidth > window.innerHeight;
+    const block = isPhoneDevice() && isDeviceLandscape() && viewportLandscape;
+    document.documentElement.classList.toggle('landscape-blocked', block);
+  }
+  (function setupOrientationGuard() {
+    // Android のホーム画面アプリでは向きをロックできるので試す（iPhone は未対応で無視される）
+    try {
+      if (screen.orientation && typeof screen.orientation.lock === 'function') {
+        screen.orientation.lock('portrait').catch(() => {});
+      }
+    } catch (e) { /* noop */ }
+    applyOrientationGuard();
+    try {
+      if (screen.orientation && typeof screen.orientation.addEventListener === 'function') {
+        screen.orientation.addEventListener('change', applyOrientationGuard);
+      }
+    } catch (e) { /* noop */ }
+    window.addEventListener('orientationchange', () => setTimeout(applyOrientationGuard, 50));
+    window.addEventListener('resize', applyOrientationGuard);
+    // 案内画面の上で指を動かしても、裏の画面がスクロールしないようにする
+    const ov = document.getElementById('rotateOverlay');
+    if (ov) ov.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
   })();
 
   boot();
