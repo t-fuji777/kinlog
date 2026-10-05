@@ -6765,7 +6765,8 @@
     border: 1px solid rgba(16, 185, 129, 0.3);
     background: rgba(16, 185, 129, 0.08);
     color: var(--ok);
-    font-size: 15px;
+    /* 矢印は同じ文字サイズだと × より大きく見えるため、小さめにして見た目の大きさを揃える */
+    font-size: 12px;
   }
   .history-dl-btn:active {
     background: var(--ok);
@@ -23927,8 +23928,12 @@
       const target = document.querySelector(`.history-item[data-date="${sessionDate}"]`);
       if (!target) { try { toast('該当の記録を表示できません'); } catch (e) {} }
       if (target) {
-        // ヘッダー高さ(60px)分オフセットして、メニュー上部がヘッダー直下にくるよう調整
-        const HEADER_OFFSET = 60;
+        // 固定ヘッダーの実際の高さぶん下げて、記録の先頭（日付と ↓・編集・削除ボタン）が
+        // ヘッダーの下に隠れないようにする。ヘッダーの高さは iPhone のステータスバー分
+        // （安全領域）で端末ごとに変わるため、固定値ではなく実測する
+        const headerEl = document.querySelector('.header');
+        const headerBottom = headerEl ? Math.max(0, headerEl.getBoundingClientRect().bottom) : 60;
+        const HEADER_OFFSET = headerBottom + 10;
         const rect = target.getBoundingClientRect();
         const scrollY = window.pageYOffset || document.documentElement.scrollTop;
         const targetY = rect.top + scrollY - HEADER_OFFSET;
