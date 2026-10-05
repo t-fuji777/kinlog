@@ -6746,6 +6746,7 @@
     display: flex; gap: 6px;
     flex-shrink: 0;
   }
+  .history-dl-btn,
   .history-edit-btn,
   .history-delete-btn {
     width: 28px; height: 28px;
@@ -6759,6 +6760,17 @@
     flex-shrink: 0;
     line-height: 1;
     transition: all 0.15s;
+  }
+  .history-dl-btn {
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.08);
+    color: var(--ok);
+    font-size: 15px;
+  }
+  .history-dl-btn:active {
+    background: var(--ok);
+    color: #000;
+    transform: scale(0.9);
   }
   .history-edit-btn {
     border: 1px solid rgba(56, 189, 248, 0.3);
@@ -6786,6 +6798,8 @@
   }
   .history-head .history-menu {
     margin-bottom: 0;
+    /* 空白の無い長い英数字の名前でも右のボタンに重ならないよう折り返す */
+    overflow-wrap: anywhere;
   }
   .history-date {
     font-family: var(--font-mono);
@@ -22871,62 +22885,33 @@
 
   // ========== HISTORY ==========
   // セッションのレコード行HTMLを生成（ログタブ・カレンダー詳細欄で共通利用）
-  function formatSessionRecords(session) {
-    if (!session || !Array.isArray(session.exercises)) return '';
-    // 共通の経過時間フォーマッタ（行の右端に白字で表示）
-    const durSpan = (sec) => sec ? `<span style="color: var(--text); font-family: var(--font-mono); font-size: 11px; flex: 0 0 auto; margin-left: 12px;">【${formatDuration(sec)}】</span>` : '';
-    // 種目名行：左に名前、右に経過時間（flexで右端固定）
-    const buildNameRow = (e) => {
-      const left = `<span style="flex: 1 1 auto; min-width: 0; color: var(--text); font-weight: 700; overflow-wrap: anywhere;">◉ ${e.name}</span>`;
-      const right = durSpan(e.duration);
-      return `<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 4px;">${left}${right}</div>`;
-    };
-    // 記録行（インデント付き）
-    const detailRow = (text) => `<div style="color: var(--text-3); padding-left: 2em;">${text}</div>`;
-
-    // スキップした種目は一覧に載せない（上に詰めて表示）。記録済み or 完了(judge≠skip)のみ表示。
-    const blocks = session.exercises.filter(e => e.judge !== 'skip' && (e.judge || (e.setRecords && e.setRecords.length > 0))).map(e => {
-      const nameRow = buildNameRow(e);
-
+  // 履歴1件ぶんの表示内容（種目名・経過時間・記録行）を組み立てる。
+  // 履歴カードの表示とダウンロード用テキストの両方がこれを使うので、内容が食い違わない
+  function buildSessionRecordRows(session) {
+    if (!session || !Array.isArray(session.exercises)) return [];
+    // スキップした種目は載せない（上に詰めて表示）。記録済み or 完了(judge≠skip)のみ。
+    return session.exercises.filter(e => e && e.judge !== 'skip' && (e.judge || (e.setRecords && e.setRecords.length > 0))).map(e => {
+      const row = { name: e.name, duration: e.duration, details: [] };
       // 「その他」種別（core / other）：経過時間のみで詳細記録を出さない
-      if (e.core || e.other) {
-        if (e.judge === 'skip') {
-          return nameRow + detailRow('⊘ スキップ');
-        }
-        return nameRow;
-      }
-
+      if (e.core || e.other) return row;
       if (e.cardio) {
-        if (e.judge === 'skip') {
-          return nameRow + detailRow('⊘ スキップ');
-        }
         if (e.hiit && e.protocol) {
           const p = e.protocol;
-          return nameRow + detailRow(`ダッシュ${p.dashSpeed}km/h × ${p.rounds}本`);
-        }
-        if (e.cardioMachine && e.machineProtocol) {
+          row.details.push(`ダッシュ${p.dashSpeed}km/h × ${p.rounds}本`);
+        } else if (e.cardioMachine && e.machineProtocol) {
           const p = e.machineProtocol;
-          let detail;
-          if (e.machineType === 'crosstrainer') {
-            detail = `${p.rpm}rpm × ${p.minutes}分`;
-          } else {
-            detail = `傾斜${p.incline}% × ${p.speed}km/h × ${p.minutes}分`;
-          }
-          return nameRow + detailRow(detail);
+          row.details.push(e.machineType === 'crosstrainer'
+            ? `${p.rpm}rpm × ${p.minutes}分`
+            : `傾斜${p.incline}% × ${p.speed}km/h × ${p.minutes}分`);
         }
         // マシン情報なしの通常有酸素：種目名行のみ
-        return nameRow;
+        return row;
       }
-
       // 筋トレ系
-      if (e.judge === 'skip') {
-        return nameRow + detailRow('⊘ スキップ');
-      }
-      const records = e.setRecords || [];
       // 左右(bilateral)は2レコード=1セット。他画面（前回記録テーブル・トースト）と同じペア単位で番号を振る
       let normalIdx = 0;
       let maxIdx = 0;
-      const lines = records.map((rec) => {
+      (e.setRecords || []).forEach((rec) => {
         const w = Number(rec.weight || 0).toFixed(1);
         const r = rec.reps || 0;
         let label;
@@ -22940,15 +22925,112 @@
           label = `${no}set`;
         }
         const sideStr = rec.side === 'L' ? ' 左' : rec.side === 'R' ? ' 右' : '';
-        return `${label}${sideStr}：${w}kg × ${r}回`;
+        row.details.push(`${label}${sideStr}：${w}kg × ${r}回`);
       });
-      if (lines.length === 0) {
-        return nameRow + detailRow('—');
-      }
-      // 各セット行を1つにまとめてdetailRowで包む
-      return nameRow + detailRow(lines.join('<br>'));
+      if (row.details.length === 0) row.details.push('—');
+      return row;
     });
-    return blocks.join('');
+  }
+
+  function formatSessionRecords(session) {
+    // 共通の経過時間フォーマッタ（行の右端に白字で表示）
+    const durSpan = (sec) => sec ? `<span style="color: var(--text); font-family: var(--font-mono); font-size: 11px; flex: 0 0 auto; margin-left: 12px;">【${formatDuration(sec)}】</span>` : '';
+    return buildSessionRecordRows(session).map(row => {
+      // 種目名行：左に名前、右に経過時間（flexで右端固定）
+      const left = `<span style="flex: 1 1 auto; min-width: 0; color: var(--text); font-weight: 700; overflow-wrap: anywhere;">◉ ${row.name}</span>`;
+      const nameRow = `<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 4px;">${left}${durSpan(row.duration)}</div>`;
+      // 記録行（インデント付き）
+      const detail = row.details.length ? `<div style="color: var(--text-3); padding-left: 2em;">${row.details.join('<br>')}</div>` : '';
+      return nameRow + detail;
+    }).join('');
+  }
+
+  // 履歴1件をテキストにする（ダウンロード用）。内容は履歴カードの表示と同じ
+  function buildSessionRecordText(session) {
+    const d = new Date(session.date);
+    const menu = getMenu(session.menuId);
+    const menuName = (menu && menu.name) || session.menuName || '不明';
+    const effSec = (session.exercises || []).reduce((sum, ex) => sum + (Number(ex && ex.duration) || 0), 0);
+    const totalStr = (typeof session.totalSeconds === 'number' && session.totalSeconds > 0)
+      ? formatDuration(session.totalSeconds) : '--:--';
+    const activeStr = effSec > 0 ? formatDuration(effSec) : '--:--';
+    const lines = [
+      '筋LOG トレーニング記録',
+      `日付：${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}（${DOW[d.getDay()]}）${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`,
+      `メニュー：${menuName}`,
+      `総合計時間：${totalStr}`,
+      `アクティブ時間：${activeStr}`,
+      ''
+    ];
+    const rows = buildSessionRecordRows(session);
+    if (rows.length === 0) lines.push('記録なし');
+    rows.forEach(row => {
+      lines.push(`◉ ${row.name}` + (row.duration ? `【${formatDuration(row.duration)}】` : ''));
+      row.details.forEach(t => lines.push('　' + t));
+    });
+    return lines.join('\n') + '\n';
+  }
+
+  // 履歴1件の記録をテキストファイルで保存する。
+  // iPhone などは共有シートで保存先（ファイルに保存・メモ等）を選び、使えない環境は通常のダウンロード
+  // （保存方式は設定のデータ引き継ぎのダウンロードと同じ）
+  function downloadHistoryEntry(session) {
+    if (!session) return;
+    let text, filename;
+    try {
+      text = buildSessionRecordText(session);
+      const d = new Date(session.date);
+      const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+      const hm = `${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
+      const menu = getMenu(session.menuId);
+      // ファイル名に使えない記号と空白はメニュー名から除く
+      const safeName = [...String((menu && menu.name) || session.menuName || '').replace(/[\\/:*?"<>|\s]/g, '')].slice(0, 20).join('');
+      filename = `kinlog_${ymd}_${hm}` + (safeName ? '_' + safeName : '') + '.txt';
+    } catch (e) {
+      toast('✗ 記録の出力に失敗しました');
+      return;
+    }
+    const fallbackDownload = () => {
+      try {
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 300);
+        toast('✓ 記録をダウンロードしました');
+      } catch (e) {
+        toast('✗ ダウンロードに失敗しました');
+      }
+    };
+    // 共有シートは iPhone / iPad だけで使う。パソコンや Android の共有シートには
+    // ファイルの保存先が無いことがあり、通常のダウンロードのほうが確実に保存できる
+    // （2つ目の条件は、パソコン向け表示にしている iPad を拾うため）
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '')
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    try {
+      if (isIOS && typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
+        const file = new File([text], filename, { type: 'text/plain' });
+        if (navigator.canShare({ files: [file] })) {
+          // title は指定しない（iOSで title 文字列が別ファイルとして保存される問題回避）
+          navigator.share({ files: [file] })
+            .then(() => toast('✓ 記録を出力しました'))
+            .catch((e) => {
+              // 共有シートを閉じただけ（キャンセル）の時は何もしない
+              if (e && e.name === 'AbortError') return;
+              fallbackDownload();
+            });
+          return;
+        }
+      }
+    } catch (e) { /* 通常のダウンロードへ */ }
+    fallbackDownload();
   }
 
   function renderHistory(opts) {
@@ -23001,6 +23083,7 @@
             <div class="history-menu">${(menu && menu.name) || s.menuName || '不明'}</div>
           </div>
           <div class="history-actions">
+            <button class="history-dl-btn" title="記録をダウンロード">↓</button>
             <button class="history-edit-btn" title="編集">✎</button>
             <button class="history-delete-btn" title="削除">×</button>
           </div>
@@ -23009,9 +23092,14 @@
         <div class="history-records">${records || '<em>記録なし</em>'}</div>
       `;
       // ボタンに直接イベントバインド（確実に動作させるため）
+      const dlBtn = item.querySelector('.history-dl-btn');
       const editBtn = item.querySelector('.history-edit-btn');
       const deleteBtn = item.querySelector('.history-delete-btn');
       const sessionDate = s.date;
+      dlBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        downloadHistoryEntry(s);
+      });
       editBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         openHistoryEditor(sessionDate);
