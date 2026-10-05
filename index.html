@@ -10559,6 +10559,83 @@
     } catch (e) { return false; }
   }
 
+  /* ワンタイム修正（2026-10-05 マスター指示）:
+     2026年10月4日の記録にある「ケーブルOH…」の種目を取り除く
+     （開始を押した後はスキップできなかった頃に、記録へ残ってしまった種目）。
+     このアプリは他の人も使うため黙って消さず、該当の記録がある端末でだけ確認を出し、
+     OK が押された種目だけを取り除く。
+     ・種目名は空白・全角半角・大文字小文字の違いを無視して「ケーブルOH」を含むものが対象
+     ・取り除いた結果、表示できる記録が1つも残らないセッションは丸ごと取り除く
+     ・取り除いた内容は wo_mig_cable_oh_1004_backup に控えを残す
+     ・一度確認したら（該当なし・キャンセルでも）二度と出さない
+     取り除いた時だけ true を返す（呼び出し側で前回記録とホームを作り直す） */
+  function migRemoveCableOh1004() {
+    try {
+      if (isAdminMode) return false;
+      if (localStorage.getItem('wo_mig_cable_oh_1004')) return false;
+      // ワークアウト中・履歴の編集中は割り込まない（次回の起動時に確認する）
+      if (workoutSession && Array.isArray(workoutSession.exercises)) return false;
+      const raw = localStorage.getItem('wo_history');
+      // 読めない履歴には触らない（フラグも立てず、次回起動時にもう一度判定する）
+      const hist = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(hist)) return false;
+      const norm = (v) => String(v || '').normalize('NFKC').replace(/[\s・\-_]/g, '').toUpperCase();
+      const isCandidate = (e) => {
+        const n = norm(e && e.name);
+        return n.indexOf('ケーブルOH') >= 0 || n.indexOf('ケーブルオーバーヘッド') >= 0;
+      };
+      const isTargetDay = (session) => {
+        const d = new Date(session && session.date);
+        return !isNaN(d.getTime()) && d.getFullYear() === 2026 && d.getMonth() === 9 && d.getDate() === 4;
+      };
+      // 対象日の候補を、名前の種類ごとに1回ずつ確認する
+      const found = [];
+      hist.forEach(session => {
+        if (!session || !Array.isArray(session.exercises) || !isTargetDay(session)) return;
+        session.exercises.forEach(e => {
+          if (isCandidate(e) && !found.some(f => f.key === norm(e.name))) found.push({ key: norm(e.name), name: e.name });
+        });
+      });
+      if (found.length === 0) {
+        localStorage.setItem('wo_mig_cable_oh_1004', 'none');
+        return false;
+      }
+      const approved = found.filter(f => confirm('10月4日の記録にある「' + f.name + '」を削除しますか？\n\nOK：削除する\nキャンセル：残す'));
+      if (approved.length === 0) {
+        localStorage.setItem('wo_mig_cable_oh_1004', 'kept');
+        return false;
+      }
+      const isTarget = (e) => isCandidate(e) && approved.some(f => f.key === norm(e.name));
+      const backup = { at: new Date().toISOString(), removed: [], droppedSessions: [] };
+      // 履歴に表示される記録か（履歴カードの表示条件と同じ）
+      const isShown = (e) => !!e && e.judge !== 'skip' && !!(e.judge || (e.setRecords && e.setRecords.length > 0));
+      const next = [];
+      hist.forEach(session => {
+        if (!session || !Array.isArray(session.exercises) || !isTargetDay(session) || !session.exercises.some(isTarget)) {
+          next.push(session);
+          return;
+        }
+        const kept = [];
+        session.exercises.forEach((e, i) => {
+          if (isTarget(e)) backup.removed.push({ date: session.date, menuId: session.menuId, index: i, exercise: e });
+          else kept.push(e);
+        });
+        if (!kept.some(isShown)) {
+          backup.droppedSessions.push(Object.assign({}, session, { exercises: kept }));
+          return;
+        }
+        session.exercises = kept;
+        next.push(session);
+      });
+      // 控え → 履歴 → フラグの順に保存する（途中で失敗しても記録を失わず、次回やり直せる）
+      localStorage.setItem('wo_mig_cable_oh_1004_backup', JSON.stringify(backup));
+      localStorage.setItem('wo_history', JSON.stringify(next));
+      localStorage.setItem('wo_mig_cable_oh_1004', 'done');
+      try { toast('「' + approved.map(f => f.name).join('」「') + '」を削除しました'); } catch (e) { /* noop */ }
+      return true;
+    } catch (e) { return false; }
+  }
+
   function initMainApp() {
     migCreatePushMenu();
     migSwapPoolUnshare();
@@ -13873,8 +13950,11 @@
             const allHiitRecorded2 = ex.hiit && setRecCountForBtn2 >= hiitTotalRounds2 && hiitTotalRounds2 > 0;
             const disableCompleteBtn2 = !ex.exStarted || (ex.hiit && !ex.judge && !hiitFinalReached2 && !allHiitRecorded2);
             const finalCompleteDisabled = ex.judge === 'ok' ? true : (ex.exStarted ? disableCompleteBtn2 : false);
-            // スキップ：完了ボタンが無効 or タイマー稼働中 or 完了済 or 代替種目 or 種目開始済
-            const skipDisabled = finalCompleteDisabled || anyTimerRunning || ex.judge === 'ok' || ex.swappedFrom || ex.exStarted;
+            // スキップ：完了ボタンが無効 or タイマー稼働中 or 完了済 or 代替種目 or 記録のある開始済種目
+            // （開始を押した後でも、まだ1セットも記録していなければスキップできる）
+            // 体幹はカウントダウンが0に達した時点で1セット終えているので、記録前（アラート中・次セット待ち）でも押せない
+            const coreSetReached2 = !!(coreTimers[idx] && (coreTimers[idx].completed || coreTimers[idx].waiting));
+            const skipDisabled = finalCompleteDisabled || anyTimerRunning || ex.judge === 'ok' || ex.swappedFrom || (ex.exStarted && (setRecCountForBtn2 > 0 || coreSetReached2));
             // 代替：完了ボタンが無効 or タイマー稼働中 or 完了済 のみ無効化（種目開始済 ex.exStarted は除外）
             // ※マスター指示：入れ替えボタンだけは一度タイマー発動した後も有効にしたい
             const swapDisabled = finalCompleteDisabled || anyTimerRunning || ex.judge === 'ok';
@@ -21435,6 +21515,26 @@
   // スキップ：今回はこの種目をやらない
   function toggleSkip(idx) {
     const ex = workoutSession.exercises[idx];
+    // 開始を押した後でも、まだ1セットも記録していなければスキップできる。
+    // その場合は開始前の状態へ戻す（スキップした種目に経過時間を残さない。解除すれば「開始」からやり直せる）。
+    // 解除する時も同じ扱いにする（代替で外された種目には、開始済みの状態が残っていることがあるため）
+    const hasRecord = Array.isArray(ex.setRecords) && ex.setRecords.length > 0;
+    if (ex.exStarted && !hasRecord) {
+      // 体幹のカウントダウンが途中で止まっていれば片付ける（0到達のアラートが鳴っていれば止める）
+      const ct = coreTimers[idx];
+      if (ct) {
+        if (ct.handle) clearInterval(ct.handle);
+        if (ct.completed && typeof stopNotifyLoop === 'function') stopNotifyLoop();
+        delete coreTimers[idx];
+      }
+      // 履歴の編集中は、保存済みの経過時間を消さないよう開始状態は触らない
+      if (!editingHistoryDate) {
+        ex.exStarted = false;
+        ex.elapsedSeconds = 0;
+        ex._elapsedAtStart = null;
+        ex.duration = null;
+      }
+    }
     if (ex.judge === 'skip') {
       // スキップ解除
       ex.judge = null;
@@ -24019,6 +24119,16 @@
           migAdoptOrphanHistory();
           const hist = loadHistory();
           rebuildLastWeightsFromHistory(hist);
+          // 10/4 の記録の「ケーブルOH…」を、確認のうえで取り除く（一度だけ）。
+          // 確認は画面が出てから表示したいので少し遅らせ、取り除いた時は前回記録とホームを作り直す
+          setTimeout(() => {
+            try {
+              if (!migRemoveCableOh1004()) return;
+              rebuildLastWeightsFromHistory(loadHistory());
+              renderRecommend();
+              renderWeekStrip();
+            } catch (e) { /* noop */ }
+          }, 700);
         }
       } catch (e) { /* noop */ }
 
