@@ -22891,7 +22891,7 @@
     if (!session || !Array.isArray(session.exercises)) return [];
     // スキップした種目は載せない（上に詰めて表示）。記録済み or 完了(judge≠skip)のみ。
     return session.exercises.filter(e => e && e.judge !== 'skip' && (e.judge || (e.setRecords && e.setRecords.length > 0))).map(e => {
-      const row = { name: e.name, duration: e.duration, details: [] };
+      const row = { name: e.name, duration: e.duration, details: [], pair: !!e.bilateral };
       // 「その他」種別（core / other）：経過時間のみで詳細記録を出さない
       if (e.core || e.other) return row;
       if (e.cardio) {
@@ -22945,8 +22945,53 @@
     }).join('');
   }
 
-  // 履歴1件をテキストにする（ダウンロード用）。内容は履歴カードの表示と同じ
-  function buildSessionRecordText(session) {
+  // ========== 履歴1件のPDF出力 ==========
+  // 外部ライブラリを使わずにPDFを作る。日本語フォントをPDFに埋め込むのは重すぎるため、
+  // 記録を端末のフォントでキャンバスに描き、その画像（JPEG）を1ページずつPDFに収める。
+  // iPhone の共有シートは操作の直後でないと開けないため、生成は全て同期処理で行う
+  const PDF_PX_W = 1240, PDF_PX_H = 1754; // A4 を約150dpiで描く
+  const PDF_FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo","Noto Sans JP",sans-serif';
+
+  // 履歴1件をページごとのキャンバスに描いて返す（内容は履歴カードの表示と同じ）
+  function renderSessionPdfPages(session) {
+    const W = PDF_PX_W, H = PDF_PX_H, M = 96, CW = W - M * 2;
+    const BOTTOM = H - M - 40; // フッターの分を空ける
+    let accent = '#FF5A1F';
+    try { const a = getAccentColor(); if (/^#[0-9a-fA-F]{6}$/.test(a)) accent = a; } catch (e) { /* noop */ }
+    const pages = [];
+    let ctx = null, y = 0;
+    const newPage = () => {
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      ctx = cv.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, W, H);
+      ctx.textBaseline = 'top';
+      pages.push(cv);
+      y = M;
+    };
+    const setFont = (px, bold) => { ctx.font = (bold ? '700 ' : '400 ') + px + 'px ' + PDF_FONT; };
+    // 幅に収まるよう文字単位で折り返す（日本語は空白が無いため）
+    const NO_LINE_START = '）」』】］)]、。，．・ー：';
+    const NO_LINE_END = '（「『【［([';
+    const wrap = (text, maxW) => {
+      const out = [];
+      let line = '';
+      [...String(text == null ? '' : text)].forEach(ch => {
+        if (line && ctx.measureText(line + ch).width > maxW && NO_LINE_START.indexOf(ch) < 0) {
+          // 行末に開き括弧を残さない（次の行へ送る）。閉じ括弧・句読点は行頭に置かず前の行に収める
+          let carry = '';
+          const chars = [...line];
+          while (chars.length > 1 && NO_LINE_END.indexOf(chars[chars.length - 1]) >= 0) carry = chars.pop() + carry;
+          out.push(chars.join(''));
+          line = carry + ch;
+        } else line += ch;
+      });
+      out.push(line);
+      return out;
+    };
+    const ensure = (h) => { if (y + h > BOTTOM) newPage(); };
+
     const d = new Date(session.date);
     const menu = getMenu(session.menuId);
     const menuName = (menu && menu.name) || session.menuName || '不明';
@@ -22954,45 +22999,213 @@
     const totalStr = (typeof session.totalSeconds === 'number' && session.totalSeconds > 0)
       ? formatDuration(session.totalSeconds) : '--:--';
     const activeStr = effSec > 0 ? formatDuration(effSec) : '--:--';
-    const lines = [
-      '筋LOG トレーニング記録',
-      `日付：${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}（${DOW[d.getDay()]}）${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`,
-      `メニュー：${menuName}`,
-      `総合計時間：${totalStr}`,
-      `アクティブ時間：${activeStr}`,
-      ''
-    ];
-    const rows = buildSessionRecordRows(session);
-    if (rows.length === 0) lines.push('記録なし');
-    rows.forEach(row => {
-      lines.push(`◉ ${row.name}` + (row.duration ? `【${formatDuration(row.duration)}】` : ''));
-      row.details.forEach(t => lines.push('　' + t));
+    const dateStr = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${DOW[d.getDay()]}）${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+    newPage();
+    // タイトル
+    setFont(30, true);
+    ctx.fillStyle = accent;
+    ctx.fillText('筋LOG', M, y);
+    setFont(26, false);
+    ctx.fillStyle = '#666666';
+    ctx.textAlign = 'right';
+    ctx.fillText('トレーニング記録', W - M, y + 2);
+    ctx.textAlign = 'left';
+    y += 50;
+    ctx.fillStyle = accent;
+    ctx.fillRect(M, y, CW, 6);
+    y += 40;
+    // 日付・メニュー名
+    setFont(28, false);
+    ctx.fillStyle = '#444444';
+    ctx.fillText(dateStr, M, y);
+    y += 50;
+    setFont(54, true);
+    ctx.fillStyle = '#111111';
+    wrap(menuName, CW).forEach(line => { ctx.fillText(line, M, y); y += 70; });
+    y += 16;
+    // 時間のまとめ（2つの枠）
+    const boxW = (CW - 24) / 2, boxH = 132;
+    [['総合計時間', totalStr], ['アクティブ時間', activeStr]].forEach((pair, i) => {
+      const x = M + i * (boxW + 24);
+      ctx.fillStyle = '#F4F4F6';
+      ctx.fillRect(x, y, boxW, boxH);
+      ctx.fillStyle = accent;
+      ctx.fillRect(x, y, 8, boxH);
+      setFont(24, false);
+      ctx.fillStyle = '#666666';
+      ctx.fillText(pair[0], x + 32, y + 22);
+      setFont(48, true);
+      ctx.fillStyle = '#111111';
+      ctx.fillText(pair[1], x + 32, y + 62);
     });
-    return lines.join('\n') + '\n';
+    y += boxH + 44;
+
+    // 種目ごとの記録
+    const rows = buildSessionRecordRows(session);
+    if (rows.length === 0) {
+      setFont(28, false);
+      ctx.fillStyle = '#666666';
+      ctx.fillText('記録なし', M, y);
+      y += 44;
+    }
+    const NAME_LH = 46, DET_LH = 40, INDENT = 40;
+    rows.forEach((row, ri) => {
+      const durText = row.duration ? formatDuration(row.duration) : '';
+      setFont(26, false);
+      const durW = durText ? ctx.measureText(durText).width + 28 : 0;
+      setFont(32, true);
+      const nameLines = wrap(row.name, CW - durW);
+      // 種目名と最初の記録行は同じページに置く
+      ensure(24 + nameLines.length * NAME_LH + (row.details.length ? DET_LH : 0));
+      if (ri > 0 && y > M) {
+        ctx.fillStyle = '#E2E2E6';
+        ctx.fillRect(M, y, CW, 2);
+        y += 22;
+      }
+      nameLines.forEach((line, li) => {
+        setFont(32, true);
+        ctx.fillStyle = '#111111';
+        ctx.fillText(line, M, y);
+        if (li === 0 && durText) {
+          setFont(26, false);
+          ctx.fillStyle = '#444444';
+          ctx.textAlign = 'right';
+          ctx.fillText(durText, W - M, y + 4);
+          ctx.textAlign = 'left';
+        }
+        y += NAME_LH;
+      });
+      // 記録行は横に並べて行数を抑える（左右種目は右・左の2列、それ以外は最大3列）。
+      // 1行ぶんの文字が列幅に収まらない場合は列数を減らす
+      setFont(27, false);
+      const avail = CW - INDENT;
+      const maxDetW = row.details.reduce((m, t) => Math.max(m, ctx.measureText(t).width), 0);
+      let cols = row.pair ? 2 : 3;
+      while (cols > 1 && maxDetW + 36 > avail / cols) cols--;
+      if (cols === 1) {
+        row.details.forEach(t => {
+          setFont(27, false);
+          wrap(t, avail).forEach(line => {
+            ensure(DET_LH);
+            setFont(27, false);
+            ctx.fillStyle = '#444444';
+            ctx.fillText(line, M + INDENT, y);
+            y += DET_LH;
+          });
+        });
+      } else {
+        for (let i = 0; i < row.details.length; i += cols) {
+          ensure(DET_LH);
+          setFont(27, false);
+          ctx.fillStyle = '#444444';
+          for (let k = 0; k < cols && i + k < row.details.length; k++) {
+            ctx.fillText(row.details[i + k], M + INDENT + k * (avail / cols), y);
+          }
+          y += DET_LH;
+        }
+      }
+      y += 20;
+    });
+
+    // フッター（ページ番号）
+    pages.forEach((cv, i) => {
+      const c = cv.getContext('2d');
+      c.textBaseline = 'top';
+      c.font = '400 20px ' + PDF_FONT;
+      c.fillStyle = '#999999';
+      c.textAlign = 'left';
+      c.fillText('筋LOG -キロク-', M, H - M + 8);
+      c.textAlign = 'right';
+      c.fillText((i + 1) + ' / ' + pages.length, W - M, H - M + 8);
+      c.textAlign = 'left';
+    });
+    return pages;
   }
 
-  // 履歴1件の記録をテキストファイルで保存する。
-  // iPhone などは共有シートで保存先（ファイルに保存・メモ等）を選び、使えない環境は通常のダウンロード
-  // （保存方式は設定のデータ引き継ぎのダウンロードと同じ）
+  // JPEG画像（1ページ1枚）から最小構成のPDFを組み立てる
+  function buildPdfFromJpegPages(jpegPages, title) {
+    const enc = new TextEncoder();
+    const parts = [];
+    const offsets = [];
+    let offset = 0;
+    const push = (data) => {
+      const u = (typeof data === 'string') ? enc.encode(data) : data;
+      parts.push(u);
+      offset += u.length;
+    };
+    const obj = (n, writeBody) => {
+      offsets[n] = offset;
+      push(n + ' 0 obj\n');
+      writeBody();
+      push('\nendobj\n');
+    };
+    // 題名は日本語を含むので UTF-16BE の16進表記で入れる（PDF本文の文字列はASCIIのみに保つ）
+    let titleHex = 'FEFF';
+    for (let i = 0; i < title.length; i++) titleHex += title.charCodeAt(i).toString(16).toUpperCase().padStart(4, '0');
+
+    push('%PDF-1.4\n');
+    push(new Uint8Array([0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A])); // バイナリを含むことを示す定型コメント
+    const n = jpegPages.length;
+    obj(1, () => push('<< /Type /Catalog /Pages 2 0 R >>'));
+    obj(2, () => push('<< /Type /Pages /Kids [' + jpegPages.map((_, i) => (4 + i * 3) + ' 0 R').join(' ') + '] /Count ' + n + ' >>'));
+    obj(3, () => push('<< /Title <' + titleHex + '> /Producer (kinlog) >>'));
+    jpegPages.forEach((pg, i) => {
+      const pageNo = 4 + i * 3, imgNo = pageNo + 1, contNo = pageNo + 2;
+      obj(pageNo, () => push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 ' + imgNo + ' 0 R >> >> /Contents ' + contNo + ' 0 R >>'));
+      obj(imgNo, () => {
+        push('<< /Type /XObject /Subtype /Image /Width ' + pg.w + ' /Height ' + pg.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + pg.bytes.length + ' >>\nstream\n');
+        push(pg.bytes);
+        push('\nendstream');
+      });
+      const content = 'q 595.28 0 0 841.89 0 0 cm /Im0 Do Q';
+      obj(contNo, () => push('<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream'));
+    });
+    const total = 3 + n * 3;
+    const xrefAt = offset;
+    let xref = 'xref\n0 ' + (total + 1) + '\n0000000000 65535 f \n';
+    for (let k = 1; k <= total; k++) xref += String(offsets[k]).padStart(10, '0') + ' 00000 n \n';
+    push(xref);
+    push('trailer\n<< /Size ' + (total + 1) + ' /Root 1 0 R /Info 3 0 R >>\nstartxref\n' + xrefAt + '\n%%EOF\n');
+    const out = new Uint8Array(offset);
+    let p = 0;
+    parts.forEach(u => { out.set(u, p); p += u.length; });
+    return out;
+  }
+
+  // 履歴1件をPDFのバイト列にする
+  function buildSessionPdf(session) {
+    const jpegPages = renderSessionPdfPages(session).map(cv => {
+      const b64 = cv.toDataURL('image/jpeg', 0.92).split(',')[1];
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return { bytes, w: cv.width, h: cv.height };
+    });
+    return buildPdfFromJpegPages(jpegPages, '筋LOG トレーニング記録');
+  }
+
+  // 履歴1件の記録をPDFファイルで保存する。
+  // iPhone などは共有シートで保存先（ファイルに保存・メール等）を選び、それ以外は通常のダウンロード
   function downloadHistoryEntry(session) {
     if (!session) return;
-    let text, filename;
+    let pdfBytes, filename;
     try {
-      text = buildSessionRecordText(session);
+      pdfBytes = buildSessionPdf(session);
       const d = new Date(session.date);
       const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
       const hm = `${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
       const menu = getMenu(session.menuId);
-      // ファイル名に使えない記号と空白はメニュー名から除く
+      // ファイル名に使えない記号と空白はメニュー名から除く（切り詰めは文字単位）
       const safeName = [...String((menu && menu.name) || session.menuName || '').replace(/[\\/:*?"<>|\s]/g, '')].slice(0, 20).join('');
-      filename = `kinlog_${ymd}_${hm}` + (safeName ? '_' + safeName : '') + '.txt';
+      filename = `kinlog_${ymd}_${hm}` + (safeName ? '_' + safeName : '') + '.pdf';
     } catch (e) {
-      toast('✗ 記録の出力に失敗しました');
+      toast('✗ PDFの作成に失敗しました');
       return;
     }
     const fallbackDownload = () => {
       try {
-        const blob = new Blob([text], { type: 'text/plain' });
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -23016,7 +23229,7 @@
       || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     try {
       if (isIOS && typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
-        const file = new File([text], filename, { type: 'text/plain' });
+        const file = new File([pdfBytes], filename, { type: 'application/pdf' });
         if (navigator.canShare({ files: [file] })) {
           // title は指定しない（iOSで title 文字列が別ファイルとして保存される問題回避）
           navigator.share({ files: [file] })
@@ -23083,7 +23296,7 @@
             <div class="history-menu">${(menu && menu.name) || s.menuName || '不明'}</div>
           </div>
           <div class="history-actions">
-            <button class="history-dl-btn" title="記録をダウンロード">↓</button>
+            <button class="history-dl-btn" title="記録をPDFでダウンロード">↓</button>
             <button class="history-edit-btn" title="編集">✎</button>
             <button class="history-delete-btn" title="削除">×</button>
           </div>
