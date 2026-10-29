@@ -2670,9 +2670,9 @@
     margin-left: 1px;
     letter-spacing: 0;
   }
-  /* セットチップ内の左右ラベルの色（ボタンの色と統一: 右=緑, 左=青）*/
-  .set-side-r { color: #4ADE80; font-weight: 700; }
-  .set-side-l { color: #60A5FA; font-weight: 700; }
+  /* セットチップ内の左右ラベルの色（ボタンの色と統一: 格闘技のコーナーに合わせて 右=青, 左=赤）*/
+  .set-side-r { color: #3B82F6; font-weight: 700; }
+  .set-side-l { color: #EF4444; font-weight: 700; }
   .last-col-weight, .last-col-reps {
     font-weight: 700;
     letter-spacing: -0.3px;
@@ -2932,10 +2932,10 @@
     font-weight: 800;
     margin-left: 2px;
     font-size: 11px;
-    color: #4ADE80 !important;
+    color: #3B82F6 !important;
   }
   .set-chip.side-l .set-side-label {
-    color: #60A5FA !important;
+    color: #EF4444 !important;
   }
   .set-chip.side-pending .set-side-label {
     opacity: 0.45;
@@ -2956,12 +2956,12 @@
     transition: all 0.15s;
   }
   .nav-btn-side.side-r {
-    border-color: #4ADE80;
-    color: #4ADE80;
+    border-color: #3B82F6;
+    color: #3B82F6;
   }
   .nav-btn-side.side-l {
-    border-color: #60A5FA;
-    color: #60A5FA;
+    border-color: #EF4444;
+    color: #EF4444;
   }
   .nav-btn-side:active {
     transform: scale(0.95);
@@ -3561,15 +3561,15 @@
     background: var(--accent);
     color: var(--accent-text);
   }
-  /* 開始サイド：右=明るめ緑、左=明るい青で固定 */
+  /* 開始サイド：ワークアウト画面と同じく 右=青、左=赤で固定 */
   .ex-form-start-side-btn[data-startside="R"].selected,
   .ex-form-other-start-side-btn[data-startside="R"].selected {
-    background: #4ADE80;
+    background: #3B82F6;
     color: #000;
   }
   .ex-form-start-side-btn[data-startside="L"].selected,
   .ex-form-other-start-side-btn[data-startside="L"].selected {
-    background: #60A5FA;
+    background: #EF4444;
     color: #000;
   }
   .ex-form-side-btn:not(.selected):active,
@@ -5293,10 +5293,10 @@
     margin-left: 4px;
   }
   .hiit-round-side-inline.side-r {
-    color: #4ADE80;
+    color: #3B82F6;
   }
   .hiit-round-side-inline.side-l {
-    color: #60A5FA;
+    color: #EF4444;
   }
   /* 体幹bilateralの左右ラベル */
   .hiit-round-side {
@@ -5304,17 +5304,17 @@
     font-weight: 800;
     padding: 2px 10px;
     border-radius: 100px;
-    border: 1.5px solid #4ADE80;
-    background: rgba(74, 222, 128, 0.12);
-    color: #4ADE80;
+    border: 1.5px solid #3B82F6;
+    background: rgba(59, 130, 246, 0.12);
+    color: #3B82F6;
     cursor: pointer;
     line-height: 1.2;
     user-select: none;
   }
   .hiit-round-side.side-l {
-    border-color: #60A5FA;
-    background: rgba(96, 165, 250, 0.12);
-    color: #60A5FA;
+    border-color: #EF4444;
+    background: rgba(239, 68, 68, 0.12);
+    color: #EF4444;
   }
   .hiit-round-side:active {
     transform: scale(0.95);
@@ -14871,8 +14871,8 @@
         else if (rec2) { rText = formatSide(rec2); }
         return `<div class="set-chip set-chip-bilateral ${pairClass}" onclick="coreRecordSet(${idx}, ${si})">
           <div class="set-chip-num">${displayNumPair}</div>
-          <div class="set-chip-line">右：${rText}</div>
-          <div class="set-chip-line">左：${lText}</div>
+          <div class="set-chip-line"><span class="set-side-r">右</span>：${rText}</div>
+          <div class="set-chip-line"><span class="set-side-l">左</span>：${lText}</div>
         </div>`;
       }
       const displayNumCore = toCircledNumCore(si + 1);
