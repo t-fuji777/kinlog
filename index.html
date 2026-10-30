@@ -7355,6 +7355,39 @@
     line-height: 1;
     letter-spacing: -0.5px;
   }
+  /* チンニング：体重の手入力 */
+  .bw-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 6px;
+  }
+  .bw-input-row .bw-input {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  .bw-input-unit {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-3);
+    flex-shrink: 0;
+  }
+  .bw-input-note {
+    font-size: 11px;
+    color: var(--text-3);
+    margin-bottom: 4px;
+  }
+  /* 体重は小数点第2位まで表示するため、欄に収まるよう少し小さくする */
+  .chin-val.chin-bw-val {
+    font-size: 14px;
+    letter-spacing: -0.5px;
+  }
   /* 時間編集（履歴の編集中）：分・秒の2列 */
   .time-edit-cols {
     display: flex;
@@ -8634,6 +8667,22 @@
     <div class="modal-actions">
       <button class="modal-btn" onclick="closePositionEditor()">キャンセル</button>
       <button class="modal-btn primary" onclick="savePositionEditor()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- チンニング：体重の手入力（小数点第2位まで） -->
+<div class="modal-backdrop" id="bodyWeightModal">
+  <div class="modal">
+    <h3 class="modal-title">体重</h3>
+    <div class="bw-input-row">
+      <input type="text" id="bodyWeightInput" class="ex-form-input bw-input" inputmode="decimal" autocomplete="off" placeholder="例：70.35" onkeydown="if (event.key === 'Enter') { event.preventDefault(); confirmBodyWeightInput(); }">
+      <span class="bw-input-unit">kg</span>
+    </div>
+    <div class="bw-input-note">小数点第2位まで入力できます</div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeBodyWeightInput()">キャンセル</button>
+      <button class="modal-btn primary" onclick="confirmBodyWeightInput()">決定</button>
     </div>
   </div>
 </div>
@@ -16726,11 +16775,6 @@
   function confirmPicker() {
     const val = getPickerValue();
     if (val === null || !pickerContext) { closePicker(); return; }
-    if (pickerContext.type === 'chinBody') {
-      closePicker();
-      setChinBodyWeight(val);
-      return;
-    }
     if (pickerContext.type === 'chinAdd') {
       const exIdx = pickerContext.exIdx;
       const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[exIdx];
@@ -21251,6 +21295,7 @@
 
   // ===== チンニング：換算体重 + 追加重量 = 重量 =====
   // 換算体重 =（朝の空腹時体重 + 1kg）× 0.9（マスターが従来手計算していた式）。追加重量は2.5kg刻み。
+  // 体重は手入力で小数点第2位まで、換算体重・追加重量・重量は小数点第1位にそろえる。
   //   +1kg：トレーニング時までの食事・水分と衣服・靴のぶん
   //   ×0.9：手と前腕はバーの位置からほぼ動かず、上腕も一部しか上がらないため、実際に持ち上がるのは体重の約9割
   //   追加重量（腰に付ける重り）は全部持ち上がるので換算しない
@@ -21304,6 +21349,39 @@
     const recLoad = (typeof rec.bodyLoad === 'number' && isFinite(rec.bodyLoad)) ? rec.bodyLoad : chinBodyLoad(b);
     return chinRound(Math.max(0, w - recLoad + chinBodyLoad(bw)));
   }
+  // 体重の手入力（小数点第2位まで）。全角数字・読点の小数点も受け付ける
+  function openBodyWeightInput() {
+    const input = document.getElementById('bodyWeightInput');
+    const modal = document.getElementById('bodyWeightModal');
+    if (!input || !modal) return;
+    const bw = getSessionBodyWeight();
+    input.value = bw != null ? bw.toFixed(2) : '';
+    modal.classList.add('show');
+    // タップと同じ操作の中で入力欄にフォーカスし、すぐキーボードを出す
+    try { input.focus(); input.select(); } catch (e) { /* noop */ }
+  }
+  function closeBodyWeightInput() {
+    const input = document.getElementById('bodyWeightInput');
+    const modal = document.getElementById('bodyWeightModal');
+    if (input) input.blur();
+    if (modal) modal.classList.remove('show');
+  }
+  function parseBodyWeightInput(raw) {
+    const t = String(raw || '').normalize('NFKC').replace(/[,、]/g, '.').replace(/kg/gi, '').replace(/\s/g, '');
+    if (!/^\d{1,3}(\.\d*)?$/.test(t)) return null;
+    const v = Math.round(parseFloat(t) * 100) / 100;
+    return (isFinite(v) && v >= 30 && v <= 150) ? v : null;
+  }
+  function confirmBodyWeightInput() {
+    const input = document.getElementById('bodyWeightInput');
+    const v = parseBodyWeightInput(input ? input.value : '');
+    if (v == null) {
+      toast('体重は30〜150kgの数値で入力してください');
+      return;
+    }
+    closeBodyWeightInput();
+    setChinBodyWeight(v);
+  }
   // 体重と追加重量の欄（位置の欄の代わりに表示）
   function renderChinPanel(idx, ex) {
     const bw = getSessionBodyWeight();
@@ -21312,7 +21390,7 @@
           <div class="ex-positions-col ex-chin-col">
             <button type="button" class="chin-row" onclick="openChinPicker(${idx}, 'body')">
               <span class="chin-label">体重</span>
-              <span class="chin-val">${bw != null ? formatChinKg(bw) : '<span class="chin-empty">未入力</span>'}</span>
+              <span class="chin-val chin-bw-val">${bw != null ? `${bw.toFixed(2)}<span class="unit">kg</span>` : '<span class="chin-empty">未入力</span>'}</span>
             </button>
             <div class="chin-row chin-row-static${off}">
               <span class="chin-label">換算体重</span>
@@ -21401,7 +21479,8 @@
   // 入力した体重は次回以降の既定値として必ず保存する（履歴の編集中に入力した場合も同じ）
   function setChinBodyWeight(val) {
     if (!workoutSession || !Array.isArray(workoutSession.exercises)) return;
-    const v = chinRound(Number(val));
+    // 体重は小数点第2位まで（換算体重以降は第1位）
+    const v = Math.round(Number(val) * 100) / 100;
     if (!(v > 0)) return;
     const old = getSessionBodyWeight();
     workoutSession.bodyWeight = v;
@@ -21434,10 +21513,7 @@
     if (!ex) return;
     const bw = getSessionBodyWeight();
     if (kind === 'body') {
-      pickerContext = { type: 'chinBody', exIdx: idx };
-      document.getElementById('pickerTitle').textContent = '体重';
-      document.getElementById('pickerUnit').textContent = 'kg';
-      showPicker(bw != null ? bw : 65, 0.1, 30, 150);
+      openBodyWeightInput();
       return;
     }
     const cur = chinAddDisplay(ex, bw);
