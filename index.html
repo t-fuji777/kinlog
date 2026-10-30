@@ -7355,6 +7355,29 @@
     line-height: 1;
     letter-spacing: -0.5px;
   }
+  /* 時間編集（履歴の編集中）：分・秒の2列 */
+  .time-edit-cols {
+    display: flex;
+    gap: 12px;
+  }
+  .time-edit-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .time-edit-col .picker-wrapper {
+    flex: 1;
+    min-width: 0;
+  }
+  .time-edit-unit {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-3);
+    flex-shrink: 0;
+  }
   .picker-actions {
     display: grid; grid-template-columns: 1fr 2fr;
     gap: 10px; margin-top: 16px;
@@ -8611,6 +8634,35 @@
     <div class="modal-actions">
       <button class="modal-btn" onclick="closePositionEditor()">キャンセル</button>
       <button class="modal-btn primary" onclick="savePositionEditor()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="picker-backdrop" id="timeEditModal">
+  <div class="picker-sheet">
+    <div class="picker-header">
+      <div class="picker-title"><span id="timeEditTitle">時間</span></div>
+      <button class="picker-close" onclick="closeTimeEdit()">✕</button>
+    </div>
+    <div class="time-edit-cols">
+      <div class="time-edit-col">
+        <div class="picker-wrapper">
+          <div class="picker-highlight"></div>
+          <div class="picker-list" id="timeEditMin"></div>
+        </div>
+        <div class="time-edit-unit">分</div>
+      </div>
+      <div class="time-edit-col">
+        <div class="picker-wrapper">
+          <div class="picker-highlight"></div>
+          <div class="picker-list" id="timeEditSec"></div>
+        </div>
+        <div class="time-edit-unit">秒</div>
+      </div>
+    </div>
+    <div class="picker-actions">
+      <button class="btn" onclick="closeTimeEdit()">キャンセル</button>
+      <button class="btn primary" onclick="confirmTimeEdit()">決定</button>
     </div>
   </div>
 </div>
@@ -13099,6 +13151,11 @@
   }
 
   function toggleElapsedTimer() {
+    // 履歴の編集中：タイマーは動かさず、タップで記録の総合計時間を編集する
+    if (editingHistoryDate) {
+      openTimeEdit('total');
+      return;
+    }
     if (isElapsedRunning()) {
       pauseElapsedTimer();
     } else {
@@ -13225,6 +13282,8 @@
   }
 
   function resetElapsedTimer() {
+    // 履歴の編集中は 00:00 に戻さない（時間はタップして編集する）
+    if (editingHistoryDate) return;
     if (isElapsedRunning()) {
       toast('タイマーを停止してからリセットしてください');
       return;
@@ -13251,6 +13310,8 @@
 
   function startIntervalTimer() {
     if (intervalHandle) return;
+    // 履歴の編集中は休憩時間を測る必要がないので動かさない
+    if (editingHistoryDate) return;
     intervalStartMs = Date.now();
     const el = document.getElementById('intervalTimer');
     if (el) {
@@ -15103,7 +15164,7 @@
       ${countdownTimerHtml}
       <div class="nav-row ${ex.bilateral ? 'nav-row-core-bi' : 'nav-row-core'}">
         <div class="nav-time-wrap">
-          <div class="nav-time-display ${getNavTimeStateClass(ex)}" id="coreElapsedTime-${idx}">${formatDuration(ex.duration || ex.elapsedSeconds || 0)}</div>
+          <div class="nav-time-display ${getNavTimeStateClass(ex)}" id="coreElapsedTime-${idx}" onclick="if (editingHistoryDate) openTimeEdit('ex', ${idx})">${formatDuration(ex.duration || ex.elapsedSeconds || 0)}</div>
         </div>
         ${ex.bilateral ? (() => {
           // 左右ボタンは「未開始 + 1セットも未記録 + タイマー未稼働」の時のみ操作可
@@ -16823,6 +16884,100 @@
   document.getElementById('pickerModal').addEventListener('touchmove', e => {
     if (!e.target.closest('.picker-list')) e.preventDefault();
   }, { passive: false });
+
+  // ===== 履歴の編集中：時間の編集（上のタイマー＝総合計時間 / 各種目タイマー＝その種目の時間） =====
+  let timeEditContext = null;
+  const TIME_EDIT_ROW = 44;
+  function fillTimeWheel(list, max, cur) {
+    list.innerHTML = '';
+    const pad = () => {
+      const el = document.createElement('div');
+      el.className = 'picker-item';
+      el.style.visibility = 'hidden';
+      el.style.scrollSnapAlign = 'none';
+      return el;
+    };
+    list.appendChild(pad()); list.appendChild(pad());
+    for (let v = 0; v <= max; v++) {
+      const el = document.createElement('div');
+      el.className = 'picker-item';
+      el.textContent = String(v).padStart(2, '0');
+      el.dataset.value = v;
+      list.appendChild(el);
+    }
+    list.appendChild(pad()); list.appendChild(pad());
+    const mark = () => {
+      const c = Math.round(list.scrollTop / TIME_EDIT_ROW) + 2;
+      list.querySelectorAll('.picker-item').forEach((it, i) => {
+        it.classList.remove('center', 'near');
+        if (i === c) it.classList.add('center');
+        else if (i === c - 1 || i === c + 1) it.classList.add('near');
+      });
+    };
+    list.onscroll = () => { clearTimeout(list._t); list._t = setTimeout(mark, 50); };
+    requestAnimationFrame(() => {
+      list.scrollTop = Math.max(0, Math.min(max, cur)) * TIME_EDIT_ROW;
+      mark();
+    });
+  }
+  function timeWheelValue(list, max) {
+    return Math.max(0, Math.min(max, Math.round(list.scrollTop / TIME_EDIT_ROW)));
+  }
+  function openTimeEdit(kind, idx) {
+    if (!editingHistoryDate || !workoutSession || !Array.isArray(workoutSession.exercises)) return;
+    let sec, title, maxMin;
+    if (kind === 'total') {
+      sec = Math.floor((elapsedAccumulatedMs || 0) / 1000);
+      title = '総合計時間';
+      maxMin = 300;
+    } else {
+      const ex = workoutSession.exercises[idx];
+      if (!ex) return;
+      sec = Math.floor(Number(ex.duration || ex.elapsedSeconds || 0));
+      title = ex.name + ' の時間';
+      maxMin = 180;
+    }
+    timeEditContext = { kind, idx, maxMin };
+    document.getElementById('timeEditTitle').textContent = title;
+    document.getElementById('timeEditModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+    fillTimeWheel(document.getElementById('timeEditMin'), maxMin, Math.floor(sec / 60));
+    fillTimeWheel(document.getElementById('timeEditSec'), 59, sec % 60);
+  }
+  function closeTimeEdit() {
+    document.getElementById('timeEditModal').classList.remove('show');
+    document.body.style.overflow = '';
+    timeEditContext = null;
+  }
+  function confirmTimeEdit() {
+    const ctx = timeEditContext;
+    if (!ctx || !editingHistoryDate || !workoutSession || !Array.isArray(workoutSession.exercises)) { closeTimeEdit(); return; }
+    const sec = timeWheelValue(document.getElementById('timeEditMin'), ctx.maxMin) * 60
+      + timeWheelValue(document.getElementById('timeEditSec'), 59);
+    closeTimeEdit();
+    if (ctx.kind === 'total') {
+      // 保存時は編集中の記録の totalSeconds をそのまま使うので、ここで書き換える
+      workoutSession.totalSeconds = sec;
+      elapsedAccumulatedMs = sec * 1000;
+      const el = document.getElementById('elapsedTimer');
+      if (el) el.innerHTML = formatElapsedHtml(elapsedAccumulatedMs);
+      toast('総合計時間を変更しました');
+      return;
+    }
+    const ex = workoutSession.exercises[ctx.idx];
+    if (!ex) return;
+    // 完了の確定（最終セット記録・完了ボタン）は elapsedSeconds を duration に写すので両方そろえる
+    ex.duration = sec > 0 ? sec : null;
+    ex.elapsedSeconds = sec;
+    renderExerciseList();
+    toast('時間を変更しました');
+  }
+  document.getElementById('timeEditModal').addEventListener('touchmove', e => {
+    if (!e.target.closest('.picker-list')) e.preventDefault();
+  }, { passive: false });
+  document.getElementById('timeEditModal').addEventListener('click', e => {
+    if (e.target.id === 'timeEditModal') closeTimeEdit();
+  });
   document.getElementById('pickerModal').addEventListener('click', e => {
     if (e.target.id === 'pickerModal') closePicker();
   });
@@ -21017,6 +21172,11 @@
   // タイムリセット（種目TIME表示のタップで確認ダイアログ）
   let pendingTimeResetIdx = null;
   function askTimeReset(idx) {
+    // 履歴の編集中：00:00 に戻す確認は出さず、タップでその種目の時間を編集する
+    if (editingHistoryDate) {
+      openTimeEdit('ex', idx);
+      return;
+    }
     // 経過時間が0秒またはidle状態（種目未開始）の場合は何もしない
     if (!workoutSession || !workoutSession.exercises) return;
     const ex = workoutSession.exercises[idx];
@@ -23213,7 +23373,10 @@
       }
     });
 
-    // 【履歴編集モード】上タイマーは起動させない。表示は履歴保存済の totalSeconds を表示（記憶を保つ）
+    // 【履歴編集モード】インターバルは止めたまま（編集中は動かさない）
+    try { stopInterval(); } catch (_) { /* noop */ }
+    // 【履歴編集モード】上タイマーは起動させない。表示は履歴保存済の totalSeconds を表示（記憶を保つ）。
+    // 時間はタップして編集する（⟲ で 00:00 に戻す操作は使わない）
     try {
       if (typeof pauseElapsedTimer === 'function' && typeof isElapsedRunning === 'function' && isElapsedRunning()) {
         pauseElapsedTimer();
@@ -23234,6 +23397,8 @@
         ctrlBtn.textContent = 'START';
         ctrlBtn.classList.remove('running');
       }
+      const resetBtnEdit = document.querySelector('.elapsed-box .timer-reset-btn');
+      if (resetBtnEdit) resetBtnEdit.disabled = true;
     } catch (_) { /* noop */ }
 
     renderExerciseList();
