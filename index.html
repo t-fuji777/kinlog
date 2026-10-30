@@ -21358,6 +21358,8 @@
   // 欄には data-no-clear="1" を付け、数値欄共通の「小数1桁への自動整形」を受けないようにしている（体重は第2位まで）
   function commitChinBwInput(el) {
     if (!el) return;
+    // タップすると毎回空欄から入力する（何も入力せずに外れたら元の体重のまま）
+    el.placeholder = '未入力';
     const bw = getSessionBodyWeight();
     const raw = String(el.value || '').trim();
     // 空欄のままなら何もしない（元の表示に戻す）
@@ -21379,7 +21381,7 @@
           <div class="ex-positions-col ex-chin-col">
             <label class="chin-row chin-bw-box" for="chinBw-${idx}">
               <span class="chin-label">体重</span>
-              <span class="chin-bw-line"><input type="text" class="chin-bw-input" id="chinBw-${idx}" data-no-clear="1" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="未入力" value="${bw != null ? bw.toFixed(2) : ''}" onfocus="this.select()" onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }" onblur="commitChinBwInput(this)"><span class="unit">kg</span></span>
+              <span class="chin-bw-line"><input type="text" class="chin-bw-input" id="chinBw-${idx}" data-no-clear="1" inputmode="decimal" autocomplete="off" enterkeyhint="done" placeholder="未入力" value="${bw != null ? bw.toFixed(2) : ''}" onfocus="this.value = ''; this.placeholder = '';" onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }" onblur="commitChinBwInput(this)"><span class="unit">kg</span></span>
             </label>
             <div class="chin-row chin-row-static${off}">
               <span class="chin-label">換算体重</span>
