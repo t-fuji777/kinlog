@@ -2615,6 +2615,70 @@
     border-color: var(--accent);
     color: var(--accent);
   }
+  /* チンニング：位置の代わりに体重（上）と追加重量（下）を入力する。重量 = 体重 + 追加重量 */
+  .ex-chin-col {
+    gap: 4px;
+  }
+  .chin-row {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    background: var(--bg-3);
+    border: 1px solid var(--border-hi);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-family: inherit;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .chin-row:active {
+    background: var(--bg-2);
+  }
+  .chin-row.chin-row-off .chin-val {
+    color: var(--text-4);
+  }
+  .chin-label {
+    font-family: var(--font-mono);
+    color: var(--text-4);
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+  .chin-val {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.1;
+    letter-spacing: -0.3px;
+  }
+  .chin-val .unit {
+    font-size: 10px;
+    color: var(--text-3);
+    font-weight: 600;
+    margin-left: 2px;
+  }
+  .chin-sub {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-3);
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.2;
+  }
+  .chin-empty {
+    font-size: 12px;
+    color: var(--text-3);
+    font-weight: 600;
+    letter-spacing: 0;
+  }
   .ex-positions-memo {
     margin-top: 4px;
     padding: 4px 6px;
@@ -8981,6 +9045,8 @@
     }
     currentWorkout = menu || null;
     workoutSession = sess;
+    // 保管時に体重が未入力だった場合は、今の体重を使う
+    if (getSessionBodyWeight() == null) workoutSession.bodyWeight = loadBodyWeight();
     clearSuspendedWorkout();
     stopElapsedTimer();
     stopInterval();
@@ -12156,7 +12222,8 @@
     'wo_exercise_images',
     'wo_exercise_urls',
     'wo_position_labels',
-    'wo_target_reps'
+    'wo_target_reps',
+    'wo_body_weight'
   ];
 
   // ============================================================
@@ -12336,6 +12403,7 @@
     isAdminMode = false;
     // テストモード中の一時保管（メモリ上のテスト記録）は持ち越さない
     adminSuspendedSnap = null;
+    adminBodyWeight = null;
     adminMockLastWeights = null;
     adminMockHistory = null;
     adminSelectedDow = null;
@@ -13294,7 +13362,9 @@
     currentWorkout = getMenu(menuId);
     workoutSession = {
       menuId, date: new Date().toISOString(),
-      exercises: currentWorkout.exercises.filter(e => !e || !e.stored).map(e => buildSessionExerciseFromDef(e))
+      exercises: currentWorkout.exercises.filter(e => !e || !e.stored).map(e => buildSessionExerciseFromDef(e)),
+      // チンニングの重量計算に使う体重（未入力なら null）
+      bodyWeight: loadBodyWeight()
     };
     stopElapsedTimer();
     stopInterval();
@@ -13750,6 +13820,8 @@
       if (typeof updateFinishWorkoutBtnState === 'function') updateFinishWorkoutBtnState();
       return;
     }
+    // チンニング：手付かずの種目は「今の体重 + 前回の追加重量」から始める
+    try { applyChinStartWeights(); } catch (e) { /* noop */ }
     const lastW = loadLastWeights();
     workoutSession.exercises.forEach((ex, idx) => {
       // elapsedSeconds 初期化（上部タイマーが動いている間に+1される）
@@ -14020,7 +14092,7 @@
               return `${y}年${m}月${day}日（${dow}）`;
             })()}</span>` : ''}</span>${lastText}
           </div>
-          <div class="ex-positions-col">
+          ${isChinningExercise(ex) ? renderChinPanel(idx, ex) : `<div class="ex-positions-col">
             <div class="ex-positions-header">
               <span class="label">位置 <span class="pos-count">${(() => {
                 const posList = getPositionList(ex);
@@ -14046,11 +14118,11 @@
                 `).join('');
               })()}
             </div>
-          </div>
+          </div>`}
         </div>
         <div class="input-row">
           <div class="input-group">
-            <div class="input-label">重量</div>
+            <div class="input-label">${(isChinningExercise(ex) && getSessionBodyWeight() != null) ? '重量（換算＋追加）' : '重量'}</div>
             <div class="stepper">
               <button class="step-btn" onclick="adjust(${idx}, 'weight', -0.5)">−</button>
               <div class="step-value" onclick="openPicker(${idx}, 'weight')"><span id="w-${idx}">${Number(ex.currentWeight || 0).toFixed(1)}</span><span class="unit">kg</span></div>
@@ -14600,6 +14672,10 @@
 
   function adjust(idx, field, delta) {
     const ex = workoutSession.exercises[idx];
+    if (field === 'weight' && isChinningExercise(ex) && getSessionBodyWeight() != null) {
+      adjustChinAdd(idx, delta < 0 ? -1 : 1);
+      return;
+    }
     if (field === 'weight') {
       // delta の符号だけ使い、絶対値は machineKind に応じたステップに置き換え
       const sign = delta < 0 ? -1 : 1;
@@ -16397,6 +16473,11 @@
 
   function openPicker(exIdx, field) {
     const ex = workoutSession.exercises[exIdx];
+    // チンニング（体重入力あり）：重量をタップしたら追加重量を選ぶ
+    if (field === 'weight' && isChinningExercise(ex) && getSessionBodyWeight() != null) {
+      openChinPicker(exIdx, 'add');
+      return;
+    }
     let current, step, min, max, title, unit;
     let customValues = null;
     if (field === 'weight') {
@@ -16530,6 +16611,22 @@
   function confirmPicker() {
     const val = getPickerValue();
     if (val === null || !pickerContext) { closePicker(); return; }
+    if (pickerContext.type === 'chinBody') {
+      closePicker();
+      setChinBodyWeight(val);
+      return;
+    }
+    if (pickerContext.type === 'chinAdd') {
+      const exIdx = pickerContext.exIdx;
+      const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[exIdx];
+      const bw = getSessionBodyWeight();
+      closePicker();
+      if (!ex || bw == null) return;
+      ex.currentWeight = chinRound(Math.min(300, chinBodyLoad(bw) + Number(val)));
+      saveUserWeight(ex, ex.currentWeight);
+      renderExerciseList();
+      return;
+    }
     if (pickerContext.type === 'exercise') {
       const ex = workoutSession.exercises[pickerContext.exIdx];
       if (pickerContext.field === 'weight') {
@@ -16537,6 +16634,7 @@
         // セット切替時のリセット防止：現在のセットタイプ別に変更値を保存
         saveUserWeight(ex, val);
         document.getElementById('w-' + pickerContext.exIdx).textContent = Number(val).toFixed(1);
+        refreshChinAdd(pickerContext.exIdx);
       } else if (pickerContext.field === 'reps') {
         ex.currentReps = val;
         document.getElementById('r-' + pickerContext.exIdx).textContent = val;
@@ -20489,6 +20587,9 @@
   function checkAndConfirmDefaultUpdate(exIdx, rec) {
     const ex = workoutSession.exercises[exIdx];
     if (!ex) return;
+    // チンニング（体重入力あり）は前回の追加重量から始めるため、メニューの重量は使わない。
+    // 体重が増えただけで確認が出ないよう対象外にする
+    if (isChinningExercise(ex) && getSessionBodyWeight() != null) return;
 
     const isMax = !!rec.isMax;
     let defaultWeight;
@@ -20927,6 +21028,217 @@
     }
   }
 
+  // ===== チンニング：換算体重 + 追加重量 = 重量 =====
+  // 換算体重 =（朝の空腹時体重 + 1kg）× 0.9（マスターが従来手計算していた式）。
+  //   +1kg：トレーニング時までの食事・水分と衣服・靴のぶん
+  //   ×0.9：手と前腕はバーの位置からほぼ動かず、上腕も一部しか上がらないため、実際に持ち上がるのは体重の約9割
+  //   追加重量（腰に付ける重り）は全部持ち上がるので換算しない
+  // 体重は端末に1つだけ保存し（テストモード中はメモリ上だけ）、ワークアウトごとに workoutSession.bodyWeight へ写す。
+  // 追加重量は保存せず、常に「重量 − 換算体重」として求める（重量の±・前回からの開始・セット切替と自動で一致する）。
+  // 記録した各セットには当時の体重（bodyWeight）と換算体重（bodyLoad）を残し、次回は前回の追加重量から始める
+  const CHIN_BW_EXTRA = 1;
+  const CHIN_BW_RATIO = 0.9;
+  const BODY_WEIGHT_KEY = 'wo_body_weight';
+  let adminBodyWeight = null;
+  function loadBodyWeight() {
+    if (isAdminMode) return adminBodyWeight;
+    try {
+      const v = parseFloat(localStorage.getItem(BODY_WEIGHT_KEY));
+      return (isFinite(v) && v > 0) ? v : null;
+    } catch (e) { return null; }
+  }
+  function saveBodyWeight(v) {
+    if (isAdminMode) { adminBodyWeight = v; return; }
+    try { localStorage.setItem(BODY_WEIGHT_KEY, String(v)); } catch (e) { /* noop */ }
+  }
+  // 種目名に「チンニング」を含む筋トレ種目（補助マシンの「アシスト」は重量の意味が逆になるので除く）
+  function isChinningExercise(ex) {
+    if (!ex || ex.cardio || ex.hiit || ex.core || ex.other) return false;
+    const n = String(ex.name || '').normalize('NFKC').replace(/\s/g, '');
+    return n.indexOf('チンニング') >= 0 && n.indexOf('アシスト') < 0;
+  }
+  function getSessionBodyWeight() {
+    const v = workoutSession && workoutSession.bodyWeight;
+    return (typeof v === 'number' && isFinite(v) && v > 0) ? v : null;
+  }
+  function chinRound(v) { return Math.round(v * 10) / 10; }
+  // 換算体重（重量に入る体重ぶん）
+  function chinBodyLoad(bw) { return chinRound((bw + CHIN_BW_EXTRA) * CHIN_BW_RATIO); }
+  function chinAddOf(ex, bw) { return chinRound(Number(ex.currentWeight || 0) - chinBodyLoad(bw)); }
+  function formatChinKg(v) { return `${Number(v).toFixed(1)}<span class="unit">kg</span>`; }
+  // 記録済みセットの重量を入力欄へ戻す時の値（取消・履歴の編集）。
+  // 記録時と今で体重が違っても追加重量が変わらないよう、「重量 − 記録時の換算体重 + 今の換算体重」にする。
+  // チンニング以外・体重の残っていない記録はそのままの重量
+  function chinRestoreWeight(ex, rec) {
+    const raw = rec ? rec.weight : undefined;
+    const bw = getSessionBodyWeight();
+    const w = Number(raw), b = Number(rec && rec.bodyWeight);
+    if (!isChinningExercise(ex) || bw == null || !isFinite(w) || !(b > 0)) return raw;
+    const recLoad = (typeof rec.bodyLoad === 'number' && isFinite(rec.bodyLoad)) ? rec.bodyLoad : chinBodyLoad(b);
+    return chinRound(Math.max(0, w - recLoad + chinBodyLoad(bw)));
+  }
+  // 体重と追加重量の欄（位置の欄の代わりに表示）
+  function renderChinPanel(idx, ex) {
+    const bw = getSessionBodyWeight();
+    return `
+          <div class="ex-positions-col ex-chin-col">
+            <button type="button" class="chin-row" onclick="openChinPicker(${idx}, 'body')">
+              <span class="chin-label">体重（朝・空腹時）</span>
+              <span class="chin-val">${bw != null ? formatChinKg(bw) : '<span class="chin-empty">未入力</span>'}</span>
+              ${bw != null ? `<span class="chin-sub">換算 ${chinBodyLoad(bw).toFixed(1)}kg</span>` : ''}
+            </button>
+            <button type="button" class="chin-row${bw == null ? ' chin-row-off' : ''}" onclick="openChinPicker(${idx}, 'add')">
+              <span class="chin-label">追加重量</span>
+              <span class="chin-val" id="chinAdd-${idx}">${bw != null ? formatChinKg(chinAddOf(ex, bw)) : '−'}</span>
+            </button>
+          </div>`;
+  }
+  // 重量の±・ピッカー変更後に追加重量の表示だけ更新する
+  function refreshChinAdd(idx) {
+    const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[idx];
+    const bw = getSessionBodyWeight();
+    const el = document.getElementById('chinAdd-' + idx);
+    if (!ex || bw == null || !el) return;
+    el.innerHTML = formatChinKg(chinAddOf(ex, bw));
+  }
+  // まだ手を付けていないチンニングを「今の換算体重 + 前回の追加重量」から始める（1種目につき1回だけ）。
+  // 前回の記録に体重が残っていない（この機能より前の記録・初回）場合はメニューの重量のまま
+  function applyChinStartWeights() {
+    if (!workoutSession || !Array.isArray(workoutSession.exercises) || workoutSession.oneOff) return;
+    if (editingHistoryDate) return;
+    const bw = getSessionBodyWeight();
+    if (bw == null) return;
+    let lastW = null;
+    const menuKey = (currentWorkout && currentWorkout.id) || workoutSession.menuId;
+    workoutSession.exercises.forEach(ex => {
+      if (!isChinningExercise(ex) || ex._chinInit) return;
+      if ((Array.isArray(ex.setRecords) && ex.setRecords.length > 0) || ex.exStarted || ex.judge) return;
+      ex._chinInit = true;
+      if (!lastW) lastW = loadLastWeights();
+      let last = lastW[getLastWeightKey(menuKey, ex)];
+      if (!last && ex.linkId) last = lastW[menuKey + '::' + (ex.name || '')];
+      // 前回のセットのうち一番重い追加重量（体重が残っているセットのみ）
+      const bestAdd = (recs, wantMax) => {
+        let best = null;
+        (recs || []).forEach(r => {
+          if (!r || (r.isMax === true) !== wantMax) return;
+          const w = Number(r.weight), b = Number(r.bodyWeight);
+          if (!isFinite(w) || !isFinite(b) || !(b > 0)) return;
+          // 記録時の換算体重（残っていなければ当時の体重から計算）
+          const load = (typeof r.bodyLoad === 'number' && isFinite(r.bodyLoad)) ? r.bodyLoad : chinBodyLoad(b);
+          const a = chinRound(w - load);
+          if (best === null || a > best) best = a;
+        });
+        return best;
+      };
+      const lastRecs = (last && Array.isArray(last.setRecords)) ? last.setRecords : [];
+      let nAdd = bestAdd(lastRecs, false);
+      let mAdd = bestAdd(lastRecs, true);
+      if (nAdd === null && mAdd === null) {
+        // 前回の記録に体重が残っていない（過去日付の記録追加など）：体重が残っている一番新しい記録を探す
+        const key = getLastWeightKey(menuKey, ex);
+        const hist = loadHistory().slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+        for (const h of hist) {
+          if (!h || !Array.isArray(h.exercises)) continue;
+          const he = h.exercises.find(e => e && Array.isArray(e.setRecords)
+            && (getLastWeightKey(h.menuId, e) === key || (h.menuId === menuKey && e.name === ex.name))
+            && e.setRecords.some(r => r && Number(r.bodyWeight) > 0));
+          if (he) {
+            nAdd = bestAdd(he.setRecords, false);
+            mAdd = bestAdd(he.setRecords, true);
+            break;
+          }
+        }
+      }
+      if (nAdd === null && mAdd === null) return;
+      const load = chinBodyLoad(bw);
+      if (nAdd !== null) ex.targetWeight = chinRound(Math.max(0, load + nAdd));
+      const mt = ex.maxTraining;
+      if (mAdd !== null && mt) mt.weight = chinRound(Math.max(0, load + mAdd));
+      const firstIsMax = !!(mt && mt.enabled && mt.position === 'before');
+      ex.currentWeight = firstIsMax ? mt.weight : ex.targetWeight;
+    });
+  }
+  // 体重を変更する。追加重量はそのままにして、チンニングの重量を換算体重の差だけずらす
+  // （初めて入力した時は今の重量を「換算体重 + 追加重量」に分けるだけで重量は変えない）。
+  // 履歴の編集中はその記録の中だけで使い、端末に保存している体重は変えない
+  function setChinBodyWeight(val) {
+    if (!workoutSession || !Array.isArray(workoutSession.exercises)) return;
+    const v = chinRound(Number(val));
+    if (!(v > 0)) return;
+    const old = getSessionBodyWeight();
+    workoutSession.bodyWeight = v;
+    if (old != null && old !== v) {
+      const d = chinBodyLoad(v) - chinBodyLoad(old);
+      const shift = (w) => (typeof w === 'number' && isFinite(w)) ? chinRound(Math.max(0, w + d)) : w;
+      workoutSession.exercises.forEach(ex => {
+        if (!isChinningExercise(ex)) return;
+        ex.currentWeight = shift(Number(ex.currentWeight || 0));
+        if (ex.userNormalWeight !== undefined) ex.userNormalWeight = shift(ex.userNormalWeight);
+        if (ex.userMaxWeight !== undefined) ex.userMaxWeight = shift(ex.userMaxWeight);
+        ex.targetWeight = shift(ex.targetWeight);
+        if (ex.maxTraining) ex.maxTraining.weight = shift(ex.maxTraining.weight);
+      });
+    }
+    if (!editingHistoryDate) saveBodyWeight(v);
+    renderExerciseList();
+  }
+  // 体重・追加重量のピッカー
+  function openChinPicker(idx, kind) {
+    const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[idx];
+    if (!ex) return;
+    const bw = getSessionBodyWeight();
+    if (kind === 'add' && bw == null) {
+      toast('先に体重を入力してください');
+      kind = 'body';
+    }
+    if (kind === 'body') {
+      pickerContext = { type: 'chinBody', exIdx: idx };
+      document.getElementById('pickerTitle').textContent = '体重';
+      document.getElementById('pickerUnit').textContent = 'kg';
+      showPicker(bw != null ? bw : 65, 0.1, 30, 150);
+      return;
+    }
+    const add = Math.max(0, chinAddOf(ex, bw));
+    let customValues = null;
+    if (ex.machineKind === 'dumbbell') {
+      customValues = [];
+      for (let v = 0; v <= 10; v++) customValues.push(v);
+      for (let v = 12; v <= 50; v += 2) customValues.push(v);
+    }
+    pickerContext = { type: 'chinAdd', exIdx: idx };
+    document.getElementById('pickerTitle').textContent = '追加重量';
+    document.getElementById('pickerUnit').textContent = 'kg';
+    showPicker(add, getWeightStep(ex), 0, 100, undefined, customValues);
+  }
+  // 重量の±：チンニングは追加重量を刻み幅で増減する（換算体重の端数は残す）
+  function adjustChinAdd(idx, sign) {
+    const ex = workoutSession.exercises[idx];
+    const bw = getSessionBodyWeight();
+    if (!ex || bw == null) return;
+    const add = chinAddOf(ex, bw);
+    let next;
+    if (add < 0) {
+      // 換算体重より軽い重量になっている場合：＋は0へ、−はそのまま
+      next = sign > 0 ? 0 : add;
+    } else if (ex.machineKind === 'dumbbell') {
+      let base = sign > 0 ? Math.floor(add + 1e-9) : Math.ceil(add - 1e-9);
+      if (base > 10 && base % 2 === 1) base += sign > 0 ? -1 : 1;
+      next = getNextDumbbellWeight(base, sign);
+    } else {
+      const step = getWeightStep(ex);
+      next = Math.round((add + sign * step) / step) * step;
+      if (next < 0) next = 0;
+    }
+    const load = chinBodyLoad(bw);
+    next = Math.min(chinRound(next), chinRound(300 - load));
+    ex.currentWeight = chinRound(load + next);
+    saveUserWeight(ex, ex.currentWeight);
+    const wEl = document.getElementById('w-' + idx);
+    if (wEl) wEl.textContent = Number(ex.currentWeight).toFixed(1);
+    refreshChinAdd(idx);
+  }
+
   // 現在のセット種別（MAX/通常）に応じてユーザー変更後の重量を保存
   // セット切替時にデフォルトへ戻さず、ユーザー変更値を維持するために使う
   function saveUserWeight(ex, val) {
@@ -20967,6 +21279,11 @@
     const isMax = isMaxSetIndex(ex, nextIdx);
     const rec = { weight: ex.currentWeight, reps: ex.currentReps };
     if (isMax) rec.isMax = true;
+    // チンニング：記録時の体重と換算体重を残す（次回は「重量 − 当時の換算体重」で前回の追加重量を求める）
+    if (isChinningExercise(ex) && getSessionBodyWeight() != null) {
+      rec.bodyWeight = getSessionBodyWeight();
+      rec.bodyLoad = chinBodyLoad(rec.bodyWeight);
+    }
     // 記録時点の目標値を保存（後から目標値が変わっても判定が変わらないようにするため）
     // MAXセットなら maxTraining 目標、通常セットなら ex.target* を保存
     let recTargetWeight, recTargetReps;
@@ -21083,7 +21400,7 @@
       ex.duration = null;
     }
     if (removed) {
-      ex.currentWeight = removed.weight;
+      ex.currentWeight = chinRestoreWeight(ex, removed);
       ex.currentReps = removed.reps;
       // bilateral：取り消したセットのサイドを次の候補に戻す
       if (ex.bilateral && removed.side) {
@@ -22778,11 +23095,22 @@
     currentWorkout = getMenu(session.menuId);
     // ディープコピーでセッションを復元
     workoutSession = JSON.parse(JSON.stringify(session));
+    // チンニング：その日の体重で編集する（その日の最後に入力した体重。記録に無ければセットに残した体重、それも無ければ未入力）。
+    // セットごとの体重がこれと違っても、入力欄の重量は chinRestoreWeight で追加重量を保ったまま換算し直す
+    if (getSessionBodyWeight() == null) {
+      let recBw = null;
+      (workoutSession.exercises || []).forEach(ex => {
+        if (recBw != null || !isChinningExercise(ex) || !Array.isArray(ex.setRecords)) return;
+        const r = ex.setRecords.find(x => x && Number(x.bodyWeight) > 0);
+        if (r) recBw = Number(r.bodyWeight);
+      });
+      workoutSession.bodyWeight = recBw;
+    }
     // 編集用に currentWeight/Reps/Sets を補正
     workoutSession.exercises.forEach(ex => {
       if (ex.setRecords && ex.setRecords.length > 0) {
         const last = ex.setRecords[ex.setRecords.length - 1];
-        ex.currentWeight = last.weight;
+        ex.currentWeight = chinRestoreWeight(ex, last);
         ex.currentReps = last.reps;
       } else {
         ex.currentWeight = ex.targetWeight;
@@ -22899,6 +23227,9 @@
             const obj = { weight: s.weight, reps: s.reps };
             if (s.isMax) obj.isMax = true;
             if (s.side) obj.side = s.side;
+            // チンニング：記録時の体重と換算体重（次回の追加重量の算出に使う）
+            if (typeof s.bodyWeight === 'number') obj.bodyWeight = s.bodyWeight;
+            if (typeof s.bodyLoad === 'number') obj.bodyLoad = s.bodyLoad;
             // 記録時の判定結果（'ok' or 'keep'）を保存（最優先で使われる）
             if (s.judge === 'ok' || s.judge === 'keep') obj.judge = s.judge;
             // 当時の目標値を保存（無ければ ex から補完）
