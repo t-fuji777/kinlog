@@ -2617,7 +2617,13 @@
   }
   /* チンニング：位置の代わりに体重（上）と追加重量（下）を入力する。重量 = 体重 + 追加重量 */
   .ex-chin-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: 1fr 1fr;
     gap: 4px;
+  }
+  .ex-chin-col .chin-add-row {
+    grid-column: 1 / -1;
   }
   .chin-row {
     flex: 1;
@@ -2643,6 +2649,55 @@
   .chin-row.chin-row-off .chin-val {
     color: var(--text-4);
   }
+  /* 換算体重：表示のみ（タップ不可）。枠を点線にして入力欄と区別する */
+  .chin-row.chin-row-static {
+    cursor: default;
+    background: transparent;
+    border-style: dashed;
+  }
+  .chin-row.chin-row-static:active {
+    background: transparent;
+  }
+  .chin-add-row:active {
+    background: var(--bg-3);
+  }
+  .chin-add-ctrl {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    width: 100%;
+  }
+  .chin-step {
+    width: 30px;
+    height: 24px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 1px solid var(--border-hi);
+    border-radius: 6px;
+    background: var(--bg-2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .chin-step:active {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent-border);
+    transform: scale(0.95);
+  }
+  .chin-add-val {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    text-align: center;
+    cursor: pointer;
+  }
   .chin-label {
     font-family: var(--font-mono);
     color: var(--text-4);
@@ -2664,14 +2719,6 @@
     color: var(--text-3);
     font-weight: 600;
     margin-left: 2px;
-  }
-  .chin-sub {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--text-3);
-    font-weight: 600;
-    letter-spacing: 0;
-    line-height: 1.2;
   }
   .chin-empty {
     font-size: 12px;
@@ -14122,7 +14169,7 @@
         </div>
         <div class="input-row">
           <div class="input-group">
-            <div class="input-label">${(isChinningExercise(ex) && getSessionBodyWeight() != null) ? '重量（換算＋追加）' : '重量'}</div>
+            <div class="input-label">${(isChinningExercise(ex) && getSessionBodyWeight() != null) ? '重量（換算）' : '重量'}</div>
             <div class="stepper">
               <button class="step-btn" onclick="adjust(${idx}, 'weight', -0.5)">−</button>
               <div class="step-value" onclick="openPicker(${idx}, 'weight')"><span id="w-${idx}">${Number(ex.currentWeight || 0).toFixed(1)}</span><span class="unit">kg</span></div>
@@ -21029,7 +21076,7 @@
   }
 
   // ===== チンニング：換算体重 + 追加重量 = 重量 =====
-  // 換算体重 =（朝の空腹時体重 + 1kg）× 0.9（マスターが従来手計算していた式）。
+  // 換算体重 =（朝の空腹時体重 + 1kg）× 0.9（マスターが従来手計算していた式）。追加重量は2.5kg刻み。
   //   +1kg：トレーニング時までの食事・水分と衣服・靴のぶん
   //   ×0.9：手と前腕はバーの位置からほぼ動かず、上腕も一部しか上がらないため、実際に持ち上がるのは体重の約9割
   //   追加重量（腰に付ける重り）は全部持ち上がるので換算しない
@@ -21038,6 +21085,7 @@
   // 記録した各セットには当時の体重（bodyWeight）と換算体重（bodyLoad）を残し、次回は前回の追加重量から始める
   const CHIN_BW_EXTRA = 1;
   const CHIN_BW_RATIO = 0.9;
+  const CHIN_ADD_STEP = 2.5;
   const BODY_WEIGHT_KEY = 'wo_body_weight';
   let adminBodyWeight = null;
   function loadBodyWeight() {
@@ -21080,17 +21128,25 @@
   // 体重と追加重量の欄（位置の欄の代わりに表示）
   function renderChinPanel(idx, ex) {
     const bw = getSessionBodyWeight();
+    const off = bw == null ? ' chin-row-off' : '';
     return `
           <div class="ex-positions-col ex-chin-col">
             <button type="button" class="chin-row" onclick="openChinPicker(${idx}, 'body')">
-              <span class="chin-label">体重（朝・空腹時）</span>
+              <span class="chin-label">朝体重</span>
               <span class="chin-val">${bw != null ? formatChinKg(bw) : '<span class="chin-empty">未入力</span>'}</span>
-              ${bw != null ? `<span class="chin-sub">換算 ${chinBodyLoad(bw).toFixed(1)}kg</span>` : ''}
             </button>
-            <button type="button" class="chin-row${bw == null ? ' chin-row-off' : ''}" onclick="openChinPicker(${idx}, 'add')">
+            <div class="chin-row chin-row-static${off}">
+              <span class="chin-label">換算体重</span>
+              <span class="chin-val">${bw != null ? formatChinKg(chinBodyLoad(bw)) : '−'}</span>
+            </div>
+            <div class="chin-row chin-add-row${off}">
               <span class="chin-label">追加重量</span>
-              <span class="chin-val" id="chinAdd-${idx}">${bw != null ? formatChinKg(chinAddOf(ex, bw)) : '−'}</span>
-            </button>
+              <div class="chin-add-ctrl">
+                <button type="button" class="chin-step" onclick="adjustChinAdd(${idx}, -1)" title="2.5kg減らす">−</button>
+                <button type="button" class="chin-val chin-add-val" id="chinAdd-${idx}" onclick="openChinPicker(${idx}, 'add')">${bw != null ? formatChinKg(chinAddOf(ex, bw)) : '−'}</button>
+                <button type="button" class="chin-step" onclick="adjustChinAdd(${idx}, 1)" title="2.5kg増やす">＋</button>
+              </div>
+            </div>
           </div>`;
   }
   // 重量の±・ピッカー変更後に追加重量の表示だけ更新する
@@ -21189,46 +21245,42 @@
     if (!ex) return;
     const bw = getSessionBodyWeight();
     if (kind === 'add' && bw == null) {
-      toast('先に体重を入力してください');
+      toast('先に朝体重を入力してください');
       kind = 'body';
     }
     if (kind === 'body') {
       pickerContext = { type: 'chinBody', exIdx: idx };
-      document.getElementById('pickerTitle').textContent = '体重';
+      document.getElementById('pickerTitle').textContent = '朝体重';
       document.getElementById('pickerUnit').textContent = 'kg';
       showPicker(bw != null ? bw : 65, 0.1, 30, 150);
       return;
     }
     const add = Math.max(0, chinAddOf(ex, bw));
-    let customValues = null;
-    if (ex.machineKind === 'dumbbell') {
-      customValues = [];
-      for (let v = 0; v <= 10; v++) customValues.push(v);
-      for (let v = 12; v <= 50; v += 2) customValues.push(v);
-    }
     pickerContext = { type: 'chinAdd', exIdx: idx };
     document.getElementById('pickerTitle').textContent = '追加重量';
     document.getElementById('pickerUnit').textContent = 'kg';
-    showPicker(add, getWeightStep(ex), 0, 100, undefined, customValues);
+    showPicker(add, CHIN_ADD_STEP, 0, 100);
   }
-  // 重量の±：チンニングは追加重量を刻み幅で増減する（換算体重の端数は残す）
+  // 追加重量の−／＋（重量の±も同じ）：2.5kgずつ増減する（換算体重の端数は残す）。
+  // 2.5kgの倍数から外れている時（初回の分割など）は、押した向きの次の倍数へ合わせる
   function adjustChinAdd(idx, sign) {
-    const ex = workoutSession.exercises[idx];
+    const ex = workoutSession && workoutSession.exercises && workoutSession.exercises[idx];
+    if (!ex) return;
     const bw = getSessionBodyWeight();
-    if (!ex || bw == null) return;
+    if (bw == null) {
+      openChinPicker(idx, 'add');
+      return;
+    }
     const add = chinAddOf(ex, bw);
+    const step = CHIN_ADD_STEP;
     let next;
     if (add < 0) {
       // 換算体重より軽い重量になっている場合：＋は0へ、−はそのまま
       next = sign > 0 ? 0 : add;
-    } else if (ex.machineKind === 'dumbbell') {
-      let base = sign > 0 ? Math.floor(add + 1e-9) : Math.ceil(add - 1e-9);
-      if (base > 10 && base % 2 === 1) base += sign > 0 ? -1 : 1;
-      next = getNextDumbbellWeight(base, sign);
+    } else if (sign > 0) {
+      next = Math.floor(add / step + 1e-9) * step + step;
     } else {
-      const step = getWeightStep(ex);
-      next = Math.round((add + sign * step) / step) * step;
-      if (next < 0) next = 0;
+      next = Math.max(0, Math.ceil(add / step - 1e-9) * step - step);
     }
     const load = chinBodyLoad(bw);
     next = Math.min(chinRound(next), chinRound(300 - load));
