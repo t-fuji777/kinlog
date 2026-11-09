@@ -14078,7 +14078,7 @@
           if (ex.bilateral) {
             const setNo = Math.floor(i / 2) + 1;
             const sideStr = (s.side === 'L') ? '左' : (s.side === 'R') ? '右' : (i % 2 === 0 ? '右' : '左');
-            setLabel = `${setNo}<span class="last-set-side">${sideStr}</span>`;
+            setLabel = `${setNo}<span class="last-set-side ${sideStr === '右' ? 'set-side-r' : 'set-side-l'}">${sideStr}</span>`;
           } else {
             setLabel = i + 1;
           }
