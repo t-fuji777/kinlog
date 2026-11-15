@@ -411,7 +411,6 @@
   .quick-col-block .quick-field-label { margin-top: 8px; }
   .quick-col-grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 6px; }
   .quick-col-grid .ex-form-input { padding: 10px 8px; }
-  .quick-col-fixed { grid-column: 2 / 4; align-self: end; font-size: 11px; color: var(--text-3); line-height: 1.5; padding-bottom: 12px; }
   .quick-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
   .quick-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex-shrink: 0; }
   .quick-row-checks { display: flex; gap: 18px; flex-wrap: wrap; }
@@ -12602,17 +12601,8 @@
     const colBlock = (kind, no) => {
       const c = oneOffCol(kind);
       const d = QUICK_COL_DEFAULTS[kind];
-      // 時間：名前だけ変えられる（単位の分・秒と刻みは、カウントダウンと連動するので固定）
-      if (kind === 'time') {
-        return `
-      <div class="quick-col-block">
-        <label class="quick-check"><input type="checkbox" id="qv-show-${kind}"${oneOffHidden(kind) ? '' : ' checked'}><span>項目${no}（初期名：${d.name}）を表示する</span></label>
-        <div class="quick-col-grid">
-          <div><div class="quick-field-label">名前</div><input type="text" class="ex-form-input" id="qv-name-${kind}" maxlength="6" autocomplete="off" value="${escapeHtml(c.name)}" placeholder="${escapeHtml(d.name)}"></div>
-          <div class="quick-col-fixed">単位（分・秒）と刻みは固定です</div>
-        </div>
-      </div>`;
-      }
+      // 時間の単位は、空欄なら自動（HIIT＝分・秒、有酸素＝分）
+      const unitHint = kind === 'time' ? (type === 'hiit' ? '分・秒' : '分') : '';
       const stepOpts = [`<option value=""${c.step == null ? ' selected' : ''}>標準</option>`]
         .concat(QUICK_COL_STEPS.map(st => `<option value="${st}"${c.step === st ? ' selected' : ''}>${st}</option>`)).join('');
       return `
@@ -12620,7 +12610,7 @@
         <label class="quick-check"><input type="checkbox" id="qv-show-${kind}"${oneOffHidden(kind) ? '' : ' checked'}><span>項目${no}（初期名：${d.name}）を表示する</span></label>
         <div class="quick-col-grid">
           <div><div class="quick-field-label">名前</div><input type="text" class="ex-form-input" id="qv-name-${kind}" maxlength="6" autocomplete="off" value="${escapeHtml(c.name)}" placeholder="${escapeHtml(d.name)}"></div>
-          <div><div class="quick-field-label">単位</div><input type="text" class="ex-form-input" id="qv-unit-${kind}" maxlength="5" autocomplete="off" autocapitalize="off" value="${escapeHtml(c.unit)}"></div>
+          <div><div class="quick-field-label">単位</div><input type="text" class="ex-form-input" id="qv-unit-${kind}" maxlength="5" autocomplete="off" autocapitalize="off" value="${escapeHtml(c.unit)}" placeholder="${unitHint}"></div>
           <div><div class="quick-field-label">刻み</div><select class="ex-form-input" id="qv-step-${kind}">${stepOpts}</select></div>
         </div>
       </div>`;
@@ -12636,7 +12626,7 @@
       ${colBlock('time', 1)}
       ${colBlock('incline', 2)}
       ${colBlock('speed', 3)}
-      <p class="quick-note">刻みを「標準」以外にすると、0〜300の範囲から選べます（負荷・回転数など）。数値はそのまま残ります。</p>
+      <p class="quick-note">刻みを「標準」以外にすると、300までの範囲から選べます（負荷・回転数など）。数値はそのまま残ります。<br>時間の単位は、空欄なら自動で表示します。</p>
       ${rowChecks}
       <div class="modal-actions">
         <button class="modal-btn" onclick="closeQuickModal()">キャンセル</button>
@@ -12673,13 +12663,10 @@
       const cfg = {};
       const name = val('qv-name-' + kind).replace(/\s+/g, ' ').trim().slice(0, 6);
       if (name && name !== d.name) cfg.name = name;
-      // 時間は名前だけ（単位と刻みは固定）
-      if (kind !== 'time') {
-        const unit = val('qv-unit-' + kind).replace(/\s+/g, ' ').trim().slice(0, 5);
-        const step = parseFloat(val('qv-step-' + kind));
-        if (unit !== d.unit) cfg.unit = unit;
-        if (QUICK_COL_STEPS.indexOf(step) !== -1) cfg.step = step;
-      }
+      const unit = val('qv-unit-' + kind).replace(/\s+/g, ' ').trim().slice(0, 5);
+      const step = parseFloat(val('qv-step-' + kind));
+      if (unit !== d.unit) cfg.unit = unit;
+      if (QUICK_COL_STEPS.indexOf(step) !== -1) cfg.step = step;
       if (Object.keys(cfg).length) view.cols[kind] = cfg;
       if (!checked('qv-show-' + kind)) view.hide[kind] = true;
     });
@@ -15542,20 +15529,30 @@
   function hiitNum(v) {
     return (typeof v === 'number' && isFinite(v)) ? v : null;
   }
-  // 本番・休憩は10秒刻みなので「秒」、準備・終了は「分」で見せる（どちらも整数）
+  // 時間の単位：本番・休憩は「秒」、準備・終了は「分」。編集で単位を入れた時はその文字を全行に出す
   function hiitTimeUnit(phase) {
     return (phase === 'main' || phase === 'rest') ? '秒' : '分';
   }
-  // 保持している秒 → 表に出す整数
+  // 整数ならそのまま、小数があれば第1位まで
+  function oneOffNumText(n) {
+    const v = Number(n) || 0;
+    return Number.isInteger(v) ? String(v) : v.toFixed(1);
+  }
+  // 保持している秒 → 表に出す数値（本番・休憩＝秒、準備・終了＝分。分は割り切れない時だけ小数）
   function hiitTimeShown(phase, sec) {
     const n = Number(sec) || 0;
     if (phase === 'main' || phase === 'rest') return Math.round(n);
-    return Math.max(1, Math.round(n / 60));
+    return Math.round(n / 6) / 10;
   }
-  // ピッカーで選んだ整数 → 保持する秒
+  // ピッカーで選んだ値 → 保持する秒
   function hiitTimePickToSec(phase, val) {
     const n = Number(val) || 0;
-    if (phase === 'main' || phase === 'rest') return Math.max(10, Math.round(n / 10) * 10);
+    const secRow = (phase === 'main' || phase === 'rest');
+    // 刻みを変えている時：選んだ値をそのまま使う（秒の行は1秒単位、分の行は小数の分も可）
+    if (oneOffCol('time').step) {
+      return Math.max(1, Math.round(secRow ? n : n * 60));
+    }
+    if (secRow) return Math.max(10, Math.round(n / 10) * 10);
     return Math.max(1, Math.round(n)) * 60;
   }
   function hiitPhaseValue(ex, phase, kind) {
@@ -15589,9 +15586,15 @@
     }
     let step, min, max, unit;
     if (kind === 'time') {
-      // 整数で選ぶ。本番＝10〜180秒、休憩＝10〜300秒（10秒刻み）、準備・終了＝1〜15分（1分刻み）
-      unit = hiitTimeUnit(phase);
-      if (phase === 'main') { step = 10; min = 10; max = 180; }
+      // 標準：本番＝10〜180秒、休憩＝10〜300秒（10秒刻み）、準備・終了＝1〜15分（1分刻み）
+      // 刻みを変えた時：その刻みで300まで（秒の行は1秒が最小。0は選べない）
+      const tcol = oneOffCol('time');
+      unit = tcol.unit || hiitTimeUnit(phase);
+      if (tcol.step) {
+        step = (phase === 'main' || phase === 'rest') ? Math.max(1, tcol.step) : tcol.step;
+        min = step; max = 300;
+      }
+      else if (phase === 'main') { step = 10; min = 10; max = 180; }
       else if (phase === 'rest') { step = 10; min = 10; max = 300; }
       else { step = 1; min = 1; max = 15; }
     } else {
@@ -15694,7 +15697,7 @@
       const planCell = (ph, kind, isLast) => {
         const v = hiitPhaseValue(ex, ph.key, kind);
         const text = kind === 'time' ? String(hiitTimeShown(ph.key, v)) : oneOffFmt(kind, v);
-        const unit = kind === 'time' ? hiitTimeUnit(ph.key) : escapeHtml(oneOffCol(kind).unit);
+        const unit = kind === 'time' ? escapeHtml(oneOffCol('time').unit || hiitTimeUnit(ph.key)) : escapeHtml(oneOffCol(kind).unit);
         const idAttr = (ph.key === 'main' && kind === 'time') ? ` id="hiitPlanMainTime-${idx}"` : '';
         return `<button type="button" class="hiit-plan-val"${idAttr} onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')">${text}</button><span class="hiit-plan-unit${isLast ? ' is-last' : ''}" onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')">${unit}</span>`;
       };
@@ -17139,8 +17142,8 @@
       const planCell = (ph, k, isLast) => {
         const field = ph[k];
         const v = cardioPhaseValue(p, ph, k);
-        const text = k === 'time' ? String(Math.round(v)) : oneOffFmt(k, v);
-        const unit = k === 'time' ? '分' : escapeHtml(oneOffCol(k).unit);
+        const text = k === 'time' ? oneOffNumText(Math.round(v * 10) / 10) : oneOffFmt(k, v);
+        const unit = k === 'time' ? escapeHtml(oneOffCol('time').unit || '分') : escapeHtml(oneOffCol(k).unit);
         return `<button type="button" class="hiit-plan-val" onclick="openCardioMachinePicker(${idx}, '${field}')">${text}</button><span class="hiit-plan-unit${isLast ? ' is-last' : ''}" onclick="openCardioMachinePicker(${idx}, '${field}')">${unit}</span>`;
       };
       const planRows = planPhases.map(ph => `
@@ -17203,8 +17206,10 @@
     if (cph) {
       current = cardioPhaseValue(ex.machineProtocol, cph.ph, cph.kind);
       if (cph.kind === 'time') {
-        step = 1; min = 1; max = cph.ph.key === 'main' ? 30 : 15;
-        title = cph.ph.label + '：' + oneOffCol('time').name; unit = '分';
+        const tcol = oneOffCol('time');
+        if (tcol.step) { step = tcol.step; min = step; max = 300; }
+        else { step = 1; min = 1; max = cph.ph.key === 'main' ? 30 : 15; }
+        title = cph.ph.label + '：' + tcol.name; unit = tcol.unit || '分';
       } else {
         const col = oneOffCol(cph.kind);
         title = cph.ph.label + '：' + col.name; unit = col.unit;
