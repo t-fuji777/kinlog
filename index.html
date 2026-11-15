@@ -379,6 +379,41 @@
     transition: transform 0.15s;
   }
   .home-quick-btn:active { transform: scale(0.97); }
+  .home-quick-label { line-height: 1.6; }
+  /* 追加・名称変更・削除ができる単発ボタン。長押しでメニューを出すので、文字選択や長押しメニューは出さない */
+  .home-quick-item {
+    min-width: 0;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .home-quick-add { flex: 0 0 46px; padding-left: 0; padding-right: 0; font-size: 18px; color: var(--text-2); }
+  /* 単発ボタンのモーダル（新規作成・名称変更・削除・表示の編集） */
+  .quick-field-label { font-size: 11px; color: var(--text-3); margin: 12px 0 6px; letter-spacing: 0.04em; }
+  .quick-note { font-size: 12px; color: var(--text-3); line-height: 1.6; margin: 10px 0 0; }
+  .quick-type-list { display: flex; flex-direction: column; gap: 6px; }
+  .quick-type-btn {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    width: 100%; padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-2); color: var(--text);
+    font-family: inherit; text-align: left; cursor: pointer;
+  }
+  .quick-type-btn.selected { border-color: var(--accent); background: var(--bg-3); }
+  .quick-type-name { font-size: 14px; font-weight: 800; }
+  .quick-type-desc { font-size: 11px; color: var(--text-3); }
+  .quick-menu-list { display: flex; flex-direction: column; gap: 8px; }
+  .quick-col-block { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 10px 12px; margin-bottom: 8px; }
+  .quick-col-block .quick-field-label { margin-top: 8px; }
+  .quick-col-grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 6px; }
+  .quick-col-grid .ex-form-input { padding: 10px 8px; }
+  .quick-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+  .quick-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex-shrink: 0; }
+  .quick-row-checks { display: flex; gap: 18px; flex-wrap: wrap; }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
@@ -5187,8 +5222,7 @@
     /* 次の項目との間をあける（最後の km/h は不要） */
     padding-right: 5px;
   }
-  .hiit-plan-unit:last-child,
-  .hiit-plan-unit:nth-child(7n) { padding-right: 0; }
+  .hiit-plan-unit.is-last { padding-right: 0; }
   /* 単発HIIT：表の分だけ縦に伸びるので、インターバル以外（カウントダウン・開始ボタン・下のタイマー）を詰める */
   body.oneoff-hiit #exerciseList .hiit-protocol { margin-bottom: 6px; }
   body.oneoff-hiit #exerciseList .hiit-simple-time { min-height: 73px; }
@@ -5196,12 +5230,16 @@
   body.oneoff-hiit #oneoffTimerSlot .timer-value { font-size: 44px; }
   /* 単発：種目名の行（01 HIIT など）は出さない。空いた分は セット・タイマーの段 と 開始ボタン の高さに回す */
   body.oneoff-workout #exerciseList .ex-head { display: none; }
-  body.oneoff-workout #exerciseList .hiit-judge-row.full-width { grid-template-columns: auto 1fr; }
+  /* 下段：配置変更(⇅)・編集・開始 を横に並べ、開始が残りの幅を使う */
+  body.oneoff-workout #exerciseList .hiit-judge-row.full-width { display: flex !important; gap: 6px; }
   body.oneoff-workout #exerciseList .hiit-judge-row.full-width > .judge-btn,
   body.oneoff-workout #exerciseList .hiit-judge-row.full-width > .nav-btn-step {
+    flex: 1 1 auto;
+    min-width: 0;
     min-height: 56px;
     font-size: 15px;
   }
+  .oneoff-pos-btn.oneoff-edit-btn { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; padding: 0 8px; }
   /* 単発の有酸素：傾斜・速度・時間の枠も同じだけ高くする */
   body.oneoff-workout .machine-params-top .hiit-prep-cool-item { min-height: 71px; justify-content: center; }
   /* 配置変更(⇅)ボタン：開始ボタンの左 */
@@ -7824,14 +7862,10 @@
     <div id="homeMain">
       <div id="recommendZone"></div>
     </div>
-    <!-- 単発ランチャー：HIIT / 有酸素 / その他 をその場限りで起動（履歴に残さない） -->
+    <!-- 単発ボタン：その場限りで起動（履歴に残さない）。追加・名称変更・削除ができる（最大4つ）。中身は renderQuickButtons() が描く -->
     <div id="homeQuickLaunch">
-      <div class="home-quick-label">単発で行う（記録は残りません）</div>
-      <div class="home-quick-row">
-        <button type="button" class="home-quick-btn" onclick="startOneOffWorkout('hiit')">HIIT</button>
-        <button type="button" class="home-quick-btn" onclick="startOneOffWorkout('cardio')">有酸素</button>
-        <button type="button" class="home-quick-btn" onclick="startOneOffWorkout('other')">その他</button>
-      </div>
+      <div class="home-quick-label" id="homeQuickLabel">単発で行う（記録は残りません）</div>
+      <div class="home-quick-row" id="homeQuickRow"></div>
     </div>
   </section>
 
@@ -8775,6 +8809,11 @@
       <button class="modal-btn primary" onclick="savePositionEditor()">保存</button>
     </div>
   </div>
+</div>
+
+<!-- 単発ボタン：新規作成・名称変更・削除・表示の編集（中身はJSが描く） -->
+<div class="modal-backdrop" id="quickModal" onclick="quickModalBackdropTap(event)">
+  <div class="modal" id="quickModalBody"></div>
 </div>
 
 <div class="picker-backdrop" id="timeEditModal">
@@ -12155,9 +12194,13 @@
     });
   }
 
-  // 単発: 配置変更(⇅)ボタン。開始ボタンの左に置く
+  // 単発: 開始ボタンの左に置くボタン。配置変更(⇅)と、表示項目の「編集」（HIIT・有酸素のみ）
   function oneOffPosBtnHtml() {
-    return `<button type="button" class="oneoff-pos-btn" onclick="event.stopPropagation(); cycleOneOffPosition()" title="表示位置を変更（上/真ん中/下）">⇅</button>`;
+    const t = workoutSession && workoutSession.oneOffType;
+    const edit = (t === 'hiit' || t === 'cardio')
+      ? `<button type="button" class="oneoff-pos-btn oneoff-edit-btn" onclick="event.stopPropagation(); openOneOffViewEdit()" title="表示する項目・名前・単位を変更">編集</button>`
+      : '';
+    return `<button type="button" class="oneoff-pos-btn" onclick="event.stopPropagation(); cycleOneOffPosition()" title="表示位置を変更（上/真ん中/下）">⇅</button>${edit}`;
   }
   // 単発: 表示位置（上/真ん中/下）を巡回。内容全体（インターバル＋カード＋タイマー）を移動
   function cycleOneOffPosition() {
@@ -12176,39 +12219,395 @@
     document.body.classList.add('oneoff-pos-' + pos);
   }
 
-  // テストモード中の単発設定（端末には保存しない。テストモード終了で破棄）
-  let adminOneOffSettings = null;
-  function loadOneOffSettings() {
-    if (isAdminMode && adminOneOffSettings) {
-      try { return JSON.parse(JSON.stringify(adminOneOffSettings)); } catch (e) { return {}; }
-    }
-    let all = {};
-    try { all = JSON.parse(localStorage.getItem('wo_oneoff_settings') || '{}'); } catch (e) {}
-    return (all && typeof all === 'object') ? all : {};
+  // ========== 単発ボタン（ホーム下部。追加・名称変更・削除ができる。最大4つ） ==========
+  // 保存形式： wo_quick_buttons = [{ id, name, type, settings, view }]
+  //   type     : 'hiit' | 'cardio' | 'other'（画面の型）
+  //   settings : そのボタンの数値（hiit:{protocol, roundTargetSec} / cardio:{machineProtocol} / other:{otherSec, sets}）
+  //   view     : 表示の設定 { cols:{incline:{name,unit,step}, speed:{...}}, hide:{prep,rest,cool,incline,speed} }
+  const QUICK_BTN_KEY = 'wo_quick_buttons';
+  const QUICK_BTN_MAX = 4;
+  const QUICK_NAME_MAX = 8;
+  const QUICK_TYPES = {
+    hiit:   { label: 'HIIT',   desc: '準備・本番・休憩・終了の表とカウントダウン' },
+    cardio: { label: '有酸素', desc: '傾斜・速度・時間の3項目' },
+    other:  { label: 'その他', desc: 'セット数とカウントダウン' }
+  };
+  const QUICK_COL_DEFAULTS = {
+    incline: { name: '傾斜', unit: '%' },
+    speed:   { name: '速度', unit: 'km/h' }
+  };
+  const QUICK_COL_STEPS = [0.1, 0.5, 1];
+  // テストモード中のボタン一覧（端末には保存しない。テストモード終了で破棄）
+  let adminQuickButtons = null;
+  function quickClone(v) {
+    try { return JSON.parse(JSON.stringify(v)); } catch (e) { return null; }
   }
-  // 単発の設定（速度・傾斜・時間・本数など）を種別ごとに保存。次回起動時に復元される
+  function sanitizeQuickButtons(list) {
+    if (!Array.isArray(list)) return [];
+    const seen = {};
+    const out = [];
+    list.forEach(b => {
+      if (!b || typeof b !== 'object') return;
+      if (typeof b.id !== 'string' || !b.id || seen[b.id]) return;
+      if (!QUICK_TYPES[b.type]) return;
+      seen[b.id] = true;
+      out.push({
+        id: b.id,
+        name: normalizeQuickName(b.name) || QUICK_TYPES[b.type].label,
+        type: b.type,
+        settings: (b.settings && typeof b.settings === 'object') ? b.settings : null,
+        view: (b.view && typeof b.view === 'object') ? b.view : null
+      });
+    });
+    return out.slice(0, QUICK_BTN_MAX);
+  }
+  function normalizeQuickName(raw) {
+    return String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim().slice(0, QUICK_NAME_MAX);
+  }
+  // 旧形式（種類ごとに1つ：wo_oneoff_settings）からの引き継ぎ。
+  // 一度でも使ったことのある種類だけを、数値ごとボタンにする（旧データは消さずに残す）
+  function migrateQuickButtonsFromLegacy() {
+    let legacy = null;
+    try { legacy = JSON.parse(localStorage.getItem('wo_oneoff_settings') || '{}'); } catch (e) { legacy = null; }
+    const out = [];
+    if (legacy && typeof legacy === 'object') {
+      ['hiit', 'cardio', 'other'].forEach(t => {
+        if (legacy[t] && typeof legacy[t] === 'object') {
+          out.push({ id: 'q_' + t, name: QUICK_TYPES[t].label, type: t, settings: legacy[t], view: null });
+        }
+      });
+    }
+    return out;
+  }
+  function loadQuickButtons() {
+    if (isAdminMode && adminQuickButtons) return sanitizeQuickButtons(quickClone(adminQuickButtons));
+    let raw = null;
+    try { raw = localStorage.getItem(QUICK_BTN_KEY); } catch (e) { raw = null; }
+    if (raw != null) {
+      try { return sanitizeQuickButtons(JSON.parse(raw)); } catch (e) { return []; }
+    }
+    const list = sanitizeQuickButtons(migrateQuickButtonsFromLegacy());
+    // 引き継いだ結果を保存する（テストモード中は端末に書かない）
+    if (!isAdminMode) {
+      try { localStorage.setItem(QUICK_BTN_KEY, JSON.stringify(list)); } catch (e) {}
+    }
+    return list;
+  }
+  function saveQuickButtons(list) {
+    const clean = sanitizeQuickButtons(list);
+    // テストモードは端末に保存しない（テストモード中だけメモリに保持）
+    if (isAdminMode) { adminQuickButtons = quickClone(clean); return; }
+    try { localStorage.setItem(QUICK_BTN_KEY, JSON.stringify(clean)); } catch (e) {}
+  }
+
+  // ホーム下部のボタン行を描く。0個の時は「新規作成」だけ、1個以上あれば右端に追加(＋)。4個で追加は出さない
+  function renderQuickButtons() {
+    const row = document.getElementById('homeQuickRow');
+    const label = document.getElementById('homeQuickLabel');
+    if (!row) return;
+    const list = loadQuickButtons();
+    if (label) {
+      label.innerHTML = list.length
+        ? '単発で行う（記録は残りません）<br>長押しで名称変更・削除'
+        : '単発で行う（記録は残りません）';
+    }
+    if (!list.length) {
+      row.innerHTML = `<button type="button" class="home-quick-btn" onclick="openQuickCreate()">新規作成</button>`;
+      return;
+    }
+    row.innerHTML = list.map(b =>
+      `<button type="button" class="home-quick-btn home-quick-item" data-qid="${escapeHtml(b.id)}">${escapeHtml(b.name)}</button>`
+    ).join('') + (list.length < QUICK_BTN_MAX
+      ? `<button type="button" class="home-quick-btn home-quick-add" onclick="openQuickCreate()" title="ボタンを追加">＋</button>`
+      : '');
+    row.querySelectorAll('.home-quick-item').forEach(attachQuickButtonPress);
+  }
+  // タップ＝開始、長押し＝名称変更・削除のメニュー
+  function attachQuickButtonPress(btn) {
+    const id = btn.dataset.qid;
+    let timer = null;
+    let longPressed = false;
+    let sx = 0, sy = 0;
+    const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    btn.addEventListener('pointerdown', e => {
+      longPressed = false;
+      sx = e.clientX; sy = e.clientY;
+      clear();
+      timer = setTimeout(() => {
+        timer = null;
+        longPressed = true;
+        if (navigator.vibrate) navigator.vibrate(10);
+        openQuickMenu(id);
+      }, 550);
+    });
+    btn.addEventListener('pointermove', e => {
+      if (timer && (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10)) clear();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => btn.addEventListener(t, clear));
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+    btn.addEventListener('click', e => {
+      // 長押しでメニューを出した直後の指離しでは開始しない
+      if (longPressed) { longPressed = false; e.preventDefault(); return; }
+      startOneOffWorkout(id);
+    });
+  }
+
+  // ----- 共用モーダル -----
+  let quickModalCtx = null;
+  let quickModalOpenedAt = 0;
+  function showQuickModal(html) {
+    const m = document.getElementById('quickModal');
+    const body = document.getElementById('quickModalBody');
+    if (!m || !body) return;
+    body.innerHTML = html;
+    body.scrollTop = 0;
+    quickModalOpenedAt = Date.now();
+    m.classList.add('show');
+  }
+  function closeQuickModal() {
+    const m = document.getElementById('quickModal');
+    const body = document.getElementById('quickModalBody');
+    if (m) m.classList.remove('show');
+    if (body) {
+      const ae = document.activeElement;
+      if (ae && body.contains(ae) && typeof ae.blur === 'function') ae.blur();
+      body.innerHTML = '';
+    }
+    quickModalCtx = null;
+  }
+  function quickModalBackdropTap(e) {
+    if (!e || !e.target || e.target.id !== 'quickModal') return;
+    // 長押しで開いた直後の指離しでは閉じない
+    if (Date.now() - quickModalOpenedAt < 500) return;
+    closeQuickModal();
+  }
+
+  // ----- 新規作成 -----
+  function openQuickCreate() {
+    if (loadQuickButtons().length >= QUICK_BTN_MAX) { toast('ボタンは最大4つまでです'); return; }
+    quickModalCtx = { kind: 'create', type: 'hiit' };
+    const typeBtns = Object.keys(QUICK_TYPES).map(t =>
+      `<button type="button" class="quick-type-btn${t === 'hiit' ? ' selected' : ''}" data-qtype="${t}" onclick="selectQuickType('${t}')"><span class="quick-type-name">${QUICK_TYPES[t].label}</span><span class="quick-type-desc">${QUICK_TYPES[t].desc}</span></button>`
+    ).join('');
+    showQuickModal(`
+      <h3 class="modal-title">新規作成</h3>
+      <div class="quick-field-label">画面の型</div>
+      <div class="quick-type-list">${typeBtns}</div>
+      <div class="quick-field-label">ボタンの名前（${QUICK_NAME_MAX}文字まで。空欄なら型の名前）</div>
+      <input type="text" id="quickNameInput" class="ex-form-input" maxlength="${QUICK_NAME_MAX}" autocomplete="off" enterkeyhint="done" placeholder="${QUICK_TYPES.hiit.label}" onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }">
+      <div class="modal-actions">
+        <button class="modal-btn" onclick="closeQuickModal()">キャンセル</button>
+        <button class="modal-btn primary" onclick="confirmQuickCreate()">作成</button>
+      </div>`);
+  }
+  function selectQuickType(t) {
+    if (!quickModalCtx || quickModalCtx.kind !== 'create' || !QUICK_TYPES[t]) return;
+    quickModalCtx.type = t;
+    document.querySelectorAll('#quickModalBody .quick-type-btn').forEach(b => {
+      b.classList.toggle('selected', b.dataset.qtype === t);
+    });
+    const input = document.getElementById('quickNameInput');
+    if (input) input.placeholder = QUICK_TYPES[t].label;
+  }
+  function confirmQuickCreate() {
+    if (!quickModalCtx || quickModalCtx.kind !== 'create') return;
+    const list = loadQuickButtons();
+    if (list.length >= QUICK_BTN_MAX) { closeQuickModal(); toast('ボタンは最大4つまでです'); return; }
+    const type = QUICK_TYPES[quickModalCtx.type] ? quickModalCtx.type : 'hiit';
+    const input = document.getElementById('quickNameInput');
+    const name = normalizeQuickName(input ? input.value : '') || QUICK_TYPES[type].label;
+    const id = 'q' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
+    list.push({ id, name, type, settings: null, view: null });
+    saveQuickButtons(list);
+    closeQuickModal();
+    renderQuickButtons();
+    toast(`「${name}」を追加しました`);
+  }
+
+  // ----- 長押しメニュー：名称変更・削除 -----
+  function openQuickMenu(id) {
+    const b = loadQuickButtons().find(x => x.id === id);
+    if (!b) return;
+    quickModalCtx = { kind: 'menu', id };
+    showQuickModal(`
+      <h3 class="modal-title">${escapeHtml(b.name)}</h3>
+      <div class="quick-menu-list">
+        <button class="modal-btn" onclick="openQuickRename()">名称変更</button>
+        <button class="modal-btn warn" onclick="openQuickDelete()">削除</button>
+        <button class="modal-btn" onclick="closeQuickModal()">閉じる</button>
+      </div>`);
+  }
+  function openQuickRename() {
+    const id = quickModalCtx && quickModalCtx.id;
+    const b = loadQuickButtons().find(x => x.id === id);
+    if (!b) { closeQuickModal(); return; }
+    quickModalCtx = { kind: 'rename', id };
+    showQuickModal(`
+      <h3 class="modal-title">名称変更</h3>
+      <div class="quick-field-label">ボタンの名前（${QUICK_NAME_MAX}文字まで）</div>
+      <input type="text" id="quickNameInput" class="ex-form-input" maxlength="${QUICK_NAME_MAX}" autocomplete="off" enterkeyhint="done" value="${escapeHtml(b.name)}" onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }">
+      <div class="modal-actions">
+        <button class="modal-btn" onclick="closeQuickModal()">キャンセル</button>
+        <button class="modal-btn primary" onclick="confirmQuickRename()">保存</button>
+      </div>`);
+  }
+  function confirmQuickRename() {
+    if (!quickModalCtx || quickModalCtx.kind !== 'rename') return;
+    const id = quickModalCtx.id;
+    const input = document.getElementById('quickNameInput');
+    const name = normalizeQuickName(input ? input.value : '');
+    if (!name) { toast('名前を入力してください'); return; }
+    const list = loadQuickButtons();
+    const b = list.find(x => x.id === id);
+    if (!b) { closeQuickModal(); renderQuickButtons(); return; }
+    b.name = name;
+    saveQuickButtons(list);
+    closeQuickModal();
+    renderQuickButtons();
+    toast('名前を変更しました');
+  }
+  function openQuickDelete() {
+    const id = quickModalCtx && quickModalCtx.id;
+    const b = loadQuickButtons().find(x => x.id === id);
+    if (!b) { closeQuickModal(); return; }
+    quickModalCtx = { kind: 'delete', id };
+    showQuickModal(`
+      <h3 class="modal-title">削除しますか？</h3>
+      <p class="quick-note">「${escapeHtml(b.name)}」のボタンと、このボタンに設定した数値を削除します。元に戻せません。</p>
+      <div class="modal-actions">
+        <button class="modal-btn" onclick="closeQuickModal()">キャンセル</button>
+        <button class="modal-btn danger" onclick="confirmQuickDelete()">削除する</button>
+      </div>`);
+  }
+  function confirmQuickDelete() {
+    if (!quickModalCtx || quickModalCtx.kind !== 'delete') return;
+    const id = quickModalCtx.id;
+    const list = loadQuickButtons();
+    const b = list.find(x => x.id === id);
+    closeQuickModal();
+    if (!b) { renderQuickButtons(); return; }
+    saveQuickButtons(list.filter(x => x.id !== id));
+    renderQuickButtons();
+    toast(`「${b.name}」を削除しました`);
+  }
+
+  // ----- 単発画面の表示設定（項目の名前・単位・刻み、行と項目の表示/非表示） -----
+  function oneOffView() {
+    return (workoutSession && workoutSession.oneOff && workoutSession.oneOffView && typeof workoutSession.oneOffView === 'object')
+      ? workoutSession.oneOffView : {};
+  }
+  // kind: 'incline' | 'speed'。step が null の時は従来の選択範囲（トレッドミル向け）を使う
+  function oneOffCol(kind) {
+    const d = QUICK_COL_DEFAULTS[kind] || { name: '', unit: '' };
+    const cols = oneOffView().cols;
+    const c = (cols && typeof cols === 'object' && cols[kind] && typeof cols[kind] === 'object') ? cols[kind] : {};
+    const name = (typeof c.name === 'string' && c.name.trim()) ? c.name.trim().slice(0, 6) : d.name;
+    const unit = (typeof c.unit === 'string') ? c.unit.trim().slice(0, 5) : d.unit;
+    const step = QUICK_COL_STEPS.indexOf(c.step) !== -1 ? c.step : null;
+    return { name, unit, step };
+  }
+  // key: 'prep' | 'rest' | 'cool'（HIITの行） / 'incline' | 'speed'（項目）
+  function oneOffHidden(key) {
+    const h = oneOffView().hide;
+    return !!(h && typeof h === 'object' && h[key]);
+  }
+  function oneOffFmt(kind, v) {
+    const n = Number(v) || 0;
+    return oneOffCol(kind).step === 1 ? String(Math.round(n)) : n.toFixed(1);
+  }
+  function openOneOffViewEdit() {
+    if (!workoutSession || !workoutSession.oneOff) return;
+    const type = workoutSession.oneOffType;
+    if (type !== 'hiit' && type !== 'cardio') return;
+    quickModalCtx = { kind: 'view', type };
+    const colBlock = (kind, no) => {
+      const c = oneOffCol(kind);
+      const d = QUICK_COL_DEFAULTS[kind];
+      const stepOpts = [`<option value=""${c.step == null ? ' selected' : ''}>標準</option>`]
+        .concat(QUICK_COL_STEPS.map(st => `<option value="${st}"${c.step === st ? ' selected' : ''}>${st}</option>`)).join('');
+      return `
+      <div class="quick-col-block">
+        <label class="quick-check"><input type="checkbox" id="qv-show-${kind}"${oneOffHidden(kind) ? '' : ' checked'}><span>項目${no}（初期名：${d.name}）を表示する</span></label>
+        <div class="quick-col-grid">
+          <div><div class="quick-field-label">名前</div><input type="text" class="ex-form-input" id="qv-name-${kind}" maxlength="6" autocomplete="off" value="${escapeHtml(c.name)}" placeholder="${escapeHtml(d.name)}"></div>
+          <div><div class="quick-field-label">単位</div><input type="text" class="ex-form-input" id="qv-unit-${kind}" maxlength="5" autocomplete="off" autocapitalize="off" value="${escapeHtml(c.unit)}"></div>
+          <div><div class="quick-field-label">刻み</div><select class="ex-form-input" id="qv-step-${kind}">${stepOpts}</select></div>
+        </div>
+      </div>`;
+    };
+    const rowChecks = type === 'hiit' ? `
+      <div class="quick-field-label">表示する行（本番は常に表示）</div>
+      <div class="quick-row-checks">
+        ${[['prep', '準備'], ['rest', '休憩'], ['cool', '終了']].map(r =>
+          `<label class="quick-check"><input type="checkbox" id="qv-row-${r[0]}"${oneOffHidden(r[0]) ? '' : ' checked'}><span>${r[1]}</span></label>`).join('')}
+      </div>` : '';
+    showQuickModal(`
+      <h3 class="modal-title">表示の編集</h3>
+      ${colBlock('incline', 1)}
+      ${colBlock('speed', 2)}
+      <p class="quick-note">刻みを「標準」以外にすると、0〜300の範囲から選べます（負荷・回転数など）。数値はそのまま残ります。</p>
+      ${rowChecks}
+      <div class="modal-actions">
+        <button class="modal-btn" onclick="closeQuickModal()">キャンセル</button>
+        <button class="modal-btn primary" onclick="confirmOneOffViewEdit()">保存</button>
+      </div>`);
+  }
+  function confirmOneOffViewEdit() {
+    if (!quickModalCtx || quickModalCtx.kind !== 'view') return;
+    if (!workoutSession || !workoutSession.oneOff) { closeQuickModal(); return; }
+    const type = workoutSession.oneOffType;
+    const val = id => { const el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+    const checked = id => { const el = document.getElementById(id); return el ? !!el.checked : true; };
+    const view = { cols: {}, hide: {} };
+    ['incline', 'speed'].forEach(kind => {
+      const d = QUICK_COL_DEFAULTS[kind];
+      const cfg = {};
+      const name = val('qv-name-' + kind).replace(/\s+/g, ' ').trim().slice(0, 6);
+      const unit = val('qv-unit-' + kind).replace(/\s+/g, ' ').trim().slice(0, 5);
+      const step = parseFloat(val('qv-step-' + kind));
+      if (name && name !== d.name) cfg.name = name;
+      if (unit !== d.unit) cfg.unit = unit;
+      if (QUICK_COL_STEPS.indexOf(step) !== -1) cfg.step = step;
+      if (Object.keys(cfg).length) view.cols[kind] = cfg;
+      if (!checked('qv-show-' + kind)) view.hide[kind] = true;
+    });
+    if (type === 'hiit') {
+      ['prep', 'rest', 'cool'].forEach(k => { if (!checked('qv-row-' + k)) view.hide[k] = true; });
+    }
+    workoutSession.oneOffView = view;
+    saveOneOffSettings();
+    closeQuickModal();
+    renderExerciseList();
+    toast('表示を変更しました');
+  }
+
+  // 単発の設定（速度・傾斜・時間・本数など）と表示設定を、起動元のボタンに保存。次回そのボタンで復元される
   function saveOneOffSettings() {
     if (!workoutSession || !workoutSession.oneOff) return;
     const type = workoutSession.oneOffType;
+    const id = workoutSession.oneOffId;
     const ex = workoutSession.exercises && workoutSession.exercises[0];
-    if (!type || !ex) return;
-    let all = loadOneOffSettings();
+    if (!type || !id || !ex) return;
+    const list = loadQuickButtons();
+    const btn = list.find(b => b.id === id);
+    // ボタンが削除済み・型が違う時は何もしない
+    if (!btn || btn.type !== type) return;
     if (type === 'hiit') {
-      all.hiit = {
+      btn.settings = {
         protocol: ex.protocol ? { ...ex.protocol } : null,
         roundTargetSec: (ex.roundTargetSec != null ? ex.roundTargetSec : null)
       };
     } else if (type === 'cardio') {
-      all.cardio = { machineProtocol: ex.machineProtocol ? { ...ex.machineProtocol } : null };
+      btn.settings = { machineProtocol: ex.machineProtocol ? { ...ex.machineProtocol } : null };
     } else {
-      all.other = {
+      btn.settings = {
         otherSec: (ex.coreSec != null ? ex.coreSec : ex.otherSec),
         sets: (ex.currentSets || ex.targetSets || 1)
       };
     }
-    // テストモードは端末に保存しない（テストモード中だけメモリに保持）
-    if (isAdminMode) { adminOneOffSettings = all; return; }
-    try { localStorage.setItem('wo_oneoff_settings', JSON.stringify(all)); } catch (e) {}
+    btn.view = (workoutSession.oneOffView && typeof workoutSession.oneOffView === 'object')
+      ? quickClone(workoutSession.oneOffView) : null;
+    saveQuickButtons(list);
   }
 
   // 単発ワークアウト用にワークアウト画面のクロームを切り替える。
@@ -12658,7 +13057,7 @@
     // テストモード中の一時保管（メモリ上のテスト記録）は持ち越さない
     adminSuspendedSnap = null;
     adminBodyWeight = null;
-    adminOneOffSettings = null;
+    adminQuickButtons = null;
     adminMockLastWeights = null;
     adminMockHistory = null;
     adminSelectedDow = null;
@@ -12692,6 +13091,7 @@
       const id = active ? active.id : '';
       // ホーム系の再描画
       if (typeof renderHome === 'function') renderHome();
+      if (typeof renderQuickButtons === 'function') renderQuickButtons();
       if (typeof renderRecommend === 'function') renderRecommend();
       if (typeof renderWeekStrip === 'function') renderWeekStrip();
       // 履歴
@@ -13640,10 +14040,13 @@
   }
 
   // ========== 単発ワークアウト（その場限り・履歴に残さない） ==========
-  // ホーム下部の HIIT / 有酸素 / その他 ボタンから起動。メニューに紐付かない単一種目。
+  // ホーム下部の単発ボタンから起動。メニューに紐付かない単一種目。
   // 各種目の設定はワークアウト画面上でそのまま変更できる（既存の画面内ピッカー/±を利用）。
-  // type: 'hiit' | 'cardio' | 'other'
-  function startOneOffWorkout(type) {
+  // buttonId: 単発ボタンのID（画面の型 'hiit' | 'cardio' | 'other' はボタンが持つ）
+  function startOneOffWorkout(buttonId) {
+    const quickBtn = loadQuickButtons().find(b => b.id === buttonId) || null;
+    if (!quickBtn) { renderQuickButtons(); return; }
+    const type = quickBtn.type;
     // 直前の履歴編集が中断されたまま残っていたら破棄（履歴上書き事故防止）
     editingHistoryDate = null;
     // 種別ごとの既定値。ワークアウト画面で調整できるので初期値はテスト用ビルダーに準拠。
@@ -13670,14 +14073,14 @@
         other: true, otherSec: 60  // タイマー既定60秒（画面で±変更可）
       };
     }
-    // 前回変更した設定（速度・傾斜・時間・本数など）を復元
-    const savedOneOff = loadOneOffSettings();
-    if (type === 'hiit' && savedOneOff.hiit && savedOneOff.hiit.protocol) {
-      base.protocol = { ...base.protocol, ...savedOneOff.hiit.protocol };
-    } else if (type === 'cardio' && savedOneOff.cardio && savedOneOff.cardio.machineProtocol) {
-      base.machineProtocol = { ...base.machineProtocol, ...savedOneOff.cardio.machineProtocol };
-    } else if (type === 'other' && savedOneOff.other && savedOneOff.other.otherSec != null) {
-      base.otherSec = savedOneOff.other.otherSec;
+    // このボタンで前回変更した設定（速度・傾斜・時間・本数など）を復元
+    const savedOneOff = quickBtn.settings || {};
+    if (type === 'hiit' && savedOneOff.protocol && typeof savedOneOff.protocol === 'object') {
+      base.protocol = { ...base.protocol, ...savedOneOff.protocol };
+    } else if (type === 'cardio' && savedOneOff.machineProtocol && typeof savedOneOff.machineProtocol === 'object') {
+      base.machineProtocol = { ...base.machineProtocol, ...savedOneOff.machineProtocol };
+    } else if (type === 'other' && savedOneOff.otherSec != null) {
+      base.otherSec = savedOneOff.otherSec;
     }
     // startWorkout と同じセッション種目形状で単一種目を構築
     const ex = {
@@ -13709,18 +14112,20 @@
       setRecords: [], judge: null, keepReps: null
     };
     // HIITの本数タイマー(roundTargetSec)・その他のセット数も復元
-    if (type === 'hiit' && savedOneOff.hiit && savedOneOff.hiit.roundTargetSec != null) {
-      ex.roundTargetSec = savedOneOff.hiit.roundTargetSec;
+    if (type === 'hiit' && savedOneOff.roundTargetSec != null) {
+      ex.roundTargetSec = savedOneOff.roundTargetSec;
     }
-    if (type === 'other' && savedOneOff.other && savedOneOff.other.sets != null) {
-      ex.targetSets = savedOneOff.other.sets;
-      ex.currentSets = savedOneOff.other.sets;
+    if (type === 'other' && savedOneOff.sets != null) {
+      ex.targetSets = savedOneOff.sets;
+      ex.currentSets = savedOneOff.sets;
     }
     currentWorkout = null;            // メニュー非紐付け
     workoutSession = {
       menuId: null,
       oneOff: true,                   // finishWorkout はこのフラグで保存をスキップ
       oneOffType: type,
+      oneOffId: quickBtn.id,          // 設定の保存先（起動元の単発ボタン）
+      oneOffView: quickBtn.view ? quickClone(quickBtn.view) : null,  // 表示設定（項目の名前・単位・非表示）
       date: new Date().toISOString(),
       exercises: [ex]
     };
@@ -15072,19 +15477,21 @@
       if (phase === 'main') { step = 10; min = 10; max = 180; }
       else if (phase === 'rest') { step = 10; min = 10; max = 300; }
       else { step = 1; min = 1; max = 15; }
-    } else if (kind === 'incline') {
-      step = 0.5; min = 0; max = 15; unit = '%';
-    } else if (phase === 'main') {
-      step = 0.5; min = 5; max = 20; unit = 'km/h';
     } else {
-      step = 0.1; min = 1; max = 12; unit = 'km/h';
+      // 傾斜・速度：名前・単位・刻みは単発ボタンごとに変えられる。刻みが「標準」なら従来の範囲
+      const col = oneOffCol(kind);
+      unit = col.unit;
+      if (col.step) { step = col.step; min = 0; max = 300; }
+      else if (kind === 'incline') { step = 0.5; min = 0; max = 15; }
+      else if (phase === 'main') { step = 0.5; min = 5; max = 20; }
+      else { step = 0.1; min = 1; max = 12; }
     }
     let current = hiitPhaseValue(ex, phase, kind);
     if (kind === 'time') current = hiitTimeShown(phase, current);
     if (current < min) current = min;
     if (current > max) current = max;
     pickerContext = { type: 'hiitPhase', exIdx: idx, phase, kind, step, min, max };
-    document.getElementById('pickerTitle').textContent = ph.label + '：' + (kind === 'time' ? '時間' : (kind === 'incline' ? '傾斜' : '速度'));
+    document.getElementById('pickerTitle').textContent = ph.label + '：' + (kind === 'time' ? '時間' : oneOffCol(kind).name);
     document.getElementById('pickerUnit').textContent = unit;
     showPicker(current, step, min, max);
   }
@@ -15163,23 +15570,27 @@
     const bodyText = `心拍：162〜180 bpm　時間：${roundTargetSec}秒`;
     // 単発：上に「準備・本番・休憩・終了」×「時間・傾斜・速度」の表、その下にセット枠＋カウントダウン
     if (workoutSession.oneOff) {
-      const planCell = (ph, kind) => {
+      // 表示する項目（時間は常に表示）と行（本番は常に表示）
+      const planCols = ['time'].concat(['incline', 'speed'].filter(k => !oneOffHidden(k)));
+      const planPhases = HIIT_PHASES.filter(ph => ph.key === 'main' || !oneOffHidden(ph.key));
+      const planCell = (ph, kind, isLast) => {
         const v = hiitPhaseValue(ex, ph.key, kind);
-        const text = kind === 'time' ? String(hiitTimeShown(ph.key, v)) : Number(v).toFixed(1);
-        const unit = kind === 'time' ? hiitTimeUnit(ph.key) : (kind === 'incline' ? '%' : 'km/h');
+        const text = kind === 'time' ? String(hiitTimeShown(ph.key, v)) : oneOffFmt(kind, v);
+        const unit = kind === 'time' ? hiitTimeUnit(ph.key) : escapeHtml(oneOffCol(kind).unit);
         const idAttr = (ph.key === 'main' && kind === 'time') ? ` id="hiitPlanMainTime-${idx}"` : '';
-        return `<button type="button" class="hiit-plan-val"${idAttr} onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')">${text}</button><span class="hiit-plan-unit" onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')">${unit}</span>`;
+        return `<button type="button" class="hiit-plan-val"${idAttr} onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')">${text}</button><span class="hiit-plan-unit${isLast ? ' is-last' : ''}" onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')">${unit}</span>`;
       };
-      const planRows = HIIT_PHASES.map(ph => `
+      const planRows = planPhases.map(ph => `
             <div class="hiit-plan-name${ph.key === 'main' ? ' is-main' : ''}">${ph.label}</div>
-            ${planCell(ph, 'time')}${planCell(ph, 'incline')}${planCell(ph, 'speed')}`).join('');
+            ${planCols.map((k, i) => planCell(ph, k, i === planCols.length - 1)).join('')}`).join('');
+      const planHead = planCols.map(k =>
+        `<div class="hiit-plan-h">${k === 'time' ? '時間' : escapeHtml(oneOffCol(k).name)}</div><div class="hiit-plan-h"></div>`).join('');
+      // 列：名前｜時間の枠・単位｜（傾斜の枠・単位）｜（速度の枠・単位）。時間は狭く、他は同じ幅
+      const planGrid = 'auto minmax(0, 5fr) auto' + planCols.slice(1).map(() => ' minmax(0, 8fr) auto').join('');
       return `
       <div class="hiit-protocol">
-        <div class="hiit-plan">
-          <div class="hiit-plan-h"></div>
-          <div class="hiit-plan-h">時間</div><div class="hiit-plan-h"></div>
-          <div class="hiit-plan-h">傾斜</div><div class="hiit-plan-h"></div>
-          <div class="hiit-plan-h">速度</div><div class="hiit-plan-h"></div>${planRows}
+        <div class="hiit-plan" style="grid-template-columns: ${planGrid};">
+          <div class="hiit-plan-h"></div>${planHead}${planRows}
         </div>
         <div class="hiit-rounds-wrap">
           <div class="hiit-main-row">
@@ -16582,11 +16993,15 @@
           <div class="hiit-sub-num"><span class="hiit-sub-num-text">${label}</span><span class="hiit-sub-num-unit-spacer">${unit}</span></div>
           <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openCardioMachinePicker(${idx}, '${field}')">${valueText}</span><span class="hiit-sub-unit">${unit}</span></div>
         </div>`;
+      // 傾斜・速度は、単発ボタンごとに名前・単位・刻みを変えたり非表示にできる（時間は常に表示）
+      const colItems = ['incline', 'speed'].filter(k => !oneOffHidden(k)).map(k => {
+        const c = oneOffCol(k);
+        return item(escapeHtml(c.name), escapeHtml(c.unit), k, oneOffFmt(k, p[k] || 0));
+      });
       return `
         <div class="cardio-machine-row">
-          <div class="machine-params-top">
-            ${item('傾斜', '%', 'incline', (p.incline || 0).toFixed(1))}
-            ${item('速度', 'km/h', 'speed', (p.speed || 0).toFixed(1))}
+          <div class="machine-params-top" style="grid-template-columns: repeat(${colItems.length + 1}, 1fr);">
+            ${colItems.join('')}
             ${item('時間', '分', 'minutes', p.minutes || 1)}
           </div>
         </div>
@@ -16637,7 +17052,14 @@
     } else if (field === 'speed') {
       step = 0.1; min = 1.0; max = 20;
       title = '速度'; unit = 'km/h';
-    } else if (field === 'minutes') {
+    }
+    // 単発：名前・単位・刻みはボタンごとの表示設定に従う（刻みが「標準」なら上の従来の範囲）
+    if ((field === 'incline' || field === 'speed') && workoutSession && workoutSession.oneOff) {
+      const col = oneOffCol(field);
+      title = col.name; unit = col.unit;
+      if (col.step) { step = col.step; min = 0; max = 300; }
+    }
+    if (field === 'minutes') {
       step = 1; min = 1; max = 30;
       title = '時間'; unit = '分';
     }
@@ -25028,6 +25450,9 @@
     try {
       // 保存済みアクセントカラーを適用
       applyAccentColor(getAccentColor());
+
+      // ホーム下部の単発ボタンを描く（旧形式からの引き継ぎもここで行われる）
+      try { renderQuickButtons(); } catch (e) { /* noop */ }
 
       // メニュー色を新パレット（5色）へ変換
       try { migMenuColorsTo5(); } catch (e) { /* noop */ }
