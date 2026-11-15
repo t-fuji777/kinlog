@@ -5112,7 +5112,7 @@
      （中身はHIITと同じクラスをそのまま使用。枠デザインは .hiit-prep-cool-item の共通ルールを共有） */
   body.oneoff-workout .machine-params-top { border: none; background: none; padding: 0; gap: 6px; align-items: flex-start; }
   /* 単発のカウントダウンタイマー：縦幅とフォントを大きく。※タップは削除しその分数値を拡大 */
-  body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 75px; min-width: 0; }
+  body.oneoff-workout #exerciseList .hiit-simple-time { min-height: 90px; min-width: 0; }
   body.oneoff-workout #exerciseList .hiit-simple-time-value { font-size: 48px; }
   body.oneoff-workout #exerciseList .hiit-simple-time-hint { display: none; }
   /* その他（セット枠と同じ行）はタイマー幅が狭いため、ボタンを細身にして数値は42px */
@@ -5191,10 +5191,39 @@
   .hiit-plan-unit:nth-child(7n) { padding-right: 0; }
   /* 単発HIIT：表の分だけ縦に伸びるので、インターバル以外（カウントダウン・開始ボタン・下のタイマー）を詰める */
   body.oneoff-hiit #exerciseList .hiit-protocol { margin-bottom: 6px; }
-  body.oneoff-hiit #exerciseList .hiit-simple-time { min-height: 58px; }
-  body.oneoff-hiit #exerciseList .hiit-main-row:not(.hiit-main-row-nocounter) .hiit-simple-time-value { font-size: 38px; }
-  body.oneoff-hiit #exerciseList .hiit-main-row .hiit-time-step { min-height: 42px; }
+  body.oneoff-hiit #exerciseList .hiit-simple-time { min-height: 73px; }
+  body.oneoff-hiit #exerciseList .hiit-main-row:not(.hiit-main-row-nocounter) .hiit-simple-time-value { font-size: 40px; }
   body.oneoff-hiit #oneoffTimerSlot .timer-value { font-size: 44px; }
+  /* 単発：種目名の行（01 HIIT など）は出さない。空いた分は セット・タイマーの段 と 開始ボタン の高さに回す */
+  body.oneoff-workout #exerciseList .ex-head { display: none; }
+  body.oneoff-workout #exerciseList .hiit-judge-row.full-width { grid-template-columns: auto 1fr; }
+  body.oneoff-workout #exerciseList .hiit-judge-row.full-width > .judge-btn,
+  body.oneoff-workout #exerciseList .hiit-judge-row.full-width > .nav-btn-step {
+    min-height: 56px;
+    font-size: 15px;
+  }
+  /* 単発の有酸素：傾斜・速度・時間の枠も同じだけ高くする */
+  body.oneoff-workout .machine-params-top .hiit-prep-cool-item { min-height: 71px; justify-content: center; }
+  /* 配置変更(⇅)ボタン：開始ボタンの左 */
+  .oneoff-pos-btn {
+    min-width: 56px;
+    min-height: 56px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .oneoff-pos-btn:active { background: var(--bg-3); color: var(--text); transform: scale(0.96); }
   /* 単発: 内容全体（インターバル＋カード＋タイマー）を上/真ん中/下に配置 */
   body.oneoff-workout #screen-workout.active {
     display: flex;
@@ -5206,19 +5235,6 @@
   body.oneoff-workout.oneoff-pos-middle #screen-workout.active { justify-content: center; }
   /* 一番下：下余白を安全領域だけにして限界まで詰める */
   body.oneoff-workout.oneoff-pos-bottom #screen-workout.active { justify-content: flex-end; padding-bottom: var(--safe-bottom); }
-  /* 配置変更ボタン（代替ボタンがあった位置） */
-  /* 配置変更(⇅)ボタン：HIIT等のヘッダー文字と同じサイズで小さく */
-  .ex-pos-btn {
-    background: none;
-    border: none;
-    color: var(--text-2);
-    font-size: 15px; line-height: 1;
-    padding: 2px 6px;
-    cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .ex-pos-btn:active { color: var(--text); }
   /* タイマー内に+/-を配置するレイアウト */
   .hiit-time-with-steps {
     display: grid !important;
@@ -12139,6 +12155,10 @@
     });
   }
 
+  // 単発: 配置変更(⇅)ボタン。開始ボタンの左に置く
+  function oneOffPosBtnHtml() {
+    return `<button type="button" class="oneoff-pos-btn" onclick="event.stopPropagation(); cycleOneOffPosition()" title="表示位置を変更（上/真ん中/下）">⇅</button>`;
+  }
   // 単発: 表示位置（上/真ん中/下）を巡回。内容全体（インターバル＋カード＋タイマー）を移動
   function cycleOneOffPosition() {
     const order = ['top', 'middle', 'bottom'];
@@ -14255,7 +14275,6 @@
             <span class="ex-name${getExerciseImage(ex.name) ? ' has-image' : ''}${(() => { const c = getExerciseNameShrinkClass(ex); return c ? ' ' + c : ''; })()}" onclick="openExerciseImage('${ex.name.replace(/'/g, "\\'")}', ${idx})">${ex.name}</span>
           </div>
           ${ex.url ? `<button class="ex-url-btn" onclick="event.stopPropagation(); openExerciseUrl('${ex.url.replace(/'/g, "\\'")}')" title="参考リンクを開く">URL</button>` : ''}
-          ${workoutSession.oneOff ? `<button class="ex-pos-btn" onclick="event.stopPropagation(); cycleOneOffPosition()" title="表示位置を変更（上/真ん中/下）">⇅</button>` : ''}
           ${(ex.cardio || ex.other) ? '' : (() => {
             // 完了ボタンの disabled 条件を再計算してスキップ・代替ボタンに反映
             // （完了ボタンが押せない時はスキップ・代替も押せないようにする）
@@ -14290,6 +14309,7 @@
         ${ex.hiit && ex.protocol ? renderHiitProtocol(idx, ex.protocol) : ''}
         ${ex.cardioMachine && ex.machineProtocol ? renderCardioMachineProtocol(idx, ex.machineProtocol) : ''}
         <div class="judge-row hiit-judge-row${workoutSession.oneOff ? ' full-width' : ((ex.hiit || ex.cardioMachine) ? ' hiit-judge-row-with-back' : '')}">
+          ${workoutSession.oneOff ? oneOffPosBtnHtml() : ''}
           ${(!workoutSession.oneOff && (ex.hiit || ex.cardioMachine)) ? `
           <div class="nav-time-wrap hiit-inline-time">
             <div class="nav-time-display ${getNavTimeStateClass(ex)}" id="time-${idx}" onclick="askTimeReset(${idx})">${ex.duration ? formatDuration(ex.duration) : formatDuration(ex.elapsedSeconds || 0)}</div>
@@ -15443,6 +15463,7 @@
       return `
       ${countdownTimerHtml}
       <div class="judge-row hiit-judge-row full-width">
+        ${oneOffPosBtnHtml()}
         ${coreGoBtnHtml}
       </div>
     `;
