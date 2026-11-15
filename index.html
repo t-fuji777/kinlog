@@ -5122,8 +5122,8 @@
   /* 単発HIIT：準備・本番・休憩・終了 ×（時間・傾斜・速度）の表 */
   .hiit-plan {
     display: grid;
-    grid-template-columns: auto 1fr 1fr 1fr;
-    gap: 3px 6px;
+    grid-template-columns: auto minmax(0, 5fr) auto minmax(0, 8fr) auto minmax(0, 8fr) auto;
+    gap: 3px 3px;
     align-items: center;
     margin-bottom: 6px;
     padding: 5px 8px 6px;
@@ -5148,20 +5148,18 @@
     padding-right: 4px;
   }
   .hiit-plan-name.is-main { color: var(--text); }
-  /* マス全体がタップ範囲。グレーの枠は数値だけ、単位は枠の外（黒い背景の上）に置く */
+  /* グレーの枠は数値だけ。単位は枠の外（黒い背景の上）の別の列に置く */
   .hiit-plan-val {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
+    display: block;
     width: 100%;
     min-width: 0;
     min-height: 0;
     margin: 0;
-    padding: 0;
+    padding: 3px 0;
     box-sizing: border-box;
-    background: transparent;
-    border: none;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
     color: var(--text);
     font-family: var(--font-mono);
     font-size: 15px;
@@ -5172,37 +5170,25 @@
     -webkit-appearance: none;
     appearance: none;
   }
-  .hiit-plan-num {
-    display: block;
-    flex: 1 1 auto;
-    min-width: 0;
-    padding: 3px 0;
-    box-sizing: border-box;
-    background: var(--bg-3);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    text-align: center;
-  }
-  .hiit-plan-val:active .hiit-plan-num {
+  .hiit-plan-val:active {
     background: var(--accent);
     color: var(--accent-text);
     border-color: var(--accent-border);
   }
   .hiit-plan-unit {
-    display: block;
-    flex: 0 0 auto;
+    font-family: var(--font-mono);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0;
     color: var(--text-3);
     text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+    /* 次の項目との間をあける（最後の km/h は不要） */
+    padding-right: 5px;
   }
-  .hiit-plan-time .hiit-plan-unit { width: 10px; }
-  .hiit-plan-incline .hiit-plan-unit { width: 10px; }
-  .hiit-plan-speed .hiit-plan-unit { width: 24px; }
-  /* 見出しは数値の枠の真上にそろえる（右側の単位の幅だけ左へ寄せる） */
-  .hiit-plan-h:nth-child(2), .hiit-plan-h:nth-child(3) { padding-right: 13px; }
-  .hiit-plan-h:nth-child(4) { padding-right: 27px; }
+  .hiit-plan-unit:last-child,
+  .hiit-plan-unit:nth-child(7n) { padding-right: 0; }
   /* 単発HIIT：表の分だけ縦に伸びるので、インターバル以外（カウントダウン・開始ボタン・下のタイマー）を詰める */
   body.oneoff-hiit #exerciseList .hiit-protocol { margin-bottom: 6px; }
   body.oneoff-hiit #exerciseList .hiit-simple-time { min-height: 58px; }
@@ -15162,7 +15148,7 @@
         const text = kind === 'time' ? String(hiitTimeShown(ph.key, v)) : Number(v).toFixed(1);
         const unit = kind === 'time' ? hiitTimeUnit(ph.key) : (kind === 'incline' ? '%' : 'km/h');
         const idAttr = (ph.key === 'main' && kind === 'time') ? ` id="hiitPlanMainTime-${idx}"` : '';
-        return `<button type="button" class="hiit-plan-val hiit-plan-${kind}" onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')"><span class="hiit-plan-num"${idAttr}>${text}</span><span class="hiit-plan-unit">${unit}</span></button>`;
+        return `<button type="button" class="hiit-plan-val"${idAttr} onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')">${text}</button><span class="hiit-plan-unit" onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')">${unit}</span>`;
       };
       const planRows = HIIT_PHASES.map(ph => `
             <div class="hiit-plan-name${ph.key === 'main' ? ' is-main' : ''}">${ph.label}</div>
@@ -15171,9 +15157,9 @@
       <div class="hiit-protocol">
         <div class="hiit-plan">
           <div class="hiit-plan-h"></div>
-          <div class="hiit-plan-h">時間</div>
-          <div class="hiit-plan-h">傾斜</div>
-          <div class="hiit-plan-h">速度</div>${planRows}
+          <div class="hiit-plan-h">時間</div><div class="hiit-plan-h"></div>
+          <div class="hiit-plan-h">傾斜</div><div class="hiit-plan-h"></div>
+          <div class="hiit-plan-h">速度</div><div class="hiit-plan-h"></div>${planRows}
         </div>
         <div class="hiit-rounds-wrap">
           <div class="hiit-main-row">
