@@ -12745,9 +12745,12 @@
         </div>
       </div>`;
     };
+    // セットとカウントダウンの段（トレッドミルの型）。下まで送らなくても見つかるよう、一番上に置く
+    const timerCheck = type === 'hiit' ? `
+      <div class="quick-col-block">
+        <label class="quick-check"><input type="checkbox" id="qv-show-timer"${oneOffHidden('timer') ? '' : ' checked'}><span>セットとカウントダウンを表示する</span></label>
+      </div>` : '';
     const rowChecks = (type === 'hiit' || type === 'cardio') ? `
-      ${type === 'hiit' ? `<div class="quick-field-label">セットとカウントダウン</div>
-      <label class="quick-check"><input type="checkbox" id="qv-show-timer"${oneOffHidden('timer') ? '' : ' checked'}><span>セットとカウントダウンの段を表示する</span></label>` : ''}
       <div class="quick-field-label">表示する行（本番は常に表示）</div>
       <div class="quick-row-checks">
         ${[['prep', '準備'], ['rest', '休憩'], ['cool', '終了']].map(r =>
@@ -12755,6 +12758,7 @@
       </div>` : '';
     showQuickModal(`
       <h3 class="modal-title">表示の編集</h3>
+      ${timerCheck}
       ${colBlock('time', 1)}
       ${colBlock('incline', 2)}
       ${colBlock('speed', 3)}
