@@ -12238,11 +12238,14 @@
   const QUICK_BTN_KEY = 'wo_quick_buttons';
   const QUICK_BTN_MAX = 4;
   const QUICK_NAME_MAX = 8;
+  // 型は2つ。トレッドミル（内部名 hiit）は、旧 HIIT と 旧 有酸素 を統合したもの。
+  // 違いだった「セットとカウントダウンの段」は、編集で表示・非表示を選ぶ
   const QUICK_TYPES = {
-    hiit:   { label: 'HIIT',   desc: '準備・本番・休憩・終了の表とカウントダウン' },
-    cardio: { label: '有酸素', desc: '傾斜・速度・時間の3項目' },
-    other:  { label: 'その他', desc: 'セット数とカウントダウン' }
+    hiit:   { label: 'トレッドミル', desc: '準備・本番・休憩・終了の表。セットとカウントダウンは表示を選べます' },
+    other:  { label: 'その他', desc: 'セット数とカウントダウン。URLを登録できます' }
   };
+  // 旧形式から引き継ぐ時のボタン名（利用者が見慣れた名前のまま残す）
+  const QUICK_LEGACY_NAMES = { hiit: 'HIIT', cardio: '有酸素', other: 'その他' };
   const QUICK_COL_DEFAULTS = {
     time:    { name: '時間', unit: '' },
     incline: { name: '傾斜', unit: '%' },
@@ -12290,11 +12293,62 @@
     if (legacy && typeof legacy === 'object') {
       ['hiit', 'cardio', 'other'].forEach(t => {
         if (legacy[t] && typeof legacy[t] === 'object') {
-          out.push({ id: 'q_' + t, name: QUICK_TYPES[t].label, type: t, settings: legacy[t], view: null });
+          out.push({ id: 'q_' + t, name: QUICK_LEGACY_NAMES[t], type: t, settings: legacy[t], view: null });
         }
       });
     }
     return out;
+  }
+  // 旧「有酸素」のボタンを、統合後の型（トレッドミル）に置き換える。
+  // 数値は分→秒に直して引き継ぎ、見た目が変わらないよう「セットとカウントダウンは非表示」「時間は分」にする
+  function convertCardioQuickButton(b) {
+    const mp = (b.settings && typeof b.settings === 'object' && b.settings.machineProtocol && typeof b.settings.machineProtocol === 'object')
+      ? b.settings.machineProtocol : {};
+    const num = (v, d) => (typeof v === 'number' && isFinite(v)) ? v : d;
+    const prepMin = num(mp.prepMin, 3), restMin = num(mp.restMin, 1), coolMin = num(mp.coolMin, 3), minutes = num(mp.minutes, 20);
+    const protocol = {
+      dashSpeed: num(mp.speed, 6.0), incline: num(mp.incline, 3.0),
+      rounds: 8, roundSec: 40,
+      prepSec: Math.round(prepMin * 60), prepMin: prepMin, prepIncline: num(mp.prepIncline, 0), prepSpeed: num(mp.prepSpeed, 4.0),
+      restSec: Math.round(restMin * 60), restIncline: num(mp.restIncline, 0), recoverSpeed: num(mp.restSpeed, 4.0),
+      cooldownSec: Math.round(coolMin * 60), cooldownMin: coolMin, coolIncline: num(mp.coolIncline, 0), coolSpeed: num(mp.coolSpeed, 4.0)
+    };
+    const old = (b.view && typeof b.view === 'object') ? (quickClone(b.view) || {}) : {};
+    const view = {
+      cols: (old.cols && typeof old.cols === 'object') ? old.cols : {},
+      hide: (old.hide && typeof old.hide === 'object') ? old.hide : {}
+    };
+    view.hide.timer = true;
+    // 有酸素は全行「分」が初期だった。統合後の型は 本番・休憩 の初期が「秒」なので、その差を埋める
+    const oldRows = (old.timeRows && typeof old.timeRows === 'object') ? old.timeRows : {};
+    const rows = {};
+    ['prep', 'main', 'rest', 'cool'].forEach(k => {
+      const r = (oldRows[k] && typeof oldRows[k] === 'object') ? oldRows[k] : {};
+      const unit = r.unit === 'sec' ? 'sec' : 'min';
+      const defUnit = (k === 'main' || k === 'rest') ? 'sec' : 'min';
+      const cfg = {};
+      if (unit !== defUnit) cfg.unit = unit;
+      if (QUICK_TIME_STEPS.indexOf(r.step) !== -1) cfg.step = r.step;
+      if (Object.keys(cfg).length) rows[k] = cfg;
+    });
+    if (Object.keys(rows).length) view.timeRows = rows;
+    return {
+      id: b.id, name: b.name, type: 'hiit',
+      settings: { protocol: protocol, roundTargetSec: Math.max(1, Math.round(minutes * 60)) },
+      view: view
+    };
+  }
+  // 保存されている一覧を今の形にそろえる（旧「有酸素」の置き換え）
+  function upgradeQuickButtons(list) {
+    let changed = false;
+    const out = (Array.isArray(list) ? list : []).map(b => {
+      if (b && typeof b === 'object' && b.type === 'cardio' && typeof b.id === 'string' && b.id) {
+        changed = true;
+        return convertCardioQuickButton(b);
+      }
+      return b;
+    });
+    return { list: out, changed: changed };
   }
   function loadQuickButtons() {
     if (isAdminMode && adminQuickButtons) return sanitizeQuickButtons(quickClone(adminQuickButtons));
@@ -12303,10 +12357,21 @@
     if (raw != null) {
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return sanitizeQuickButtons(parsed);
+        if (Array.isArray(parsed)) {
+          const up = upgradeQuickButtons(parsed);
+          const clean = sanitizeQuickButtons(up.list);
+          // 置き換えが起きた時だけ保存する。置き換え前の内容は別のキーに一度だけ残す（テストモード中は端末に書かない）
+          if (up.changed && !isAdminMode) {
+            try {
+              if (localStorage.getItem(QUICK_BTN_KEY + '_bak_cardio') == null) localStorage.setItem(QUICK_BTN_KEY + '_bak_cardio', raw);
+              localStorage.setItem(QUICK_BTN_KEY, JSON.stringify(clean));
+            } catch (e) {}
+          }
+          return clean;
+        }
       } catch (e) { /* 壊れている時は下の引き継ぎからやり直す */ }
     }
-    const list = sanitizeQuickButtons(migrateQuickButtonsFromLegacy());
+    const list = sanitizeQuickButtons(upgradeQuickButtons(migrateQuickButtonsFromLegacy()).list);
     // 引き継いだ結果を保存する（テストモード中は端末に書かない）
     if (!isAdminMode) {
       try { localStorage.setItem(QUICK_BTN_KEY, JSON.stringify(list)); } catch (e) {}
@@ -12591,7 +12656,7 @@
     if (row.unit === 'sec') return { step: 10, min: 10, max: maxSec };
     return { step: 1, min: 1, max: Math.max(1, Math.round(maxSec / 60)) };
   }
-  // key: 'prep' | 'rest' | 'cool'（HIITの行） / 'incline' | 'speed'（項目）
+  // key: 'prep' | 'rest' | 'cool'（行） / 'time' | 'incline' | 'speed'（項目） / 'timer'（セットとカウントダウンの段）
   function oneOffHidden(key) {
     const h = oneOffView().hide;
     return !!(h && typeof h === 'object' && h[key]);
@@ -12681,6 +12746,8 @@
       </div>`;
     };
     const rowChecks = (type === 'hiit' || type === 'cardio') ? `
+      ${type === 'hiit' ? `<div class="quick-field-label">セットとカウントダウン</div>
+      <label class="quick-check"><input type="checkbox" id="qv-show-timer"${oneOffHidden('timer') ? '' : ' checked'}><span>セットとカウントダウンの段を表示する</span></label>` : ''}
       <div class="quick-field-label">表示する行（本番は常に表示）</div>
       <div class="quick-row-checks">
         ${[['prep', '準備'], ['rest', '休憩'], ['cool', '終了']].map(r =>
@@ -12751,6 +12818,8 @@
     if (type === 'hiit' || type === 'cardio') {
       ['prep', 'rest', 'cool'].forEach(k => { if (!checked('qv-row-' + k)) view.hide[k] = true; });
     }
+    // セットとカウントダウンの段（トレッドミルの型だけ）
+    if (type === 'hiit' && !checked('qv-show-timer')) view.hide.timer = true;
     // 時間：行ごとの単位（分／秒）と刻み。初期値と同じものは保存しない
     const timeRows = {};
     QUICK_TIME_ROWS.forEach(r => {
@@ -12763,7 +12832,13 @@
       if (Object.keys(cfg).length) timeRows[r[0]] = cfg;
     });
     if (Object.keys(timeRows).length) view.timeRows = timeRows;
+    // 段を隠す時は、動いているカウントダウンやアラートを止めておく（見えないまま鳴り続けないように）
+    if (view.hide.timer) {
+      try { redoHiitRound(0); } catch (e) { /* noop */ }
+      try { if (typeof stopNotifyLoop === 'function') stopNotifyLoop(); } catch (e) { /* noop */ }
+    }
     workoutSession.oneOffView = view;
+    document.body.classList.toggle('oneoff-hiit', type === 'hiit' && !view.hide.timer);
     saveOneOffSettings();
     closeQuickModal();
     renderExerciseList();
@@ -12809,7 +12884,7 @@
   function applyWorkoutChrome() {
     const oneOff = !!(workoutSession && workoutSession.oneOff);
     document.body.classList.toggle('oneoff-workout', oneOff);
-    document.body.classList.toggle('oneoff-hiit', oneOff && workoutSession.oneOffType === 'hiit');
+    document.body.classList.toggle('oneoff-hiit', oneOff && workoutSession.oneOffType === 'hiit' && !oneOffHidden('timer'));
     if (oneOff) { applyOneOffPosition(); }
     else { document.body.classList.remove('oneoff-pos-top', 'oneoff-pos-middle', 'oneoff-pos-bottom'); }
     const sticky = document.querySelector('.workout-sticky-top');
@@ -14928,7 +15003,8 @@
             const setRecCountForBtn = (ex.setRecords || []).length;
             const hiitTotalRounds = (ex.hiit && ex.protocol) ? (ex.protocol.rounds || 8) : 0;
             const allHiitRecorded = ex.hiit && setRecCountForBtn >= hiitTotalRounds && hiitTotalRounds > 0;
-            const disableCompleteBtn = !ex.exStarted || (ex.hiit && !ex.judge && !hiitFinalReached && !allHiitRecorded);
+            const hiitNoTimer = !!(ex.hiit && workoutSession.oneOff && oneOffHidden('timer'));
+            const disableCompleteBtn = !ex.exStarted || (ex.hiit && !hiitNoTimer && !ex.judge && !hiitFinalReached && !allHiitRecorded);
             const btnLabel = ex.judge === 'ok' ? '✓ 完了' : (ex.exStarted ? '✓ 完了' : '開始');
             // インターバル稼働中は「開始」ボタンも無効（先にインターバルを止める必要がある）
             const intervalRunningNow = (typeof isIntervalRunning === 'function' && isIntervalRunning());
@@ -15669,7 +15745,9 @@
     if (kind === 'time') {
       // 行ごとの単位（分／秒）と刻みに従う。標準の上限：本番＝180秒、休憩＝300秒、準備・終了＝15分
       unit = hiitTimeUnit(phase);
-      const tr = oneOffTimeRange(phase, phase === 'main' ? 180 : (phase === 'rest' ? 300 : 900));
+      // 標準の上限：本番＝秒なら300秒・分なら60分、休憩＝秒なら300秒・分なら15分、準備・終了＝15分
+      const tUnit = oneOffTimeRow(phase).unit;
+      const tr = oneOffTimeRange(phase, phase === 'main' ? (tUnit === 'min' ? 3600 : 300) : (phase === 'rest' ? (tUnit === 'min' ? 900 : 300) : 900));
       step = tr.step; min = tr.min; max = tr.max;
     } else {
       // 傾斜・速度：名前・単位・刻みは単発ボタンごとに変えられる。刻みが「標準」なら従来の範囲
@@ -15677,8 +15755,7 @@
       unit = col.unit;
       if (col.step) { step = col.step; min = 0; max = 300; }
       else if (kind === 'incline') { step = 0.5; min = 0; max = 15; }
-      else if (phase === 'main') { step = 0.5; min = 5; max = 20; }
-      else { step = 0.1; min = 1; max = 12; }
+      else { step = 0.1; min = 1; max = 20; }
     }
     let current = hiitPhaseValue(ex, phase, kind);
     if (kind === 'time') current = hiitTimeShown(phase, current);
@@ -15787,7 +15864,7 @@
         <div class="hiit-plan" style="grid-template-columns: ${planGrid};">
           <div class="hiit-plan-h"></div>${planHead}${planRows}
         </div>
-        <div class="hiit-rounds-wrap">
+        ${oneOffHidden('timer') ? '' : `<div class="hiit-rounds-wrap">
           <div class="hiit-main-row">
             <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item hiit-round-num-tappable ${(isAllDone || (currentRound === totalRounds && timerState.completed)) ? 'done-final' : ''} ${timerState.running ? 'is-disabled' : ''}" id="hiitRoundCounter-${idx}" data-idx="${idx}" ${timerState.running ? '' : `onclick="hiitRoundCounterTap(${idx})"`} title="タップで取り消し">
               <div class="hiit-sub-num"><span class="hiit-sub-num-text">セット</span></div>
@@ -15803,7 +15880,7 @@
               <button class="hiit-simple-reset hiit-reset-in" onclick="event.stopPropagation(); resetHiitRoundTimer(${idx})" ${(timerState.running || isAllDone) ? 'disabled' : ''} title="リセット">⟲</button>
             </div>
           </div>
-        </div>
+        </div>`}
       </div>
     `;
     }
@@ -17155,11 +17232,18 @@
     const hiitStateNow = hiitRoundTimers && hiitRoundTimers[idx];
     if (hiitStateNow && hiitStateNow.running) return;
     const cur = ex.roundTargetSec != null ? ex.roundTargetSec : (ex.protocol && ex.protocol.roundSec) || 40;
+    // 通常：10秒の倍数に揃える、最小10秒・最大180秒（3分）でクランプ
+    let unitStep = 10, lo = 10, hi = 180;
+    if (workoutSession && workoutSession.oneOff) {
+      // 単発：本番の単位に合わせる（秒＝10秒ずつ・300秒まで、分＝1分ずつ・60分まで）
+      if (oneOffTimeRow('main').unit === 'min') { unitStep = 60; lo = 60; hi = 3600; }
+      else { hi = 300; }
+      delta = (delta < 0 ? -1 : 1) * unitStep;
+    }
     let next = cur + delta;
-    // 10秒の倍数に揃える、最小10秒・最大180秒（3分）でクランプ
-    next = Math.round(next / 10) * 10;
-    if (next < 10) next = 10;
-    if (next > 180) next = 180;
+    next = Math.round(next / unitStep) * unitStep;
+    if (next < lo) next = lo;
+    if (next > hi) next = hi;
     if (next === cur) return; // 変化なし
     ex.roundTargetSec = next;
     redoHiitRound(idx);
