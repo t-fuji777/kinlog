@@ -12612,7 +12612,7 @@
         </div>
       </div>`;
     };
-    const rowChecks = type === 'hiit' ? `
+    const rowChecks = (type === 'hiit' || type === 'cardio') ? `
       <div class="quick-field-label">表示する行（本番は常に表示）</div>
       <div class="quick-row-checks">
         ${[['prep', '準備'], ['rest', '休憩'], ['cool', '終了']].map(r =>
@@ -12661,7 +12661,7 @@
       if (Object.keys(cfg).length) view.cols[kind] = cfg;
       if (!checked('qv-show-' + kind)) view.hide[kind] = true;
     });
-    if (type === 'hiit') {
+    if (type === 'hiit' || type === 'cardio') {
       ['prep', 'rest', 'cool'].forEach(k => { if (!checked('qv-row-' + k)) view.hide[k] = true; });
     }
     workoutSession.oneOffView = view;
@@ -17080,25 +17080,55 @@
   }
 
   // トレッドミル用のプロトコル表示（傾斜・速度・時間のみ。タイマーと完了ボタンはhiit-judge-rowで共通）
+  // 単発の有酸素の表：準備・本番・休憩・終了 ×（時間・傾斜・速度）。時間はすべて分。
+  // 本番の行は従来の値（minutes / incline / speed）をそのまま使う
+  const CARDIO_PHASES = [
+    { key: 'prep', label: '準備', time: 'prepMin', incline: 'prepIncline', speed: 'prepSpeed', timeDef: 3,  speedDef: 4.0 },
+    { key: 'main', label: '本番', time: 'minutes', incline: 'incline',     speed: 'speed',     timeDef: 20, speedDef: 6.0 },
+    { key: 'rest', label: '休憩', time: 'restMin', incline: 'restIncline', speed: 'restSpeed', timeDef: 1,  speedDef: 4.0 },
+    { key: 'cool', label: '終了', time: 'coolMin', incline: 'coolIncline', speed: 'coolSpeed', timeDef: 3,  speedDef: 4.0 }
+  ];
+  function cardioPhaseValue(p, ph, kind) {
+    const v = p ? p[ph[kind]] : null;
+    if (typeof v === 'number' && isFinite(v)) return v;
+    if (kind === 'time') return ph.timeDef;
+    return kind === 'incline' ? 0 : ph.speedDef;
+  }
+  // 値の名前（prepMin など）から、どの行のどの項目かを引く
+  function cardioPhaseOfField(field) {
+    for (let i = 0; i < CARDIO_PHASES.length; i++) {
+      const ph = CARDIO_PHASES[i];
+      if (ph.time === field) return { ph, kind: 'time' };
+      if (ph.incline === field) return { ph, kind: 'incline' };
+      if (ph.speed === field) return { ph, kind: 'speed' };
+    }
+    return null;
+  }
+
   function renderCardioMachineProtocol(idx, p) {
     // 単発：HIITの表と同じクラスを使う（デザインが自動で一致する）
     if (workoutSession.oneOff) {
-      // HIITの表と同じ並び（時間・傾斜・速度）・同じデザイン。
-      // 傾斜・速度は、単発ボタンごとに名前・単位・刻みを変えたり非表示にできる（時間は常に表示）
+      // HIITの表と同じ並び（時間・傾斜・速度）・同じ行（準備・本番・休憩・終了）・同じデザイン。
+      // 傾斜・速度は名前・単位・刻みを変えたり非表示にでき、行も非表示にできる（本番の行と時間は常に表示）
       const planCols = ['time'].concat(['incline', 'speed'].filter(k => !oneOffHidden(k)));
-      const planCell = (k, isLast) => {
-        const field = k === 'time' ? 'minutes' : k;
-        const text = k === 'time' ? String(p.minutes || 1) : oneOffFmt(k, p[k] || 0);
+      const planPhases = CARDIO_PHASES.filter(ph => ph.key === 'main' || !oneOffHidden(ph.key));
+      const planCell = (ph, k, isLast) => {
+        const field = ph[k];
+        const v = cardioPhaseValue(p, ph, k);
+        const text = k === 'time' ? String(Math.round(v)) : oneOffFmt(k, v);
         const unit = k === 'time' ? '分' : escapeHtml(oneOffCol(k).unit);
         return `<button type="button" class="hiit-plan-val" onclick="openCardioMachinePicker(${idx}, '${field}')">${text}</button><span class="hiit-plan-unit${isLast ? ' is-last' : ''}" onclick="openCardioMachinePicker(${idx}, '${field}')">${unit}</span>`;
       };
+      const planRows = planPhases.map(ph => `
+            <div class="hiit-plan-name${ph.key === 'main' ? ' is-main' : ''}">${ph.label}</div>
+            ${planCols.map((k, i) => planCell(ph, k, i === planCols.length - 1)).join('')}`).join('');
       const planHead = planCols.map(k =>
         `<div class="hiit-plan-h">${k === 'time' ? '時間' : escapeHtml(oneOffCol(k).name)}</div><div class="hiit-plan-h"></div>`).join('');
-      const planGrid = 'minmax(0, 5fr) auto' + planCols.slice(1).map(() => ' minmax(0, 8fr) auto').join('');
+      const planGrid = 'auto minmax(0, 5fr) auto' + planCols.slice(1).map(() => ' minmax(0, 8fr) auto').join('');
       return `
         <div class="cardio-machine-row">
           <div class="hiit-plan hiit-plan-cardio" style="grid-template-columns: ${planGrid};">
-            ${planHead}${planCols.map((k, i) => planCell(k, i === planCols.length - 1)).join('')}
+            <div class="hiit-plan-h"></div>${planHead}${planRows}
           </div>
         </div>
       `;
@@ -17140,24 +17170,37 @@
 
   function openCardioMachinePicker(exIdx, field) {
     const ex = workoutSession.exercises[exIdx];
-    const current = ex.machineProtocol[field];
+    if (!ex) return;
+    if (!ex.machineProtocol) ex.machineProtocol = {};
+    let current = ex.machineProtocol[field];
     let step, min, max, title, unit;
-    if (field === 'incline') {
+    // 単発：準備・本番・休憩・終了 の行ごとの値。名前・単位・刻みはボタンごとの表示設定に従う
+    const cph = (workoutSession && workoutSession.oneOff) ? cardioPhaseOfField(field) : null;
+    if (cph) {
+      current = cardioPhaseValue(ex.machineProtocol, cph.ph, cph.kind);
+      if (cph.kind === 'time') {
+        step = 1; min = 1; max = cph.ph.key === 'main' ? 30 : 15;
+        title = cph.ph.label + '：時間'; unit = '分';
+      } else {
+        const col = oneOffCol(cph.kind);
+        title = cph.ph.label + '：' + col.name; unit = col.unit;
+        if (col.step) { step = col.step; min = 0; max = 300; }
+        else if (cph.kind === 'incline') { step = 0.5; min = 0; max = 15; }
+        else { step = 0.1; min = 1.0; max = 20; }
+      }
+      if (current < min) current = min;
+      if (current > max) current = max;
+    } else if (field === 'incline') {
       step = 0.5; min = 0; max = 15;
       title = '傾斜'; unit = '%';
     } else if (field === 'speed') {
       step = 0.1; min = 1.0; max = 20;
       title = '速度'; unit = 'km/h';
-    }
-    // 単発：名前・単位・刻みはボタンごとの表示設定に従う（刻みが「標準」なら上の従来の範囲）
-    if ((field === 'incline' || field === 'speed') && workoutSession && workoutSession.oneOff) {
-      const col = oneOffCol(field);
-      title = col.name; unit = col.unit;
-      if (col.step) { step = col.step; min = 0; max = 300; }
-    }
-    if (field === 'minutes') {
+    } else if (field === 'minutes') {
       step = 1; min = 1; max = 30;
       title = '時間'; unit = '分';
+    } else {
+      return;
     }
     pickerContext = { type: 'cardioMachine', exIdx, field, step, min, max };
     document.getElementById('pickerTitle').textContent = title;
