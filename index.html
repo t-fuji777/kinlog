@@ -5240,8 +5240,6 @@
     font-size: 15px;
   }
   .oneoff-pos-btn.oneoff-edit-btn { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; padding: 0 8px; }
-  /* 単発の有酸素：傾斜・速度・時間の枠も同じだけ高くする */
-  body.oneoff-workout .machine-params-top .hiit-prep-cool-item { min-height: 71px; justify-content: center; }
   /* 配置変更(⇅)ボタン：開始ボタンの左 */
   .oneoff-pos-btn {
     min-width: 56px;
@@ -12194,13 +12192,14 @@
     });
   }
 
-  // 単発: 開始ボタンの左に置くボタン。配置変更(⇅)と、表示項目の「編集」（HIIT・有酸素のみ）
+  // 単発: 開始ボタンの左に置くボタン。配置変更(⇅)・「編集」・（その他でURLを登録済みなら）「URL」
   function oneOffPosBtnHtml() {
     const t = workoutSession && workoutSession.oneOffType;
-    const edit = (t === 'hiit' || t === 'cardio')
-      ? `<button type="button" class="oneoff-pos-btn oneoff-edit-btn" onclick="event.stopPropagation(); openOneOffViewEdit()" title="表示する項目・名前・単位を変更">編集</button>`
+    const edit = `<button type="button" class="oneoff-pos-btn oneoff-edit-btn" onclick="event.stopPropagation(); openOneOffViewEdit()" title="${t === 'other' ? 'URLを登録・変更' : '表示する項目・名前・単位を変更'}">編集</button>`;
+    const url = (t === 'other' && oneOffUrl())
+      ? `<button type="button" class="oneoff-pos-btn oneoff-edit-btn" onclick="event.stopPropagation(); openOneOffUrl()" title="登録したURLを開く">URL</button>`
       : '';
-    return `<button type="button" class="oneoff-pos-btn" onclick="event.stopPropagation(); cycleOneOffPosition()" title="表示位置を変更（上/真ん中/下）">⇅</button>${edit}`;
+    return `<button type="button" class="oneoff-pos-btn" onclick="event.stopPropagation(); cycleOneOffPosition()" title="表示位置を変更（上/真ん中/下）">⇅</button>${edit}${url}`;
   }
   // 単発: 表示位置（上/真ん中/下）を巡回。内容全体（インターバル＋カード＋タイマー）を移動
   // テストモード中の表示位置（端末には保存しない。テストモード終了で破棄）
@@ -12557,11 +12556,47 @@
     const n = Number(v) || 0;
     return (oneOffCol(kind).step === 1 && Number.isInteger(n)) ? String(n) : n.toFixed(1);
   }
+  // 入力されたURLを整える。http/https 以外や形式の崩れたものは空文字を返す
+  function normalizeOneOffUrl(raw) {
+    let t = String(raw == null ? '' : raw).trim();
+    if (!t) return '';
+    if (!/^https?:\/\//i.test(t)) t = 'https://' + t;
+    if (t.length > 500) return '';
+    try {
+      const u = new URL(t);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+      if (!u.hostname || u.hostname.indexOf('.') === -1) return '';
+      return u.href;
+    } catch (e) { return ''; }
+  }
+  // その他（単発）に登録したURL。未登録なら空文字
+  function oneOffUrl() {
+    const v = oneOffView();
+    return (typeof v.url === 'string') ? normalizeOneOffUrl(v.url) : '';
+  }
+  function openOneOffUrl() {
+    const url = oneOffUrl();
+    if (!url) { openOneOffViewEdit(); return; }
+    openExerciseUrl(url);
+  }
   function openOneOffViewEdit() {
     if (!workoutSession || !workoutSession.oneOff) return;
     const type = workoutSession.oneOffType;
-    if (type !== 'hiit' && type !== 'cardio') return;
+    if (type !== 'hiit' && type !== 'cardio' && type !== 'other') return;
     quickModalCtx = { kind: 'view', type };
+    if (type === 'other') {
+      // その他：動画などのURLを貼る（YouTubeはアプリ内の小窓で再生、それ以外はブラウザで開く）
+      showQuickModal(`
+        <h3 class="modal-title">URLの登録</h3>
+        <div class="quick-field-label">URL（貼り付け）</div>
+        <input type="url" id="qv-url" class="ex-form-input" inputmode="url" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" maxlength="500" value="${escapeHtml(oneOffUrl())}" placeholder="https://" onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }">
+        <p class="quick-note">登録すると、開始ボタンの左に「URL」ボタンが出ます。空欄で保存すると登録を消します。</p>
+        <div class="modal-actions">
+          <button class="modal-btn" onclick="closeQuickModal()">キャンセル</button>
+          <button class="modal-btn primary" onclick="confirmOneOffViewEdit()">保存</button>
+        </div>`);
+      return;
+    }
     const colBlock = (kind, no) => {
       const c = oneOffCol(kind);
       const d = QUICK_COL_DEFAULTS[kind];
@@ -12600,6 +12635,19 @@
     const type = workoutSession.oneOffType;
     const val = id => { const el = document.getElementById(id); return el ? String(el.value || '') : ''; };
     const checked = id => { const el = document.getElementById(id); return el ? !!el.checked : true; };
+    if (type === 'other') {
+      const rawUrl = val('qv-url').trim();
+      const url = normalizeOneOffUrl(rawUrl);
+      if (rawUrl && !url) { toast('URLの形式を確認してください'); return; }
+      const next = { cols: {}, hide: {} };
+      if (url) next.url = url;
+      workoutSession.oneOffView = next;
+      saveOneOffSettings();
+      closeQuickModal();
+      renderExerciseList();
+      toast(url ? 'URLを登録しました' : 'URLの登録を消しました');
+      return;
+    }
     const view = { cols: {}, hide: {} };
     ['incline', 'speed'].forEach(kind => {
       const d = QUICK_COL_DEFAULTS[kind];
@@ -17033,23 +17081,24 @@
 
   // トレッドミル用のプロトコル表示（傾斜・速度・時間のみ。タイマーと完了ボタンはhiit-judge-rowで共通）
   function renderCardioMachineProtocol(idx, p) {
-    // 単発：HIITの傾斜と同一構造・同一クラスの独立枠（デザインが自動で一致する）
+    // 単発：HIITの表と同じクラスを使う（デザインが自動で一致する）
     if (workoutSession.oneOff) {
-      const item = (label, unit, field, valueText) => `
-        <div class="hiit-phase-label hiit-sub-label hiit-prep-cool-item">
-          <div class="hiit-sub-num"><span class="hiit-sub-num-text">${label}</span><span class="hiit-sub-num-unit-spacer">${unit}</span></div>
-          <div class="hiit-phase-speed-row"><span class="hiit-phase-speed" onclick="openCardioMachinePicker(${idx}, '${field}')">${valueText}</span><span class="hiit-sub-unit">${unit}</span></div>
-        </div>`;
+      // HIITの表と同じ並び（時間・傾斜・速度）・同じデザイン。
       // 傾斜・速度は、単発ボタンごとに名前・単位・刻みを変えたり非表示にできる（時間は常に表示）
-      const colItems = ['incline', 'speed'].filter(k => !oneOffHidden(k)).map(k => {
-        const c = oneOffCol(k);
-        return item(escapeHtml(c.name), escapeHtml(c.unit), k, oneOffFmt(k, p[k] || 0));
-      });
+      const planCols = ['time'].concat(['incline', 'speed'].filter(k => !oneOffHidden(k)));
+      const planCell = (k, isLast) => {
+        const field = k === 'time' ? 'minutes' : k;
+        const text = k === 'time' ? String(p.minutes || 1) : oneOffFmt(k, p[k] || 0);
+        const unit = k === 'time' ? '分' : escapeHtml(oneOffCol(k).unit);
+        return `<button type="button" class="hiit-plan-val" onclick="openCardioMachinePicker(${idx}, '${field}')">${text}</button><span class="hiit-plan-unit${isLast ? ' is-last' : ''}" onclick="openCardioMachinePicker(${idx}, '${field}')">${unit}</span>`;
+      };
+      const planHead = planCols.map(k =>
+        `<div class="hiit-plan-h">${k === 'time' ? '時間' : escapeHtml(oneOffCol(k).name)}</div><div class="hiit-plan-h"></div>`).join('');
+      const planGrid = 'minmax(0, 5fr) auto' + planCols.slice(1).map(() => ' minmax(0, 8fr) auto').join('');
       return `
         <div class="cardio-machine-row">
-          <div class="machine-params-top" style="grid-template-columns: repeat(${colItems.length + 1}, 1fr);">
-            ${colItems.join('')}
-            ${item('時間', '分', 'minutes', p.minutes || 1)}
+          <div class="hiit-plan hiit-plan-cardio" style="grid-template-columns: ${planGrid};">
+            ${planHead}${planCols.map((k, i) => planCell(k, i === planCols.length - 1)).join('')}
           </div>
         </div>
       `;
