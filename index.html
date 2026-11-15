@@ -12203,17 +12203,24 @@
     return `<button type="button" class="oneoff-pos-btn" onclick="event.stopPropagation(); cycleOneOffPosition()" title="表示位置を変更（上/真ん中/下）">⇅</button>${edit}`;
   }
   // 単発: 表示位置（上/真ん中/下）を巡回。内容全体（インターバル＋カード＋タイマー）を移動
+  // テストモード中の表示位置（端末には保存しない。テストモード終了で破棄）
+  let adminOneOffPos = null;
+  function loadOneOffPos() {
+    if (isAdminMode && adminOneOffPos) return adminOneOffPos;
+    let pos = 'top';
+    try { pos = localStorage.getItem('wo_oneoff_pos') || 'top'; } catch (e) {}
+    return pos;
+  }
   function cycleOneOffPosition() {
     const order = ['top', 'middle', 'bottom'];
-    let cur = 'top';
-    try { cur = localStorage.getItem('wo_oneoff_pos') || 'top'; } catch (e) {}
+    const cur = loadOneOffPos();
     const next = order[(order.indexOf(cur) + 1) % order.length];
-    try { localStorage.setItem('wo_oneoff_pos', next); } catch (e) {}
+    if (isAdminMode) { adminOneOffPos = next; }
+    else { try { localStorage.setItem('wo_oneoff_pos', next); } catch (e) {} }
     applyOneOffPosition();
   }
   function applyOneOffPosition() {
-    let pos = 'top';
-    try { pos = localStorage.getItem('wo_oneoff_pos') || 'top'; } catch (e) {}
+    let pos = loadOneOffPos();
     if (['top', 'middle', 'bottom'].indexOf(pos) === -1) pos = 'top';
     document.body.classList.remove('oneoff-pos-top', 'oneoff-pos-middle', 'oneoff-pos-bottom');
     document.body.classList.add('oneoff-pos-' + pos);
@@ -12244,13 +12251,13 @@
   }
   function sanitizeQuickButtons(list) {
     if (!Array.isArray(list)) return [];
-    const seen = {};
+    const seen = new Set();
     const out = [];
     list.forEach(b => {
       if (!b || typeof b !== 'object') return;
-      if (typeof b.id !== 'string' || !b.id || seen[b.id]) return;
-      if (!QUICK_TYPES[b.type]) return;
-      seen[b.id] = true;
+      if (typeof b.id !== 'string' || !b.id || seen.has(b.id)) return;
+      if (typeof b.type !== 'string' || !Object.prototype.hasOwnProperty.call(QUICK_TYPES, b.type)) return;
+      seen.add(b.id);
       out.push({
         id: b.id,
         name: normalizeQuickName(b.name) || QUICK_TYPES[b.type].label,
@@ -12262,7 +12269,9 @@
     return out.slice(0, QUICK_BTN_MAX);
   }
   function normalizeQuickName(raw) {
-    return String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim().slice(0, QUICK_NAME_MAX);
+    // 文字単位で数えて切る（絵文字などを途中で切らない）
+    const t = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
+    return Array.from(t).slice(0, QUICK_NAME_MAX).join('').trim();
   }
   // 旧形式（種類ごとに1つ：wo_oneoff_settings）からの引き継ぎ。
   // 一度でも使ったことのある種類だけを、数値ごとボタンにする（旧データは消さずに残す）
@@ -12284,7 +12293,10 @@
     let raw = null;
     try { raw = localStorage.getItem(QUICK_BTN_KEY); } catch (e) { raw = null; }
     if (raw != null) {
-      try { return sanitizeQuickButtons(JSON.parse(raw)); } catch (e) { return []; }
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return sanitizeQuickButtons(parsed);
+      } catch (e) { /* 壊れている時は下の引き継ぎからやり直す */ }
     }
     const list = sanitizeQuickButtons(migrateQuickButtonsFromLegacy());
     // 引き継いだ結果を保存する（テストモード中は端末に書かない）
@@ -12337,6 +12349,7 @@
         timer = null;
         longPressed = true;
         if (navigator.vibrate) navigator.vibrate(10);
+        armQuickModalGuard();
         openQuickMenu(id);
       }, 550);
     });
@@ -12354,14 +12367,45 @@
 
   // ----- 共用モーダル -----
   let quickModalCtx = null;
-  let quickModalOpenedAt = 0;
+  // 長押しでメニューを出した時、その指を離すまで（＋少しの間）はメニュー内のタップを受け付けない。
+  // 受け付けると、指の真下に出た「削除」「閉じる」などを、離した瞬間に押してしまう
+  let quickModalGuard = false;
+  let quickModalGuardTimer = null;
+  let quickModalGuardReady = false;
+  function setupQuickModalGuard() {
+    if (quickModalGuardReady) return;
+    const m = document.getElementById('quickModal');
+    if (!m) return;
+    quickModalGuardReady = true;
+    m.addEventListener('click', e => {
+      if (!quickModalGuard) return;
+      e.stopPropagation();
+      e.preventDefault();
+    }, true);
+    // 新しく触り直した時は、長押しの指はもう離れているので受け付けを戻す
+    m.addEventListener('pointerdown', () => {
+      if (quickModalGuardTimer) { clearTimeout(quickModalGuardTimer); quickModalGuardTimer = null; }
+      quickModalGuard = false;
+    }, true);
+  }
+  function armQuickModalGuard() {
+    setupQuickModalGuard();
+    quickModalGuard = true;
+    if (quickModalGuardTimer) { clearTimeout(quickModalGuardTimer); quickModalGuardTimer = null; }
+    const types = ['pointerup', 'pointercancel', 'touchend', 'touchcancel'];
+    const release = () => {
+      types.forEach(t => window.removeEventListener(t, release, true));
+      if (quickModalGuardTimer) clearTimeout(quickModalGuardTimer);
+      quickModalGuardTimer = setTimeout(() => { quickModalGuard = false; quickModalGuardTimer = null; }, 400);
+    };
+    types.forEach(t => window.addEventListener(t, release, true));
+  }
   function showQuickModal(html) {
     const m = document.getElementById('quickModal');
     const body = document.getElementById('quickModalBody');
     if (!m || !body) return;
     body.innerHTML = html;
     body.scrollTop = 0;
-    quickModalOpenedAt = Date.now();
     m.classList.add('show');
   }
   function closeQuickModal() {
@@ -12377,8 +12421,6 @@
   }
   function quickModalBackdropTap(e) {
     if (!e || !e.target || e.target.id !== 'quickModal') return;
-    // 長押しで開いた直後の指離しでは閉じない
-    if (Date.now() - quickModalOpenedAt < 500) return;
     closeQuickModal();
   }
 
@@ -12513,7 +12555,7 @@
   }
   function oneOffFmt(kind, v) {
     const n = Number(v) || 0;
-    return oneOffCol(kind).step === 1 ? String(Math.round(n)) : n.toFixed(1);
+    return (oneOffCol(kind).step === 1 && Number.isInteger(n)) ? String(n) : n.toFixed(1);
   }
   function openOneOffViewEdit() {
     if (!workoutSession || !workoutSession.oneOff) return;
@@ -12588,6 +12630,9 @@
     const id = workoutSession.oneOffId;
     const ex = workoutSession.exercises && workoutSession.exercises[0];
     if (!type || !id || !ex) return;
+    // 始めた時と今とでテストモードの状態が違う時は保存しない
+    // （テスト中の値を端末に書いたり、本来の値をテスト用のメモリに書いたりしない）
+    if (!!workoutSession.oneOffAdmin !== !!isAdminMode) return;
     const list = loadQuickButtons();
     const btn = list.find(b => b.id === id);
     // ボタンが削除済み・型が違う時は何もしない
@@ -13058,6 +13103,7 @@
     adminSuspendedSnap = null;
     adminBodyWeight = null;
     adminQuickButtons = null;
+    adminOneOffPos = null;
     adminMockLastWeights = null;
     adminMockHistory = null;
     adminSelectedDow = null;
@@ -14125,6 +14171,7 @@
       oneOff: true,                   // finishWorkout はこのフラグで保存をスキップ
       oneOffType: type,
       oneOffId: quickBtn.id,          // 設定の保存先（起動元の単発ボタン）
+      oneOffAdmin: !!isAdminMode,     // テストモードで始めたか（途中でモードが変わったら保存しない）
       oneOffView: quickBtn.view ? quickClone(quickBtn.view) : null,  // 表示設定（項目の名前・単位・非表示）
       date: new Date().toISOString(),
       exercises: [ex]
