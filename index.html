@@ -5149,7 +5149,10 @@
   }
   .hiit-plan-name.is-main { color: var(--text); }
   .hiit-plan-val {
-    display: block;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 2px;
     width: 100%;
     min-width: 0;
     min-height: 0;
@@ -5174,6 +5177,24 @@
     color: var(--accent-text);
     border-color: var(--accent-border);
   }
+  .hiit-plan-num {
+    display: inline-block;
+    min-width: 4ch;
+    text-align: right;
+  }
+  .hiit-plan-time .hiit-plan-num { min-width: 3ch; }
+  .hiit-plan-unit {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--text-3);
+    text-align: left;
+  }
+  .hiit-plan-time .hiit-plan-unit { min-width: 10px; }
+  .hiit-plan-incline .hiit-plan-unit { min-width: 8px; }
+  .hiit-plan-speed .hiit-plan-unit { min-width: 24px; }
+  .hiit-plan-val:active .hiit-plan-unit { color: var(--accent-text); }
   /* 単発HIIT：表の分だけ縦に伸びるので、インターバル以外（カウントダウン・開始ボタン・下のタイマー）を詰める */
   body.oneoff-hiit #exerciseList .hiit-protocol { margin-bottom: 6px; }
   body.oneoff-hiit #exerciseList .hiit-simple-time { min-height: 58px; }
@@ -14971,7 +14992,7 @@
   }
 
   // 単発HIITの表：準備・本番・休憩・終了 ×（時間・傾斜・速度）
-  // 時間は秒で保持し、表では傾斜と同じ数値表記（分・小数点第1位）で見せる。
+  // 時間は秒で保持し、表では整数で見せる（準備・終了＝分、本番・休憩＝秒）。単位は各数値の横に付ける。
   // 本番の時間はカウントダウンの時間と同じ値。00:00 表記はインターバルとタイマーだけ。
   const HIIT_PHASES = [
     { key: 'prep', label: '準備', incline: 'prepIncline', speed: 'prepSpeed',    speedDef: 4.0 },
@@ -14985,17 +15006,21 @@
   function hiitNum(v) {
     return (typeof v === 'number' && isFinite(v)) ? v : null;
   }
-  // 秒 → 分（小数点第1位）。10秒刻みの値はすべて別の数値になる（10秒=0.2、20秒=0.3、30秒=0.5、40秒=0.7、50秒=0.8、60秒=1.0）
-  function hiitSecToMin(sec) {
-    return Math.round(Number(sec) / 6) / 10;
+  // 本番・休憩は10秒刻みなので「秒」、準備・終了は「分」で見せる（どちらも整数）
+  function hiitTimeUnit(phase) {
+    return (phase === 'main' || phase === 'rest') ? '秒' : '分';
   }
-  function hiitSecToMinText(sec) {
-    return hiitSecToMin(sec).toFixed(1);
+  // 保持している秒 → 表に出す整数
+  function hiitTimeShown(phase, sec) {
+    const n = Number(sec) || 0;
+    if (phase === 'main' || phase === 'rest') return Math.round(n);
+    return Math.max(1, Math.round(n / 60));
   }
-  // 分（ピッカーで選んだ値）→ 秒。本番・休憩は10秒刻み、準備・終了は30秒刻みに戻す
-  function hiitMinToSec(phase, min) {
-    const unit = (phase === 'main' || phase === 'rest') ? 10 : 30;
-    return Math.max(unit, Math.round(Number(min) * 60 / unit) * unit);
+  // ピッカーで選んだ整数 → 保持する秒
+  function hiitTimePickToSec(phase, val) {
+    const n = Number(val) || 0;
+    if (phase === 'main' || phase === 'rest') return Math.max(10, Math.round(n / 10) * 10);
+    return Math.max(1, Math.round(n)) * 60;
   }
   function hiitPhaseValue(ex, phase, kind) {
     const p = (ex && ex.protocol) || {};
@@ -15026,18 +15051,13 @@
       if (st && (st.running || st.completed)) return;
       if ((ex.setRecords || []).length >= (ex.protocol.rounds || 8)) return;
     }
-    let step, min, max, unit, customValues;
+    let step, min, max, unit;
     if (kind === 'time') {
-      // 分で選ぶ。本番・休憩は10秒刻みを分に直した一覧、準備・終了は0.5分刻み
-      unit = '分';
-      if (phase === 'main' || phase === 'rest') {
-        const maxSec = phase === 'main' ? 180 : 300;
-        customValues = [];
-        for (let sec = 10; sec <= maxSec; sec += 10) customValues.push(hiitSecToMin(sec));
-        step = 0.1; min = customValues[0]; max = customValues[customValues.length - 1];
-      } else {
-        step = 0.5; min = 0.5; max = 15;
-      }
+      // 整数で選ぶ。本番＝10〜180秒、休憩＝10〜300秒（10秒刻み）、準備・終了＝1〜15分（1分刻み）
+      unit = hiitTimeUnit(phase);
+      if (phase === 'main') { step = 10; min = 10; max = 180; }
+      else if (phase === 'rest') { step = 10; min = 10; max = 300; }
+      else { step = 1; min = 1; max = 15; }
     } else if (kind === 'incline') {
       step = 0.5; min = 0; max = 15; unit = '%';
     } else if (phase === 'main') {
@@ -15046,13 +15066,13 @@
       step = 0.1; min = 1; max = 12; unit = 'km/h';
     }
     let current = hiitPhaseValue(ex, phase, kind);
-    if (kind === 'time') current = hiitSecToMin(current);
+    if (kind === 'time') current = hiitTimeShown(phase, current);
     if (current < min) current = min;
     if (current > max) current = max;
-    pickerContext = { type: 'hiitPhase', exIdx: idx, phase, kind, step, min, max, customValues };
+    pickerContext = { type: 'hiitPhase', exIdx: idx, phase, kind, step, min, max };
     document.getElementById('pickerTitle').textContent = ph.label + '：' + (kind === 'time' ? '時間' : (kind === 'incline' ? '傾斜' : '速度'));
     document.getElementById('pickerUnit').textContent = unit;
-    showPicker(current, step, min, max, undefined, customValues);
+    showPicker(current, step, min, max);
   }
   // val：時間は秒、傾斜・速度はそのままの数値
   function setHiitPhaseValue(idx, phase, kind, val) {
@@ -15131,9 +15151,10 @@
     if (workoutSession.oneOff) {
       const planCell = (ph, kind) => {
         const v = hiitPhaseValue(ex, ph.key, kind);
-        const text = kind === 'time' ? hiitSecToMinText(v) : Number(v).toFixed(1);
+        const text = kind === 'time' ? String(hiitTimeShown(ph.key, v)) : Number(v).toFixed(1);
+        const unit = kind === 'time' ? hiitTimeUnit(ph.key) : (kind === 'incline' ? '%' : 'km/h');
         const idAttr = (ph.key === 'main' && kind === 'time') ? ` id="hiitPlanMainTime-${idx}"` : '';
-        return `<button type="button" class="hiit-plan-val"${idAttr} onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')">${text}</button>`;
+        return `<button type="button" class="hiit-plan-val hiit-plan-${kind}" onclick="openHiitPhasePicker(${idx}, '${ph.key}', '${kind}')"><span class="hiit-plan-num"${idAttr}>${text}</span><span class="hiit-plan-unit">${unit}</span></button>`;
       };
       const planRows = HIIT_PHASES.map(ph => `
             <div class="hiit-plan-name${ph.key === 'main' ? ' is-main' : ''}">${ph.label}</div>
@@ -15142,9 +15163,9 @@
       <div class="hiit-protocol">
         <div class="hiit-plan">
           <div class="hiit-plan-h"></div>
-          <div class="hiit-plan-h">時間（分）</div>
-          <div class="hiit-plan-h">傾斜（％）</div>
-          <div class="hiit-plan-h">速度（km/h）</div>${planRows}
+          <div class="hiit-plan-h">時間</div>
+          <div class="hiit-plan-h">傾斜</div>
+          <div class="hiit-plan-h">速度</div>${planRows}
         </div>
         <div class="hiit-rounds-wrap">
           <div class="hiit-main-row">
@@ -16531,7 +16552,7 @@
         el.classList.remove('done');
       }
       const planEl = document.getElementById(`hiitPlanMainTime-${idx}`);
-      if (planEl) planEl.textContent = hiitSecToMinText(next);
+      if (planEl) planEl.textContent = String(hiitTimeShown('main', next));
     } else {
       renderExerciseList();
     }
@@ -17049,8 +17070,8 @@
       // 単発HIITの表（準備・本番・休憩・終了）の値
       const { exIdx, phase, kind } = pickerContext;
       closePicker();
-      // 時間はピッカーでは分で選ぶので、秒に戻して反映する
-      setHiitPhaseValue(exIdx, phase, kind, kind === 'time' ? hiitMinToSec(phase, val) : val);
+      // 時間はピッカーでは整数（分または秒）で選ぶので、秒に戻して反映する
+      setHiitPhaseValue(exIdx, phase, kind, kind === 'time' ? hiitTimePickToSec(phase, val) : val);
       return;
     } else if (pickerContext.type === 'hiit') {
       const ex = workoutSession.exercises[pickerContext.exIdx];
