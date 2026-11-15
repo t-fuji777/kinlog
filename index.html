@@ -411,6 +411,7 @@
   .quick-col-block .quick-field-label { margin-top: 8px; }
   .quick-col-grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 6px; }
   .quick-col-grid .ex-form-input { padding: 10px 8px; }
+  .quick-col-fixed { grid-column: 2 / 4; align-self: end; font-size: 11px; color: var(--text-3); line-height: 1.5; padding-bottom: 12px; }
   .quick-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
   .quick-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex-shrink: 0; }
   .quick-row-checks { display: flex; gap: 18px; flex-wrap: wrap; }
@@ -12239,6 +12240,7 @@
     other:  { label: 'その他', desc: 'セット数とカウントダウン' }
   };
   const QUICK_COL_DEFAULTS = {
+    time:    { name: '時間', unit: '' },
     incline: { name: '傾斜', unit: '%' },
     speed:   { name: '速度', unit: 'km/h' }
   };
@@ -12600,6 +12602,17 @@
     const colBlock = (kind, no) => {
       const c = oneOffCol(kind);
       const d = QUICK_COL_DEFAULTS[kind];
+      // 時間：名前だけ変えられる（単位の分・秒と刻みは、カウントダウンと連動するので固定）
+      if (kind === 'time') {
+        return `
+      <div class="quick-col-block">
+        <label class="quick-check"><input type="checkbox" id="qv-show-${kind}"${oneOffHidden(kind) ? '' : ' checked'}><span>項目${no}（初期名：${d.name}）を表示する</span></label>
+        <div class="quick-col-grid">
+          <div><div class="quick-field-label">名前</div><input type="text" class="ex-form-input" id="qv-name-${kind}" maxlength="6" autocomplete="off" value="${escapeHtml(c.name)}" placeholder="${escapeHtml(d.name)}"></div>
+          <div class="quick-col-fixed">単位（分・秒）と刻みは固定です</div>
+        </div>
+      </div>`;
+      }
       const stepOpts = [`<option value=""${c.step == null ? ' selected' : ''}>標準</option>`]
         .concat(QUICK_COL_STEPS.map(st => `<option value="${st}"${c.step === st ? ' selected' : ''}>${st}</option>`)).join('');
       return `
@@ -12620,8 +12633,9 @@
       </div>` : '';
     showQuickModal(`
       <h3 class="modal-title">表示の編集</h3>
-      ${colBlock('incline', 1)}
-      ${colBlock('speed', 2)}
+      ${colBlock('time', 1)}
+      ${colBlock('incline', 2)}
+      ${colBlock('speed', 3)}
       <p class="quick-note">刻みを「標準」以外にすると、0〜300の範囲から選べます（負荷・回転数など）。数値はそのまま残ります。</p>
       ${rowChecks}
       <div class="modal-actions">
@@ -12649,15 +12663,23 @@
       return;
     }
     const view = { cols: {}, hide: {} };
-    ['incline', 'speed'].forEach(kind => {
+    // 3項目とも非表示にはできない（表が空になる）
+    if (['time', 'incline', 'speed'].every(kind => !checked('qv-show-' + kind))) {
+      toast('項目は1つ以上表示してください');
+      return;
+    }
+    ['time', 'incline', 'speed'].forEach(kind => {
       const d = QUICK_COL_DEFAULTS[kind];
       const cfg = {};
       const name = val('qv-name-' + kind).replace(/\s+/g, ' ').trim().slice(0, 6);
-      const unit = val('qv-unit-' + kind).replace(/\s+/g, ' ').trim().slice(0, 5);
-      const step = parseFloat(val('qv-step-' + kind));
       if (name && name !== d.name) cfg.name = name;
-      if (unit !== d.unit) cfg.unit = unit;
-      if (QUICK_COL_STEPS.indexOf(step) !== -1) cfg.step = step;
+      // 時間は名前だけ（単位と刻みは固定）
+      if (kind !== 'time') {
+        const unit = val('qv-unit-' + kind).replace(/\s+/g, ' ').trim().slice(0, 5);
+        const step = parseFloat(val('qv-step-' + kind));
+        if (unit !== d.unit) cfg.unit = unit;
+        if (QUICK_COL_STEPS.indexOf(step) !== -1) cfg.step = step;
+      }
       if (Object.keys(cfg).length) view.cols[kind] = cfg;
       if (!checked('qv-show-' + kind)) view.hide[kind] = true;
     });
@@ -15586,7 +15608,7 @@
     if (current < min) current = min;
     if (current > max) current = max;
     pickerContext = { type: 'hiitPhase', exIdx: idx, phase, kind, step, min, max };
-    document.getElementById('pickerTitle').textContent = ph.label + '：' + (kind === 'time' ? '時間' : oneOffCol(kind).name);
+    document.getElementById('pickerTitle').textContent = ph.label + '：' + oneOffCol(kind).name;
     document.getElementById('pickerUnit').textContent = unit;
     showPicker(current, step, min, max);
   }
@@ -15666,7 +15688,8 @@
     // 単発：上に「準備・本番・休憩・終了」×「時間・傾斜・速度」の表、その下にセット枠＋カウントダウン
     if (workoutSession.oneOff) {
       // 表示する項目（時間は常に表示）と行（本番は常に表示）
-      const planCols = ['time'].concat(['incline', 'speed'].filter(k => !oneOffHidden(k)));
+      const planColsShown = ['time', 'incline', 'speed'].filter(k => !oneOffHidden(k));
+      const planCols = planColsShown.length ? planColsShown : ['time'];
       const planPhases = HIIT_PHASES.filter(ph => ph.key === 'main' || !oneOffHidden(ph.key));
       const planCell = (ph, kind, isLast) => {
         const v = hiitPhaseValue(ex, ph.key, kind);
@@ -15679,9 +15702,9 @@
             <div class="hiit-plan-name${ph.key === 'main' ? ' is-main' : ''}">${ph.label}</div>
             ${planCols.map((k, i) => planCell(ph, k, i === planCols.length - 1)).join('')}`).join('');
       const planHead = planCols.map(k =>
-        `<div class="hiit-plan-h">${k === 'time' ? '時間' : escapeHtml(oneOffCol(k).name)}</div><div class="hiit-plan-h"></div>`).join('');
+        `<div class="hiit-plan-h">${escapeHtml(oneOffCol(k).name)}</div><div class="hiit-plan-h"></div>`).join('');
       // 列：名前｜時間の枠・単位｜（傾斜の枠・単位）｜（速度の枠・単位）。時間は狭く、他は同じ幅
-      const planGrid = 'auto minmax(0, 5fr) auto' + planCols.slice(1).map(() => ' minmax(0, 8fr) auto').join('');
+      const planGrid = 'auto' + planCols.map(k => (k === 'time' ? ' minmax(0, 5fr) auto' : ' minmax(0, 8fr) auto')).join('');
       return `
       <div class="hiit-protocol">
         <div class="hiit-plan" style="grid-template-columns: ${planGrid};">
@@ -17110,7 +17133,8 @@
     if (workoutSession.oneOff) {
       // HIITの表と同じ並び（時間・傾斜・速度）・同じ行（準備・本番・休憩・終了）・同じデザイン。
       // 傾斜・速度は名前・単位・刻みを変えたり非表示にでき、行も非表示にできる（本番の行と時間は常に表示）
-      const planCols = ['time'].concat(['incline', 'speed'].filter(k => !oneOffHidden(k)));
+      const planColsShown = ['time', 'incline', 'speed'].filter(k => !oneOffHidden(k));
+      const planCols = planColsShown.length ? planColsShown : ['time'];
       const planPhases = CARDIO_PHASES.filter(ph => ph.key === 'main' || !oneOffHidden(ph.key));
       const planCell = (ph, k, isLast) => {
         const field = ph[k];
@@ -17123,8 +17147,8 @@
             <div class="hiit-plan-name${ph.key === 'main' ? ' is-main' : ''}">${ph.label}</div>
             ${planCols.map((k, i) => planCell(ph, k, i === planCols.length - 1)).join('')}`).join('');
       const planHead = planCols.map(k =>
-        `<div class="hiit-plan-h">${k === 'time' ? '時間' : escapeHtml(oneOffCol(k).name)}</div><div class="hiit-plan-h"></div>`).join('');
-      const planGrid = 'auto minmax(0, 5fr) auto' + planCols.slice(1).map(() => ' minmax(0, 8fr) auto').join('');
+        `<div class="hiit-plan-h">${escapeHtml(oneOffCol(k).name)}</div><div class="hiit-plan-h"></div>`).join('');
+      const planGrid = 'auto' + planCols.map(k => (k === 'time' ? ' minmax(0, 5fr) auto' : ' minmax(0, 8fr) auto')).join('');
       return `
         <div class="cardio-machine-row">
           <div class="hiit-plan hiit-plan-cardio" style="grid-template-columns: ${planGrid};">
@@ -17180,7 +17204,7 @@
       current = cardioPhaseValue(ex.machineProtocol, cph.ph, cph.kind);
       if (cph.kind === 'time') {
         step = 1; min = 1; max = cph.ph.key === 'main' ? 30 : 15;
-        title = cph.ph.label + '：時間'; unit = '分';
+        title = cph.ph.label + '：' + oneOffCol('time').name; unit = '分';
       } else {
         const col = oneOffCol(cph.kind);
         title = cph.ph.label + '：' + col.name; unit = col.unit;
