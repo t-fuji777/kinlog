@@ -12648,13 +12648,15 @@
       if (kind === 'time') {
         const timeRows = QUICK_TIME_ROWS.map(r => {
           const tr = oneOffTimeRow(r[0]);
+          // 「表示する行」でチェックを外している行は、ここにも出さない（本番は常に出す）
+          const rowOff = (r[0] !== 'main' && oneOffHidden(r[0])) ? ' style="display:none"' : '';
           const unitOpts = `<option value="min"${tr.unit === 'min' ? ' selected' : ''}>分</option><option value="sec"${tr.unit === 'sec' ? ' selected' : ''}>秒</option>`;
           const stOpts = [`<option value=""${tr.step == null ? ' selected' : ''}>標準</option>`]
             .concat(QUICK_TIME_STEPS.map(st => `<option value="${st}"${tr.step === st ? ' selected' : ''}>${st}</option>`)).join('');
           return `
-          <div class="quick-time-name">${r[1]}</div>
-          <select class="ex-form-input" id="qv-tu-${r[0]}">${unitOpts}</select>
-          <select class="ex-form-input" id="qv-ts-${r[0]}">${stOpts}</select>`;
+          <div class="quick-time-name qv-trow-${r[0]}"${rowOff}>${r[1]}</div>
+          <select class="ex-form-input qv-trow-${r[0]}" id="qv-tu-${r[0]}"${rowOff}>${unitOpts}</select>
+          <select class="ex-form-input qv-trow-${r[0]}" id="qv-ts-${r[0]}"${rowOff}>${stOpts}</select>`;
         }).join('');
         return `
       <div class="quick-col-block">
@@ -12682,7 +12684,7 @@
       <div class="quick-field-label">表示する行（本番は常に表示）</div>
       <div class="quick-row-checks">
         ${[['prep', '準備'], ['rest', '休憩'], ['cool', '終了']].map(r =>
-          `<label class="quick-check"><input type="checkbox" id="qv-row-${r[0]}"${oneOffHidden(r[0]) ? '' : ' checked'}><span>${r[1]}</span></label>`).join('')}
+          `<label class="quick-check"><input type="checkbox" id="qv-row-${r[0]}"${oneOffHidden(r[0]) ? '' : ' checked'} onchange="syncQuickTimeRows()"><span>${r[1]}</span></label>`).join('')}
       </div>` : '';
     showQuickModal(`
       <h3 class="modal-title">表示の編集</h3>
@@ -12695,6 +12697,16 @@
         <button class="modal-btn" onclick="closeQuickModal()">キャンセル</button>
         <button class="modal-btn primary" onclick="confirmOneOffViewEdit()">保存</button>
       </div>`);
+  }
+  // 編集画面：「表示する行」のチェックに合わせて、項目1（時間）の行ごとの単位・刻みを出し入れする
+  function syncQuickTimeRows() {
+    ['prep', 'rest', 'cool'].forEach(k => {
+      const cb = document.getElementById('qv-row-' + k);
+      const show = !cb || cb.checked;
+      document.querySelectorAll('#quickModalBody .qv-trow-' + k).forEach(el => {
+        el.style.display = show ? '' : 'none';
+      });
+    });
   }
   function confirmOneOffViewEdit() {
     if (!quickModalCtx || quickModalCtx.kind !== 'view') return;
