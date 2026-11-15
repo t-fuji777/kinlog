@@ -12362,10 +12362,16 @@
           const clean = sanitizeQuickButtons(up.list);
           // 置き換えが起きた時だけ保存する。置き換え前の内容は別のキーに一度だけ残す（テストモード中は端末に書かない）
           if (up.changed && !isAdminMode) {
+            // 控えを書けた時（または既にある時）だけ、置き換え後を保存する。
+            // 書けなかった時は保存せず、次に開いた時にもう一度やり直す（画面は置き換え後の内容で動く）
+            let bakOk = false;
             try {
               if (localStorage.getItem(QUICK_BTN_KEY + '_bak_cardio') == null) localStorage.setItem(QUICK_BTN_KEY + '_bak_cardio', raw);
-              localStorage.setItem(QUICK_BTN_KEY, JSON.stringify(clean));
-            } catch (e) {}
+              bakOk = true;
+            } catch (e) { bakOk = false; }
+            if (bakOk) {
+              try { localStorage.setItem(QUICK_BTN_KEY, JSON.stringify(clean)); } catch (e) {}
+            }
           }
           return clean;
         }
@@ -15751,7 +15757,9 @@
       unit = hiitTimeUnit(phase);
       // 標準の上限：本番＝秒なら300秒・分なら60分、休憩＝秒なら300秒・分なら15分、準備・終了＝15分
       const tUnit = oneOffTimeRow(phase).unit;
-      const tr = oneOffTimeRange(phase, phase === 'main' ? (tUnit === 'min' ? 3600 : 300) : (phase === 'rest' ? (tUnit === 'min' ? 900 : 300) : 900));
+      const tCap = phase === 'main' ? (tUnit === 'min' ? 3600 : 300) : (phase === 'rest' ? (tUnit === 'min' ? 900 : 300) : 900);
+      // 今の値が上限より大きい時は、その値まで選べるようにする（開いて決定しただけで値が縮まないように）
+      const tr = oneOffTimeRange(phase, Math.max(tCap, Math.ceil((Number(hiitPhaseValue(ex, phase, 'time')) || 0) / 60) * 60));
       step = tr.step; min = tr.min; max = tr.max;
     } else {
       // 傾斜・速度：名前・単位・刻みは単発ボタンごとに変えられる。刻みが「標準」なら従来の範囲
@@ -17244,10 +17252,23 @@
       else { hi = 300; }
       delta = (delta < 0 ? -1 : 1) * unitStep;
     }
-    let next = cur + delta;
-    next = Math.round(next / unitStep) * unitStep;
-    if (next < lo) next = lo;
-    if (next > hi) next = hi;
+    let next;
+    if (workoutSession && workoutSession.oneOff) {
+      if (delta > 0) {
+        // 上限以上の値は ＋ では変えない（上限まで落とさない）
+        if (cur >= hi) return;
+        next = Math.min(hi, Math.floor(cur / unitStep) * unitStep + unitStep);
+      } else {
+        next = Math.ceil(cur / unitStep) * unitStep - unitStep;
+        // これ以上は減らせない（下限より小さい値を、−で下限まで増やさない）
+        if (next < lo) return;
+      }
+    } else {
+      next = cur + delta;
+      next = Math.round(next / unitStep) * unitStep;
+      if (next < lo) next = lo;
+      if (next > hi) next = hi;
+    }
     if (next === cur) return; // 変化なし
     ex.roundTargetSec = next;
     redoHiitRound(idx);
